@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PharmaPM Pro — Hardened Backbone (Multi-File)</title>
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:32px;max-width:900px;margin:0 auto;color:#171717;background:#fafafa;line-height:1.55}
+  h1{font-size:20px;margin:0 0 6px;letter-spacing:-0.01em}
+  .sub{color:#737373;font-size:13px;margin-bottom:24px}
+  .card{background:#fff;border:1px solid #e5e5e5;border-radius:8px;padding:20px 22px;margin-bottom:14px}
+  .card h2{font-size:14px;margin:0 0 10px;text-transform:uppercase;letter-spacing:0.06em;color:#525252}
+  code,pre{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12.5px;background:#f5f5f5;padding:2px 6px;border-radius:3px}
+  pre{padding:12px 14px;overflow-x:auto;line-height:1.5}
+  .ok{color:#166534;font-weight:500}
+  .err{color:#991b1b;font-weight:500}
+  .warn{color:#854d0e;font-weight:500}
+  button{padding:8px 14px;background:#171717;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;margin-right:8px;margin-bottom:6px}
+  button:hover{background:#262626}
+  #results{margin-top:10px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;white-space:pre-wrap;background:#fafafa;padding:14px;border-radius:6px;border:1px solid #e5e5e5;min-height:40px;max-height:560px;overflow-y:auto}
+  .layer{font-size:11px;color:#737373;text-transform:uppercase;letter-spacing:0.06em;margin-top:14px;margin-bottom:4px;font-weight:600}
+  .fn{font-size:12px;color:#404040;font-family:'JetBrains Mono',monospace}
+  .hardened-tag{display:inline-block;background:#eff8f3;color:#166534;font-size:10px;padding:1px 6px;border-radius:3px;margin-left:6px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase}
+  .file-list{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11.5px;color:#525252;line-height:1.7}
+</style>
+</head>
+<body>
+
+<h1>PharmaPM Pro — Multi-File Hardened Backbone <span class="hardened-tag">Phase 1 + Split</span></h1>
+<div class="sub">Same Phase 1 hardening as before, now physically split into ~23 module files. Open this file via a local web server (or directly via file:// in browsers that allow it). Click "Run all tests" to verify nothing broke during the split.</div>
+
+<div class="card">
+  <h2>Verification</h2>
+  <button onclick="runTests()">Run all tests</button>
+  <button onclick="inspectAPI()">Inspect public APIs</button>
+  <button onclick="inspectSchema()">Inspect schema v1</button>
+  <button onclick="inspectConfig()">Inspect config rules</button>
+  <button onclick="quickSample()">Build sample project</button>
+  <button onclick="testWizardIsolated()" style="background:#2563eb">Test wizard (isolated)</button>
+  <div id="results">Click "Run all tests" to verify the multi-file backbone behaves identically to the single-file version.</div>
+</div>
+
+<div class="card">
+  <h2>File structure</h2>
+  <div class="file-list">
+    src/ppm.js                           — root namespace<br>
+    src/config/rules.js                  — PPM.config<br>
+    src/schema/schema.js                 — PPM.schema<br>
+    src/schema/migrations.js             — PPM.migrations<br>
+    src/domain/dates.js                  — PPM.domain.dates<br>
+    src/domain/scheduling.js             — PPM.domain.scheduling<br>
+    src/domain/risk.js                   — PPM.domain.risk<br>
+    src/domain/budget.js                 — PPM.domain.budget<br>
+    src/domain/documents.js              — PPM.domain.documents<br>
+    src/domain/milestones.js             — PPM.domain.milestones<br>
+    src/domain/health.js                 — PPM.domain.health<br>
+    src/domain/validation.js             — PPM.domain.validation<br>
+    src/adapters/storage.js              — PPM.adapters.storage<br>
+    src/adapters/exporter.js             — PPM.adapters.exporter<br>
+    src/adapters/printer.js              — PPM.adapters.printer<br>
+    src/services/events.js               — PPM.events<br>
+    src/services/projectService.js       — PPM.services.projectService<br>
+    src/services/editService.js          — PPM.services.editService<br>
+    src/services/lifecycleService.js     — PPM.services.lifecycleService<br>
+    src/services/commentService.js       — PPM.services.commentService<br>
+    src/services/reportService.js        — PPM.services.reportService<br>
+    src/ui/icons.js                      — PPM.ui.icons<br>
+    src/ui/toast.js                      — PPM.ui.toast<br>
+    src/ui/router.js                     — PPM.ui.router<br>
+    src/ui/banner.js                     — PPM.ui.banner<br>
+    src/ui/welcome.js                    — PPM.ui.welcome<br>
+    src/ui/shell.js                      — PPM.ui.shell<br>
+    src/ui/boot.js                       — page-load decision (welcome vs shell)<br>
+    src/test/test.js                     — PPM.test.runAll()<br>
+    src/ui/verification.js               — verification buttons (this page only)<br>
+  </div>
+</div>
+
+<!-- ============================================================================
+     SCRIPT LOADING ORDER
+     Classic <script> tags in strict dependency order.
+     Each module attaches to window.PPM.* and is frozen via Object.freeze().
+     If you reorder these, things break. The order matches the dependency rules
+     defined in PROD-002B_Implementation_Reconciliation_v1.0.md section C.
+     ============================================================================ -->
+
+<!-- 1. Root namespace (must be first) -->
+<script src="src/ppm.js"></script>
+
+<!-- 2. Config (no dependencies, but consumed by domain) -->
+<script src="src/config/rules.js"></script>
+
+<!-- 3. Schema (depends on nothing; consumed by adapters/services) -->
+<script src="src/schema/schema.js"></script>
+
+<!-- 4. Migrations (depends on schema) -->
+<script src="src/schema/migrations.js"></script>
+
+<!-- 5. Domain layer (pure logic). Order within domain: dates first, then siblings -->
+<script src="src/domain/dates.js"></script>
+<script src="src/domain/scheduling.js"></script>
+<script src="src/domain/risk.js"></script>
+<script src="src/domain/budget.js"></script>
+<script src="src/domain/documents.js"></script>
+<script src="src/domain/milestones.js"></script>
+<script src="src/domain/health.js"></script>
+<script src="src/domain/validation.js"></script>
+
+<!-- 6. Adapters (depend on schema + domain.validation) -->
+<script src="src/adapters/storage.js"></script>
+<script src="src/adapters/exporter.js"></script>
+<script src="src/adapters/printer.js"></script>
+
+<!-- 7. Services. events first (pub/sub), then projectService, then editService,
+     then lifecycleService (depends on editService), then comment + report -->
+<script src="src/services/events.js"></script>
+<script src="src/services/projectService.js"></script>
+<script src="src/services/editService.js"></script>
+<script src="src/services/lifecycleService.js"></script>
+<script src="src/services/commentService.js"></script>
+<script src="src/services/reportService.js"></script>
+<script src="src/services/viewService.js"></script>
+
+<!-- 8. Test harness -->
+<script src="src/test/test.js"></script>
+
+<!-- 9. UI modules — needed for testWizardIsolated() button -->
+<script src="src/ui/icons.js"></script>
+<script src="src/ui/toast.js"></script>
+<script src="src/ui/router.js"></script>
+<script src="src/ui/banner.js"></script>
+<script src="src/ui/welcome.js"></script>
+<script src="src/ui/wizard.js"></script>
+<script src="src/ui/shell.js"></script>
+
+<!-- 10. Verification UI for THIS page only -->
+<script src="src/ui/verification.js"></script>
+
+<!-- Wizard CSS for isolated test -->
+<link rel="stylesheet" href="src/ui/styles.css">
+<link rel="stylesheet" href="src/ui/wizardStyles.css">
+
+<script>
+/* Isolated wizard test — opens the wizard directly, bypasses welcome→shell flow.
+   On commit, instead of auto-opening shell, dumps the created state to results panel
+   so we can verify what the wizard produced. */
+function testWizardIsolated(){
+  // Clear any existing state via service. ARCHITECTURE: no direct adapter calls.
+  PPM.services.projectService.reset();
+
+  // Subscribe once to project:created to capture and display result
+  var oneShotHandler = function(state){
+    PPM.events.off('project:created', oneShotHandler);
+    var out = document.getElementById('results');
+    var summary =
+      '✓ Wizard test complete. Created project:\n\n' +
+      'projectId: ' + state.projectId + '\n' +
+      'lifecycle: ' + state.lifecycle + '\n' +
+      'schemaVersion: ' + state.schemaVersion + '\n' +
+      'name: ' + state.meta.name + '\n' +
+      'system: ' + state.meta.system + '\n' +
+      'methodology: ' + state.meta.methodology + '\n' +
+      'goLive: ' + state.meta.goLive + '\n' +
+      'pm: ' + state.meta.pm + '\n' +
+      'gxpLevel: ' + state.meta.gxpLevel + '\n' +
+      'migration: ' + state.meta.migration + '\n' +
+      'integrations: ' + state.meta.integrations + ' (count: ' + state.meta.integrationCount + ')\n' +
+      'decommissioning: ' + state.meta.decommissioning + '\n' +
+      'vendorPkg: ' + state.meta.vendorPkg + '\n\n' +
+      'Auto-generated:\n' +
+      '  ' + state.milestones.length + ' milestones\n' +
+      '  ' + state.documents.length + ' documents\n' +
+      '  ' + state.costs.length + ' cost rows\n' +
+      '  ' + state.team.length + ' team members\n\n' +
+      'createdAt: ' + state.createdAt + '\n' +
+      'updatedAt: ' + state.updatedAt + '\n';
+    document.getElementById('results').textContent = summary;
+    // Reset via service. No direct adapter calls.
+    PPM.services.projectService.reset();
+  };
+  PPM.events.on('project:created', oneShotHandler);
+
+  document.getElementById('results').textContent = 'Wizard opened. Complete the 4 steps. Result will appear here on Create.';
+  PPM.ui.wizard.open();
+}
+</script>
+
+</body>
+</html>

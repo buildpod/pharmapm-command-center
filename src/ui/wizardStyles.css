@@ -1,0 +1,437 @@
+/* ============================================================================
+   File: src/ui/wizardStyles.css
+   Wizard-specific styles. Loaded after styles.css. 40px comfortable density.
+   ============================================================================ */
+
+/* === WIZARD OVERLAY ===================================================== */
+.ppm-wizard {
+  position: fixed;
+  inset: 0;
+  background: var(--surface);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ppm-wizard-header {
+  display: flex;
+  align-items: center;
+  padding: 14px 24px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  gap: 20px;
+}
+.ppm-wizard-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.015em;
+  color: var(--text);
+  width: 180px;
+  flex-shrink: 0;
+}
+.ppm-wizard-steps {
+  flex: 1;
+  display: flex;
+  gap: 5px;
+  max-width: 520px;
+  margin: 0 auto;
+}
+.ppm-wizard-step {
+  flex: 1;
+  height: 3px;
+  background: var(--gray-200);
+  border-radius: 2px;
+  transition: background .3s ease;
+}
+.ppm-wizard-step-active { background: var(--accent-link); }
+.ppm-wizard-step-complete { background: var(--green); }
+
+.ppm-wizard-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 40px 24px;
+}
+
+.ppm-wizard-container {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.ppm-wizard-step-label {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--accent-link);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+  padding: 3px 9px;
+  background: var(--accent-soft);
+  border-radius: var(--r-sm);
+}
+
+.ppm-wizard-title {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin-bottom: 10px;
+  line-height: 1.25;
+}
+
+.ppm-wizard-desc {
+  font-size: 13.5px;
+  color: var(--text-2);
+  line-height: 1.55;
+  margin-bottom: 24px;
+  max-width: 540px;
+  font-weight: 450;
+}
+
+/* === WIZARD CARDS ======================================================= */
+.ppm-wizard-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 20px 22px;
+  margin-bottom: 14px;
+}
+
+.ppm-wizard-card-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--text);
+  letter-spacing: -0.005em;
+}
+
+/* === WIZARD FIELDS ====================================================== */
+.ppm-wizard-field {
+  margin-bottom: 16px;
+}
+.ppm-wizard-field:last-child { margin-bottom: 0; }
+
+.ppm-wizard-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--text);
+  margin-bottom: 5px;
+  letter-spacing: -0.005em;
+}
+.ppm-required {
+  color: var(--red);
+  margin-left: 2px;
+}
+
+.ppm-wizard-input,
+.ppm-wizard-select {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--bg);
+  outline: none;
+  transition: all .12s ease;
+  color: var(--text);
+  height: 40px;  /* comfortable 40px density */
+}
+.ppm-wizard-input:hover,
+.ppm-wizard-select:hover {
+  border-color: var(--border-strong);
+}
+.ppm-wizard-input:focus,
+.ppm-wizard-select:focus {
+  border-color: var(--accent-link);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.ppm-wizard-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23737373' d='M5 7L1.5 3.5h7z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 30px;
+}
+
+.ppm-wizard-help {
+  font-size: 11.5px;
+  color: var(--text-3);
+  margin-top: 5px;
+  line-height: 1.45;
+  font-weight: 450;
+}
+
+.ppm-wizard-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+/* === WIZARD TOGGLES (Step 2) ============================================ */
+.ppm-wizard-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+  gap: 16px;
+}
+.ppm-wizard-toggle-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.ppm-wizard-toggle-row:first-child {
+  padding-top: 0;
+}
+.ppm-wizard-toggle-info {
+  flex: 1;
+  min-width: 0;
+}
+.ppm-wizard-toggle-label {
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--text);
+  margin-bottom: 3px;
+  letter-spacing: -0.005em;
+}
+.ppm-wizard-toggle-help {
+  font-size: 11.5px;
+  color: var(--text-3);
+  line-height: 1.45;
+  font-weight: 450;
+}
+
+.ppm-seg {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--bg);
+  flex-shrink: 0;
+  height: 34px;
+}
+.ppm-seg-btn {
+  padding: 0 14px;
+  background: var(--bg);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
+  transition: all .12s ease;
+  white-space: nowrap;
+  border: none;
+}
+.ppm-seg-btn:hover { background: var(--surface); }
+.ppm-seg-btn-active {
+  background: var(--gray-900);
+  color: #fff;
+  font-weight: 550;
+}
+.ppm-seg-btn:not(:last-child) {
+  border-right: 1px solid var(--border);
+}
+.ppm-seg-btn-active:not(:last-child) {
+  border-right-color: var(--gray-900);
+}
+
+.ppm-wizard-conditional {
+  margin-top: 14px;
+  padding: 14px 0 0 0;
+  border-top: 1px solid var(--border);
+}
+
+/* === MINI TABLE (Step 3) ================================================ */
+.ppm-mini-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.ppm-mini-table th {
+  text-align: left;
+  padding: 6px 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border);
+}
+.ppm-mini-table td { padding: 3px; }
+.ppm-mini-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  font-family: inherit;
+  background: var(--bg);
+  color: var(--text);
+  height: 32px;
+}
+.ppm-mini-input:focus {
+  outline: none;
+  border-color: var(--accent-link);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.ppm-mini-btn-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-3);
+  font-size: 14px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .12s ease;
+}
+.ppm-mini-btn-icon:hover {
+  background: var(--red-bg);
+  color: var(--red);
+  border-color: var(--red);
+}
+
+.ppm-add-row-btn {
+  width: 100%;
+  padding: 9px;
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-md);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-3);
+  transition: all .12s ease;
+  margin-top: 6px;
+}
+.ppm-add-row-btn:hover {
+  border-color: var(--accent-link);
+  color: var(--accent-link);
+  background: var(--accent-soft);
+  border-style: solid;
+}
+
+/* === REVIEW (Step 4) ==================================================== */
+.ppm-wizard-summary {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-lg);
+  padding: 18px 22px;
+  margin-bottom: 14px;
+}
+.ppm-wizard-summary-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent-button-hover);
+  margin-bottom: 12px;
+  letter-spacing: -0.01em;
+}
+.ppm-wizard-summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 24px;
+  font-size: 12.5px;
+}
+.ppm-wizard-summary-item {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-2);
+}
+.ppm-wizard-summary-item strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.ppm-wizard-warnings {
+  background: var(--amber-bg);
+  border: 1px solid rgba(217,119,6,0.2);
+  border-radius: var(--r-lg);
+  padding: 14px 18px;
+  margin-bottom: 14px;
+}
+.ppm-wizard-warnings-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--amber-text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+.ppm-wizard-warnings-title svg { width: 14px; height: 14px; color: var(--amber); }
+.ppm-wizard-warning-item {
+  font-size: 12.5px;
+  color: var(--amber-text);
+  padding: 4px 0;
+  font-weight: 450;
+}
+
+.ppm-wizard-stats-card {
+  background: var(--surface);
+}
+.ppm-wizard-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 16px;
+}
+.ppm-wizard-stat-value {
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+}
+.ppm-wizard-stat-label {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+/* === WIZARD FOOTER ====================================================== */
+.ppm-wizard-footer {
+  padding: 14px 24px;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ppm-wizard-footer .ppm-btn-tool {
+  height: 38px;
+  padding: 0 18px;
+  font-size: 13px;
+  font-weight: 550;
+}
+.ppm-wizard-footer .ppm-btn-tool:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+}
+
+/* === RESPONSIVE ========================================================= */
+@media (max-width: 768px) {
+  .ppm-wizard-header { padding: 12px 16px; gap: 12px; }
+  .ppm-wizard-brand { width: auto; font-size: 13px; }
+  .ppm-wizard-brand span:not(.ppm-brand-mark):not(.ppm-brand-mark-light) { display: none; }
+  .ppm-wizard-body { padding: 24px 16px; }
+  .ppm-wizard-row { grid-template-columns: 1fr; }
+  .ppm-wizard-summary-grid { grid-template-columns: 1fr; }
+  .ppm-wizard-toggle-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .ppm-wizard-footer { padding: 12px 16px; }
+}

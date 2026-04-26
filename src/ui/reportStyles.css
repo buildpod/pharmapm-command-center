@@ -1,0 +1,576 @@
+/* ============================================================================
+   File: src/ui/reportStyles.css
+   Dashboard + SteerCo report styles. Loaded after gridStyles.css.
+   ============================================================================ */
+
+/* === DASHBOARD ========================================================== */
+.ppm-dashboard {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* === KPI ROW ============================================================ */
+.ppm-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+}
+.ppm-kpi-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 12px 14px;
+  position: relative;
+  overflow: hidden;
+}
+.ppm-kpi-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+.ppm-kpi-value {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 3px;
+}
+.ppm-kpi-sub {
+  font-size: 11px;
+  color: var(--text-3);
+  font-weight: 450;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ppm-kpi-bar {
+  margin-top: 8px;
+  height: 4px;
+  background: var(--gray-200);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.ppm-kpi-bar-fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 2px;
+  transition: width .3s ease;
+}
+.ppm-kpi-accent-green { border-left: 3px solid var(--green); }
+.ppm-kpi-accent-amber { border-left: 3px solid var(--amber); }
+.ppm-kpi-accent-red   { border-left: 3px solid var(--red); }
+.ppm-kpi-accent-amber .ppm-kpi-bar-fill { background: var(--amber); }
+.ppm-kpi-accent-red   .ppm-kpi-bar-fill { background: var(--red); }
+
+/* === DASHBOARD GRID (2 columns: milestones + risks) ===================== */
+.ppm-dashboard-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 14px;
+}
+
+/* === GENERIC CARD ======================================================= */
+.ppm-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+.ppm-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.ppm-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+.ppm-card-meta {
+  font-size: 11px;
+  color: var(--text-3);
+  font-weight: 450;
+}
+.ppm-card-empty {
+  padding: 32px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+/* === MILESTONE PROGRESS ROWS ============================================ */
+.ppm-mp-list { display: flex; flex-direction: column; }
+.ppm-mp-row {
+  display: grid;
+  grid-template-columns: 6px 1fr 120px 50px 100px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.ppm-mp-row:last-child { border-bottom: none; }
+.ppm-mp-rag {
+  width: 6px;
+  height: 28px;
+  border-radius: 3px;
+}
+.ppm-mp-rag-green { background: var(--green); }
+.ppm-mp-rag-amber { background: var(--amber); }
+.ppm-mp-rag-red   { background: var(--red); }
+.ppm-mp-info { min-width: 0; }
+.ppm-mp-name {
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ppm-mp-meta {
+  font-size: 10.5px;
+  color: var(--text-3);
+  margin-top: 2px;
+  font-weight: 450;
+}
+.ppm-mp-bar {
+  height: 5px;
+  background: var(--gray-200);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.ppm-mp-bar-fill { height: 100%; border-radius: 3px; transition: width .25s ease; }
+.ppm-mp-bar-green { background: var(--green); }
+.ppm-mp-bar-amber { background: var(--amber); }
+.ppm-mp-bar-red   { background: var(--red); }
+.ppm-mp-pct {
+  font-size: 11px;
+  color: var(--text-2);
+  font-weight: 500;
+}
+
+/* === TOP RISKS ========================================================== */
+.ppm-tr-list { display: flex; flex-direction: column; }
+.ppm-tr-row {
+  display: grid;
+  grid-template-columns: 50px 1fr 100px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.ppm-tr-row:last-child { border-bottom: none; }
+.ppm-tr-info { min-width: 0; }
+.ppm-tr-desc {
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ppm-tr-meta {
+  font-size: 10.5px;
+  color: var(--text-3);
+  margin-top: 2px;
+  font-weight: 450;
+}
+
+/* === VENDOR BURN ======================================================== */
+.ppm-vb-list { display: flex; flex-direction: column; }
+.ppm-vb-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 50px 1fr;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.ppm-vb-row:last-child { border-bottom: none; }
+.ppm-vb-vendor { min-width: 0; }
+.ppm-vb-name {
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ppm-vb-type {
+  font-size: 10.5px;
+  color: var(--text-3);
+  margin-top: 2px;
+  font-weight: 450;
+}
+.ppm-vb-bar {
+  height: 6px;
+  background: var(--gray-200);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.ppm-vb-bar-fill { height: 100%; border-radius: 3px; transition: width .25s ease; }
+.ppm-vb-bar-green { background: var(--green); }
+.ppm-vb-bar-amber { background: var(--amber); }
+.ppm-vb-bar-red   { background: var(--red); }
+.ppm-vb-pct { font-size: 11.5px; font-weight: 600; color: var(--text-2); }
+.ppm-vb-amounts {
+  font-size: 11.5px;
+  color: var(--text-2);
+  text-align: right;
+  font-weight: 500;
+}
+.ppm-vb-of { color: var(--text-3); font-weight: 450; }
+
+/* === STEERCO ============================================================ */
+.ppm-steerco-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.ppm-steerco-toolbar-hint {
+  font-size: 11.5px;
+  color: var(--text-3);
+  font-weight: 450;
+}
+
+.ppm-steerco-page {
+  background: #fff;
+  max-width: 800px;
+  margin: 24px auto;
+  padding: 28px 36px 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+/* SteerCo header */
+.ppm-sc-header { margin-bottom: 22px; }
+.ppm-sc-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-bottom: 2px solid var(--gray-900);
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+.ppm-sc-eyebrow {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 4px;
+}
+.ppm-sc-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  margin: 0;
+  color: var(--text);
+  line-height: 1.2;
+}
+.ppm-sc-report-date { text-align: right; }
+.ppm-sc-date {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.ppm-sc-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px 18px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.ppm-sc-meta-cell { min-width: 0; }
+.ppm-sc-meta-label {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 2px;
+}
+.ppm-sc-meta-value {
+  font-size: 12px;
+  color: var(--text);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* SteerCo sections */
+.ppm-sc-section { margin-top: 22px; page-break-inside: avoid; }
+.ppm-sc-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 10px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--gray-300);
+  color: var(--text);
+}
+.ppm-sc-empty {
+  padding: 14px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 11.5px;
+  background: var(--surface);
+  border-radius: var(--r-sm);
+}
+
+/* Executive summary */
+.ppm-sc-summary { page-break-inside: avoid; }
+.ppm-sc-health-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.ppm-sc-health-reason {
+  font-size: 12px;
+  color: var(--text-2);
+  font-weight: 450;
+}
+.ppm-sc-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px dashed var(--border);
+}
+.ppm-sc-stat { text-align: center; }
+.ppm-sc-stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.ppm-sc-stat-label {
+  font-size: 10px;
+  color: var(--text-3);
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+/* Milestone panels */
+.ppm-sc-ms-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.ppm-sc-ms-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.ppm-sc-ms-green  { border-top: 3px solid var(--green); }
+.ppm-sc-ms-amber  { border-top: 3px solid var(--amber); }
+.ppm-sc-ms-gray   { border-top: 3px solid var(--gray-400); }
+.ppm-sc-ms-panel-header {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-2);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ppm-sc-ms-count {
+  display: inline-block;
+  background: var(--gray-200);
+  color: var(--text);
+  padding: 1px 7px;
+  border-radius: 9px;
+  font-size: 10.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 18px;
+  text-align: center;
+}
+.ppm-sc-ms-list { padding: 8px; }
+.ppm-sc-ms-item {
+  padding: 6px 8px;
+  border-bottom: 1px dashed var(--border);
+  font-size: 11px;
+}
+.ppm-sc-ms-item:last-child { border-bottom: none; }
+.ppm-sc-ms-name { font-weight: 500; color: var(--text); margin-bottom: 1px; }
+.ppm-sc-ms-meta { font-size: 10px; color: var(--text-3); font-weight: 450; }
+.ppm-sc-ms-dates { font-size: 10px; color: var(--text-3); margin-top: 1px; font-variant-numeric: tabular-nums; }
+.ppm-sc-ms-empty { padding: 14px; text-align: center; font-size: 11px; color: var(--text-4); }
+.ppm-sc-ms-more { padding: 6px 8px; font-size: 10.5px; color: var(--text-3); font-style: italic; text-align: center; }
+
+/* Risks table */
+.ppm-sc-risks-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+.ppm-sc-risks-table th {
+  text-align: left;
+  padding: 7px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-2);
+}
+.ppm-sc-risks-table td {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  vertical-align: top;
+}
+.ppm-sc-risks-score { width: 50px; text-align: center; }
+
+/* Decisions */
+.ppm-sc-decisions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ppm-sc-decision {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--border);
+}
+.ppm-sc-decision-num {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-3);
+  min-width: 18px;
+}
+.ppm-sc-decision-input {
+  flex: 1;
+  padding: 6px 8px;
+  border: none;
+  border-bottom: 1px solid var(--gray-300);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  outline: none;
+}
+.ppm-sc-decision-input:focus {
+  border-bottom-color: var(--accent-link);
+  background: var(--accent-soft);
+}
+
+/* Sign-off */
+.ppm-sc-signoff { margin-top: 32px; }
+.ppm-sc-signoff-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+.ppm-sc-signoff-block {
+  border-top: 1px solid var(--gray-300);
+  padding-top: 12px;
+}
+.ppm-sc-signoff-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+  margin-bottom: 6px;
+}
+.ppm-sc-signoff-name {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 24px;
+}
+.ppm-sc-signoff-line {
+  border-bottom: 1px solid var(--gray-400);
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  font-size: 9.5px;
+  color: var(--text-3);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* === RESPONSIVE ========================================================= */
+@media (max-width: 1100px) {
+  .ppm-kpi-row { grid-template-columns: repeat(3, 1fr); }
+  .ppm-dashboard-grid { grid-template-columns: 1fr; }
+  .ppm-sc-meta-grid { grid-template-columns: repeat(2, 1fr); }
+  .ppm-sc-stats { grid-template-columns: repeat(3, 1fr); }
+  .ppm-sc-ms-grid { grid-template-columns: 1fr; }
+  .ppm-sc-signoff-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .ppm-kpi-row { grid-template-columns: repeat(2, 1fr); }
+  .ppm-mp-row { grid-template-columns: 4px 1fr 60px 80px; }
+  .ppm-mp-row .ppm-status-badge { display: none; }
+  .ppm-vb-row { grid-template-columns: 1fr 1fr; }
+  .ppm-vb-bar, .ppm-vb-pct { display: none; }
+  .ppm-sc-stats { grid-template-columns: repeat(2, 1fr); }
+  .ppm-steerco-page { margin: 12px; padding: 16px; }
+}
+
+/* === PRINT (SteerCo) ==================================================== */
+@media print {
+  .ppm-steerco-toolbar { display: none !important; }
+  .ppm-steerco-page {
+    margin: 0;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+    max-width: none;
+    font-size: 10.5pt;
+  }
+  .ppm-sc-section { page-break-inside: avoid; }
+  .ppm-sc-section-title { font-size: 11.5pt; }
+  .ppm-sc-title { font-size: 18pt; }
+  .ppm-sc-stat-value { font-size: 14pt; }
+  .ppm-sc-decision-input { border-bottom-color: var(--gray-500); }
+  /* Force traffic-light colors in print */
+  .ppm-health-pill, .ppm-status-badge,
+  .ppm-mp-bar-fill, .ppm-vb-bar-fill, .ppm-mp-rag,
+  .ppm-sc-ms-green, .ppm-sc-ms-amber, .ppm-sc-ms-red {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  @page { margin: 1.5cm; size: A4 portrait; }
+}
