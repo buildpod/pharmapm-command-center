@@ -144,7 +144,7 @@
       riskStatus: ['Open', 'Monitoring', 'Closed', 'Escalated'],
       riskCategory: ['Technical', 'Resource', 'Regulatory', 'Vendor', 'Timeline', 'Budget', 'Scope', 'External'],
       riskResponse: ['Mitigate', 'Transfer', 'Accept', 'Avoid', 'Escalate'],
-      docStatus: ['Not Started', 'In Draft', 'In Review', 'Approved', 'N/A'],
+      docStatus: ['Not Started', 'In Draft', 'In Review', 'Reviewed', 'In Approval', 'Approved', 'Rejected', 'N/A'],
       docApplicability: ['Required', 'Optional', 'N/A'],
       docCategory: ['Validation', 'Migration', 'Integration', 'Training', 'Governance', 'Decommissioning'],
       costType: ['Implementation', 'Validation', 'Integration', 'Migration', 'Training', 'License', 'Internal'],

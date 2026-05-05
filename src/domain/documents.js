@@ -69,7 +69,35 @@
     return docs;
   }
 
+  // Returns a human-readable string indicating who the document is currently
+  // pending with, based on the two-cycle pharma workflow:
+  //   Not Started / In Draft -> owner (or '—')
+  //   In Review               -> reviewers (or owner if no reviewers set)
+  //   Reviewed                -> owner (must submit for approval)
+  //   In Approval             -> approvers (or owner if no approvers set)
+  //   Approved / Rejected / N/A -> '—'
+  // Pure. Used by viewService.enrichRow for the _pendingWith computed column.
+  function computePendingWith(doc){
+    if(!doc) return '—';
+    var st = doc.status;
+    if(st === 'Approved' || st === 'N/A' || st === 'Rejected') return '—';
+    var reviewers = (doc.reviewers || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+    var approvers = (doc.approvers || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+    if(st === 'In Review'){
+      if(reviewers.length > 0) return reviewers.join(', ');
+      return doc.owner || '—';
+    }
+    if(st === 'In Approval'){
+      if(approvers.length > 0) return approvers.join(', ');
+      return doc.owner || '—';
+    }
+    // Not Started, In Draft, Reviewed -> owner is responsible
+    if(doc.owner) return doc.owner;
+    return '—';
+  }
+
   PPM.domain.documents = Object.freeze({
-    generateDocList: generateDocList
+    generateDocList:    generateDocList,
+    computePendingWith: computePendingWith
   });
 })();

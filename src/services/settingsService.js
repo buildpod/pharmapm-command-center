@@ -84,6 +84,34 @@
     return { ok:true, holidays: state.settings.holidays.slice() };
   }
 
+  // Bulk-add holidays from a country preset. Skips duplicates and invalid dates.
+  // Triggers a single cascade after all dates are added (efficient when adding 10-20 at once).
+  // Returns { ok, addedCount, skippedCount, holidays, error? }.
+  function addHolidays(isoDates){
+    var state = PPM.services.projectService.getState();
+    if(!state) return { ok:false, error:'No project loaded' };
+    if(!Array.isArray(isoDates)) return { ok:false, error:'Expected an array of ISO dates' };
+    state.settings.holidays = state.settings.holidays || [];
+    var added = 0;
+    var skipped = 0;
+    isoDates.forEach(function(d){
+      if(!PPM.domain.dates.isValidISO(d)){ skipped++; return; }
+      if(state.settings.holidays.indexOf(d) >= 0){ skipped++; return; }
+      state.settings.holidays.push(d);
+      added++;
+    });
+    state.settings.holidays.sort();
+    if(added > 0){
+      _commit(state, true);
+    }
+    return {
+      ok: true,
+      addedCount: added,
+      skippedCount: skipped,
+      holidays: state.settings.holidays.slice()
+    };
+  }
+
   function setTimezone(tz){
     var state = PPM.services.projectService.getState();
     if(!state) return { ok:false, error:'No project loaded' };
@@ -97,6 +125,7 @@
     getSettings:    getSettings,
     setWorkingDays: setWorkingDays,
     addHoliday:     addHoliday,
+    addHolidays:    addHolidays,
     removeHoliday:  removeHoliday,
     setTimezone:    setTimezone
   });

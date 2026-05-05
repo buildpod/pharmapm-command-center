@@ -416,6 +416,20 @@
           '</div>' +
           '<div class="ppm-settings-section">' +
             '<div class="ppm-settings-section-label">Holidays</div>' +
+            '<div class="ppm-settings-country-add">' +
+              '<select id="ppm-settings-country-select" class="ppm-settings-country-select">' +
+                '<option value="">Add holidays from country…</option>' +
+                PPM.data.countryHolidays.getCountries().map(function(c){
+                  return '<option value="' + _escape(c.code) + '">' + _escape(c.name) + '</option>';
+                }).join('') +
+              '</select>' +
+              '<select id="ppm-settings-country-year" class="ppm-settings-country-year">' +
+                '<option value="2026">2026</option>' +
+                '<option value="2027">2027</option>' +
+                '<option value="">2026 + 2027</option>' +
+              '</select>' +
+              '<button class="ppm-btn-tool" id="ppm-settings-country-add-btn">Add</button>' +
+            '</div>' +
             '<div class="ppm-settings-holiday-add">' +
               '<input type="date" id="ppm-settings-holiday-input" class="ppm-settings-holiday-input">' +
               '<button class="ppm-btn-tool" id="ppm-settings-holiday-add-btn">Add holiday</button>' +
@@ -479,6 +493,32 @@
           return;
         }
         PPM.ui.toast.show('Holiday added — schedule recalculated', 'success', 2500);
+        reopen();
+      });
+    }
+
+    // Country preset add (FRS-005d v1.1)
+    var countryAddBtn = document.getElementById('ppm-settings-country-add-btn');
+    var countrySelect = document.getElementById('ppm-settings-country-select');
+    var yearSelect    = document.getElementById('ppm-settings-country-year');
+    if(countryAddBtn && countrySelect){
+      countryAddBtn.addEventListener('click', function(){
+        var code = countrySelect.value;
+        if(!code){ PPM.ui.toast.show('Pick a country first', 'info'); return; }
+        var year = yearSelect ? yearSelect.value : '';
+        var dates = PPM.data.countryHolidays.getHolidays(code, year || null);
+        if(dates.length === 0){
+          PPM.ui.toast.show('No holidays found for that country', 'info');
+          return;
+        }
+        var result = PPM.services.settingsService.addHolidays(dates);
+        if(!result.ok){
+          PPM.ui.toast.show(result.error, 'error', 3000);
+          return;
+        }
+        var msg = 'Added ' + result.addedCount + ' holiday' + (result.addedCount === 1 ? '' : 's');
+        if(result.skippedCount > 0) msg += ' (' + result.skippedCount + ' duplicates skipped)';
+        PPM.ui.toast.show(msg + ' — schedule recalculated', 'success', 3000);
         reopen();
       });
     }

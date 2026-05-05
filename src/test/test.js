@@ -462,6 +462,122 @@
     PPM.services.projectService.reset();
 
     // ============================================================================
+    // FRS-005d v1.1 PATCHES: country holidays, reviewers, lockDate
+    // ============================================================================
+
+    // ---- Country holidays config exposed ----
+    assert(typeof PPM.data.countryHolidays === 'object', 'countryHolidays: config exposed');
+    assert(typeof PPM.data.countryHolidays.getCountries === 'function', 'countryHolidays.getCountries: present');
+    assert(typeof PPM.data.countryHolidays.getHolidays === 'function', 'countryHolidays.getHolidays: present');
+
+    var countries = PPM.data.countryHolidays.getCountries();
+    assert(countries.length >= 15, 'countryHolidays: at least 15 countries available');
+    assert(countries.every(function(c){ return c.code && c.name; }), 'countryHolidays: every entry has code + name');
+    var countryNames = countries.map(function(c){ return c.name; });
+    var sortedCountryNames = countryNames.slice().sort();
+    assert(countryNames.every(function(n, i){ return n === sortedCountryNames[i]; }), 'countryHolidays: list sorted by name');
+
+    // Germany 2026 holidays
+    var deHolidays = PPM.data.countryHolidays.getHolidays('DE', '2026');
+    assert(deHolidays.length >= 9, 'countryHolidays.getHolidays(DE, 2026): returns expected count');
+    assert(deHolidays.indexOf('2026-12-25') >= 0, 'countryHolidays(DE, 2026): includes Christmas');
+    assert(deHolidays.indexOf('2026-10-03') >= 0, 'countryHolidays(DE, 2026): includes German Unity Day');
+
+    // Multi-year combined
+    var deAll = PPM.data.countryHolidays.getHolidays('DE');
+    assert(deAll.length > deHolidays.length, 'countryHolidays.getHolidays(DE) without year: returns combined years');
+
+    // Unknown country
+    var unknownC = PPM.data.countryHolidays.getHolidays('XX', '2026');
+    assert(Array.isArray(unknownC) && unknownC.length === 0, 'countryHolidays: unknown country returns empty array');
+
+    // ---- settingsService.addHolidays bulk method ----
+    PPM.services.projectService.loadDemo();
+    assert(typeof PPM.services.settingsService.addHolidays === 'function', 'settingsService.addHolidays: exposed');
+    var bulkResult = PPM.services.settingsService.addHolidays(['2027-01-01', '2027-12-25', 'invalid-date', '2027-01-01']);
+    assert(bulkResult.ok, 'addHolidays: ok=true');
+    assert(bulkResult.addedCount === 2, 'addHolidays: counts unique valid dates as added');
+    assert(bulkResult.skippedCount === 2, 'addHolidays: counts invalid + duplicate as skipped');
+    assert(bulkResult.holidays.indexOf('2027-01-01') >= 0, 'addHolidays: NY day persisted');
+    assert(bulkResult.holidays.indexOf('2027-12-25') >= 0, 'addHolidays: Xmas persisted');
+    assert(bulkResult.holidays.indexOf('invalid-date') < 0, 'addHolidays: invalid dates not persisted');
+
+    var emptyBulk = PPM.services.settingsService.addHolidays([]);
+    assert(emptyBulk.ok && emptyBulk.addedCount === 0, 'addHolidays: empty array no-op');
+
+    var notArray = PPM.services.settingsService.addHolidays('2026-12-25');
+    assert(!notArray.ok, 'addHolidays: rejects non-array');
+
+    // ---- Document.computePendingWith ----
+    assert(typeof PPM.domain.documents.computePendingWith === 'function', 'documents.computePendingWith: exposed');
+    var docApproved = { status:'Approved', owner:'Anna' };
+    assert(PPM.domain.documents.computePendingWith(docApproved) === '—', 'computePendingWith: Approved -> dash');
+    var docNA = { status:'N/A', owner:'Anna' };
+    assert(PPM.domain.documents.computePendingWith(docNA) === '—', 'computePendingWith: N/A -> dash');
+    var docInReviewWithReviewers = { status:'In Review', owner:'Anna', reviewers:'Marcus, Linda' };
+    assert(PPM.domain.documents.computePendingWith(docInReviewWithReviewers) === 'Marcus, Linda', 'computePendingWith: In Review with reviewers -> reviewer list');
+    var docDraftWithOwner = { status:'In Draft', owner:'Anna' };
+    assert(PPM.domain.documents.computePendingWith(docDraftWithOwner) === 'Anna', 'computePendingWith: Draft with owner -> owner');
+    var docNoOwner = { status:'Not Started' };
+    assert(PPM.domain.documents.computePendingWith(docNoOwner) === '—', 'computePendingWith: no owner no reviewers -> dash');
+    var docEmptyReviewers = { status:'In Review', owner:'Anna', reviewers:' ,  ,' };
+    assert(PPM.domain.documents.computePendingWith(docEmptyReviewers) === 'Anna', 'computePendingWith: blank reviewers fall back to owner');
+
+    // ---- v1.2: two-cycle (review + approval) workflow ----
+    // Reviewed status -> waiting for owner to submit for approval
+    var docReviewed = { status:'Reviewed', owner:'Anna', reviewers:'Marcus', approvers:'Linda' };
+    assert(PPM.domain.documents.computePendingWith(docReviewed) === 'Anna', 'computePendingWith: Reviewed -> owner (must submit for approval)');
+
+    // In Approval status -> approvers
+    var docInApproval = { status:'In Approval', owner:'Anna', reviewers:'Marcus', approvers:'Linda, QA Director' };
+    assert(PPM.domain.documents.computePendingWith(docInApproval) === 'Linda, QA Director', 'computePendingWith: In Approval -> approvers');
+
+    // In Approval but no approvers set -> fallback to owner
+    var docInApprovalNoApprovers = { status:'In Approval', owner:'Anna', reviewers:'Marcus' };
+    assert(PPM.domain.documents.computePendingWith(docInApprovalNoApprovers) === 'Anna', 'computePendingWith: In Approval with no approvers -> owner fallback');
+
+    // Rejected status -> dash (must restart)
+    var docRejected = { status:'Rejected', owner:'Anna', approvers:'Linda' };
+    assert(PPM.domain.documents.computePendingWith(docRejected) === '—', 'computePendingWith: Rejected -> dash');
+
+    // Status enum extended
+    assert(PPM.config.rules.enums.docStatus.indexOf('Reviewed') >= 0, 'docStatus enum: includes Reviewed');
+    assert(PPM.config.rules.enums.docStatus.indexOf('In Approval') >= 0, 'docStatus enum: includes In Approval');
+    assert(PPM.config.rules.enums.docStatus.indexOf('Rejected') >= 0, 'docStatus enum: includes Rejected');
+
+    // ---- viewService enriches documents with _pendingWith ----
+    var enrichedDoc = PPM.services.viewService.enrichRow('documents',
+      { id:1, name:'URS', status:'In Review', owner:'Anna', reviewers:'Marcus' });
+    assert(enrichedDoc._pendingWith === 'Marcus', 'viewService: documents enriched with _pendingWith');
+
+    // ---- lockDate respected by cascade ----
+    var lockedMs = [
+      { id:1, name:'A', duration:5, plannedStart:'2026-05-04', plannedEnd:'2026-06-01', status:'Not Started' },
+      { id:2, name:'B', predecessor:1, duration:5, plannedStart:'2026-05-11', plannedEnd:'2026-05-15', lag:0, status:'Not Started', lockDate:true },
+      { id:3, name:'C', predecessor:2, duration:5, plannedStart:'2026-05-18', plannedEnd:'2026-05-22', lag:0, status:'Not Started' }
+    ];
+    var cascadeResult2 = PPM.domain.scheduling.cascade(lockedMs);
+    assert(!cascadeResult2.error, 'cascade with lockDate: no error');
+    var bAfter = cascadeResult2.milestones.find(function(m){ return m.id === 2; });
+    assert(bAfter.plannedStart === '2026-05-11', 'cascade: locked milestone B does not shift when predecessor moves');
+    var cAfter = cascadeResult2.milestones.find(function(m){ return m.id === 3; });
+    assert(cAfter.plannedStart === '2026-05-18', 'cascade: C downstream of locked B keeps original start');
+
+    // ---- lockDate respected by backward scheduling ----
+    var bwLocked = [
+      { id:1, name:'A', duration:5, plannedStart:'2026-01-01', plannedEnd:'2026-01-07' },
+      { id:2, name:'B', predecessor:1, duration:5, plannedStart:'2026-01-08', plannedEnd:'2026-01-14', lockDate:true },
+      { id:3, name:'C', predecessor:2, duration:5, plannedStart:'2026-01-15', plannedEnd:'2026-01-21' }
+    ];
+    var bwLockedResult = PPM.domain.scheduling.scheduleBackward(bwLocked, '2026-06-30');
+    assert(!bwLockedResult.error, 'scheduleBackward with lockDate: no error');
+    var bLockedAfterBw = bwLockedResult.milestones.find(function(m){ return m.id === 2; });
+    assert(bLockedAfterBw.plannedStart === '2026-01-08', 'scheduleBackward: locked B keeps original start');
+    assert(bLockedAfterBw.plannedEnd === '2026-01-14', 'scheduleBackward: locked B keeps original end');
+
+    PPM.services.projectService.reset();
+
+    // ============================================================================
     // VIEW SERVICE & UI ARCHITECTURE ENFORCEMENT
     // ============================================================================
 

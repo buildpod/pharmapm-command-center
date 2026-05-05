@@ -46,6 +46,7 @@
         duration:     { type:'integer', required:true, min:1, max:500 },
         predecessor:  { type:'integer', required:false, nullable:true },
         lag:          { type:'integer', required:true, min:0, max:60 },
+        lockDate:     { type:'boolean', required:false, default:false, description:'When true, cascade and backward scheduling skip this milestone (manual schedule pin).' },
         status:       { type:'enum:milestoneStatus', required:true },
         pct:          { type:'integer', required:true, min:0, max:100 },
         notes:        { type:'string',  required:false, maxLen:2000 }
@@ -93,6 +94,8 @@
         applicability: { type:'enum:docApplicability', required:true },
         rationale:     { type:'string',  required:false, maxLen:200 },
         owner:         { type:'string',  required:false, maxLen:100 },
+        reviewers:     { type:'string',  required:false, maxLen:300, description:'Comma-separated reviewer names. Reviewed during In Review status.' },
+        approvers:     { type:'string',  required:false, maxLen:300, description:'Comma-separated approver names. Sign off during In Approval status.' },
         status:        { type:'enum:docStatus', required:true },
         targetDate:    { type:'iso-date', required:false },
         notes:         { type:'string',  required:false, maxLen:2000 }

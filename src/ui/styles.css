@@ -82,7 +82,8 @@
   --statusbar-h:     28px;
   --sidebar-w:       232px;
   --pane-w:          360px;
-  --row-h:           40px;
+  --row-h:           32px;
+  --row-h-compact:   28px;
   --header-h:        36px;
 }
 

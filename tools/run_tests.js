@@ -123,6 +123,7 @@ global.Blob = global.Blob || function (parts) { return { parts: parts }; };
 const MODULE_ORDER = [
   'src/ppm.js',
   'src/config/rules.js',
+  'src/config/countryHolidays.js',
   'src/schema/schema.js',
   'src/schema/migrations.js',
   'src/domain/dates.js',

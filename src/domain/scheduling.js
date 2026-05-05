@@ -45,6 +45,10 @@
     result.forEach(function(m){ byId[m.id] = m; });
     topo.sorted.forEach(function(id){
       var ms = byId[id];
+      // FRS-005d v1.1: if user has locked this milestone's date, skip cascade.
+      // Successors still see this milestone's plannedEnd as their constraint;
+      // only this row's own dates remain pinned.
+      if(ms.lockDate === true) return;
       if(ms.predecessor){
         var pred = byId[ms.predecessor];
         if(pred && pred.plannedEnd){
@@ -133,6 +137,10 @@
 
     reversed.forEach(function(id){
       var ms = byId[id];
+      // FRS-005d v1.1: locked milestones keep their dates — they act as anchor
+      // points within the chain. The successor's start still constrains the
+      // pre-predecessor walk-back, but THIS row's dates don't change.
+      if(ms.lockDate === true) return;
       var successors = result.filter(function(m){ return m.predecessor === id; });
       var dur = parseInt(ms.duration) || 1;
       var lag = parseInt(ms.lag) || 0;

@@ -824,3 +824,105 @@
   text-align: center;
   font-style: italic;
 }
+
+/* === COUNTRY HOLIDAY PRESET (FRS-005d v1.1) ============================= */
+.ppm-settings-country-add {
+  display: flex; gap: 6px; align-items: center;
+  margin-bottom: 8px;
+}
+.ppm-settings-country-select,
+.ppm-settings-country-year {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font-size: 12px;
+  background: var(--bg);
+  color: var(--text);
+}
+.ppm-settings-country-select { flex: 1; min-width: 0; }
+.ppm-settings-country-year   { flex: 0 0 auto; }
+
+/* === DOCUMENTS PENDING-WITH CHIP + NUDGE (v1.1) ========================= */
+.ppm-pending-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 11px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 28px);
+  vertical-align: middle;
+}
+.ppm-pending-nudge {
+  margin-left: 4px;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--text-3);
+  border-radius: 3px;
+  vertical-align: middle;
+  transition: background .12s, color .12s;
+}
+.ppm-pending-nudge:hover {
+  background: var(--accent-soft);
+  color: var(--accent-link);
+}
+
+/* === v1.2: VISUAL POLISH — placeholders, pinned column, density ========== */
+
+/* Dim empty placeholders so real data wins visual hierarchy.
+   Linear/Airtable convention: empty cells should be invisible until hovered. */
+.ppm-cell-placeholder {
+  color: var(--text-4);
+  opacity: 0.45;
+  font-size: 11px;
+  transition: opacity .12s;
+}
+.ppm-grid-row:hover .ppm-cell-placeholder { opacity: 0.7; }
+
+/* Pin the document/milestone name column so it stays visible during horizontal scroll.
+   Pattern: shadcn data-table pinned-columns block (March 2026). */
+.ppm-grid-th[data-col-key="name"],
+.ppm-grid-cell[data-col-key="name"] {
+  position: sticky;
+  left: 42px;  /* offset by ID column width */
+  background: var(--bg);
+  z-index: 2;
+  border-right: 1px solid var(--border);
+}
+.ppm-grid-th[data-col-key="name"] { background: var(--surface); }
+.ppm-grid-row:hover .ppm-grid-cell[data-col-key="name"] { background: var(--surface); }
+.ppm-grid-row-selected .ppm-grid-cell[data-col-key="name"] { background: var(--accent-soft); }
+
+/* Also pin the ID column so it doesn't scroll either */
+.ppm-grid-th[data-col-key="id"],
+.ppm-grid-cell[data-col-key="id"] {
+  position: sticky;
+  left: 0;
+  background: var(--bg);
+  z-index: 2;
+}
+.ppm-grid-th[data-col-key="id"] { background: var(--surface); }
+.ppm-grid-row:hover .ppm-grid-cell[data-col-key="id"] { background: var(--surface); }
+.ppm-grid-row-selected .ppm-grid-cell[data-col-key="id"] { background: var(--accent-soft); }
+
+/* Status badges: trim padding, shrink text — they were dominating the row */
+.ppm-grid-cell .ppm-status-badge {
+  padding: 1px 8px;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+/* Cell text: tighter line-height + slightly smaller text for density */
+.ppm-grid-cell {
+  font-size: 12.5px;
+  line-height: 1.35;
+}

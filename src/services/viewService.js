@@ -71,6 +71,8 @@
       var est = parseFloat(row.estHrs) || 0;
       var act = parseFloat(row.actHrs) || 0;
       enriched._variance = est > 0 ? Math.round((act - est) / est * 100) : 0;
+    } else if(table === 'documents'){
+      enriched._pendingWith = PPM.domain.documents.computePendingWith(row);
     }
 
     return enriched;

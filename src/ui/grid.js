@@ -385,6 +385,19 @@
       var cls = v > 20 ? 'ppm-text-red' : (v > 0 ? 'ppm-text-amber' : '');
       return '<span class="ppm-num ' + cls + '">' + sign + v + '%</span>';
     }
+    if(table === 'documents' && key === '_pendingWith'){
+      var pending = r._pendingWith || '—';
+      if(pending === '—'){
+        return '<span class="ppm-cell-placeholder">—</span>';
+      }
+      // Render names as a chip plus a tiny "nudge" trigger that copies a draft message
+      // (no email backend in v1, so we use clipboard + mailto as a stop-gap)
+      var docName = r.name || ('Document #' + r.id);
+      var safePending = _esc(pending);
+      var safeDoc     = _esc(docName);
+      return '<span class="ppm-pending-chip" title="Pending with ' + safePending + '">' + safePending + '</span>' +
+             '<button class="ppm-pending-nudge" data-pending-doc="' + safeDoc + '" data-pending-who="' + safePending + '" title="Copy nudge message">⏰</button>';
+    }
     return '';
   }
 
@@ -431,6 +444,27 @@
         var col = cols.find(function(c){ return c.key === colKey; });
         if(!col) return;
         _showColumnFilter(table, col, btn);
+      });
+    });
+
+    // Document pending-nudge: clicking the bell icon copies a polite reminder
+    // message to the clipboard (v1 has no email backend, so this is the stop-gap)
+    document.querySelectorAll('.ppm-pending-nudge').forEach(function(btn){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        var docName = btn.getAttribute('data-pending-doc') || 'a document';
+        var who     = btn.getAttribute('data-pending-who') || 'team';
+        var msg = 'Hi ' + who + ',\n\nQuick reminder — your review of "' + docName +
+                  '" is still outstanding. Could you take a look this week?\n\nThanks!';
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(msg).then(function(){
+            PPM.ui.toast.show('Reminder message copied to clipboard', 'success', 3000);
+          }, function(){
+            PPM.ui.toast.show('Could not copy. Message: ' + msg, 'info', 5000);
+          });
+        } else {
+          PPM.ui.toast.show(msg, 'info', 6000);
+        }
       });
     });
 

@@ -31,6 +31,7 @@
       { key:'duration',     label:'Days',      type:'number',   w:64,  num:true },
       { key:'predecessor',  label:'Pred',      type:'number',   w:60,  num:true, help:'Predecessor milestone ID (Finish-to-Start with optional lag)' },
       { key:'lag',          label:'Lag',       type:'number',   w:54,  num:true, help:'Working days buffer after predecessor completes' },
+      { key:'lockDate',     label:'Lock',      type:'dropdown', w:64,  options:['false','true'], help:'When Yes, cascade and backward scheduling skip this row. Use for parallel tasks or fixed deadlines.' },
       { key:'status',       label:'Status',    type:'dropdown', w:130, options: enums.milestoneStatus },
       { key:'pct',          label:'%',         type:'number',   w:60,  num:true },
       { key:'_rag',         label:'RAG',       type:'computed', w:80 },
@@ -67,15 +68,17 @@
       { key:'notes',      label:'Notes',      type:'text',     w:200 }
     ],
     documents: [
-      { key:'id',            label:'#',         type:'auto',     w:42,  num:true, immutable:true },
-      { key:'name',          label:'Document',  type:'text',     w:280 },
-      { key:'category',      label:'Category',  type:'dropdown', w:130, options: enums.docCategory },
-      { key:'applicability', label:'Applies',   type:'dropdown', w:100, options: enums.docApplicability },
-      { key:'rationale',     label:'Why',       type:'text',     w:160, help:'Why this document is required, based on project characteristics' },
-      { key:'owner',         label:'Owner',     type:'text',     w:140 },
-      { key:'status',        label:'Status',    type:'dropdown', w:120, options: enums.docStatus },
-      { key:'targetDate',    label:'Target',    type:'date',     w:120, num:true },
-      { key:'notes',         label:'Notes',     type:'text',     w:200 }
+      { key:'id',            label:'#',          type:'auto',     w:42,  num:true, immutable:true },
+      { key:'name',          label:'Document',   type:'text',     w:240, pinned:true },
+      { key:'category',      label:'Category',   type:'dropdown', w:120, options: enums.docCategory },
+      { key:'applicability', label:'Applies',    type:'dropdown', w:96,  options: enums.docApplicability },
+      { key:'owner',         label:'Owner',      type:'text',     w:110 },
+      { key:'reviewers',     label:'Reviewers',  type:'text',     w:140, help:'Comma-separated names — used during In Review status' },
+      { key:'approvers',     label:'Approvers',  type:'text',     w:140, help:'Comma-separated names — used during In Approval status' },
+      { key:'status',        label:'Status',     type:'dropdown', w:118, options: enums.docStatus },
+      { key:'_pendingWith',  label:'Pending',    type:'computed', w:140, help:'Who the document is currently waiting on, based on lifecycle stage' },
+      { key:'targetDate',    label:'Target',     type:'date',     w:108, num:true },
+      { key:'notes',         label:'Notes',      type:'text',     w:160 }
     ],
     costs: [
       { key:'id',          label:'#',         type:'auto',     w:42,  num:true, immutable:true },
