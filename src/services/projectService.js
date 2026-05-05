@@ -196,13 +196,36 @@ PPM.services = PPM.services || {};
     }
   }
 
+  // FRS-005: Backward scheduling from go-live.
+  // Re-anchors the milestone schedule so the terminal milestone lands on
+  // state.meta.goLive and predecessors flow back through the dependency
+  // chain. Useful after wizard completion or whenever the regulatory
+  // deadline shifts.
+  // Returns { ok, error?, affected? } so UI can show a confirmation.
+  function scheduleBackwardFromGoLive(){
+    var state = getState();
+    if(!state) return { ok:false, error:'No project loaded' };
+    var anchor = state.meta && state.meta.goLive;
+    if(!anchor) return { ok:false, error:'No go-live date set in project meta' };
+    var workingDays = state.settings && state.settings.workingDays;
+    var holidays    = state.settings && state.settings.holidays;
+    var result = PPM.domain.scheduling.scheduleBackward(state.milestones, anchor, workingDays, holidays);
+    if(result.error) return { ok:false, error: result.error };
+    state.milestones = result.milestones;
+    state.updatedAt = PPM.domain.dates.nowISO();
+    PPM.events.emit('state:changed', state);
+    PPM.services.editService.forceSave();
+    return { ok:true, anchor: anchor, milestoneCount: result.milestones.length };
+  }
+
   PPM.services.projectService = Object.freeze({
-    getState:        getState,
-    create:          create,
-    loadFromStorage: loadFromStorage,
-    importFromJSON:  importFromJSON,
-    loadDemo:        loadDemo,
-    reset:           reset,
-    exportToFile:    exportToFile
+    getState:                   getState,
+    create:                     create,
+    loadFromStorage:            loadFromStorage,
+    importFromJSON:             importFromJSON,
+    loadDemo:                   loadDemo,
+    reset:                      reset,
+    exportToFile:               exportToFile,
+    scheduleBackwardFromGoLive: scheduleBackwardFromGoLive
   });
 })();

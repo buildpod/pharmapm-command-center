@@ -143,6 +143,7 @@ const MODULE_ORDER = [
   'src/services/commentService.js',
   'src/services/reportService.js',
   'src/services/viewService.js',
+  'src/services/settingsService.js',
   'src/test/test.js'
 ];
 

@@ -38,7 +38,8 @@
     check:       function(c){ return svg('<polyline points="20 6 9 17 4 12"/>', c); },
     clock:       function(c){ return svg('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>', c); },
     folder:      function(c){ return svg('<path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>', c); },
-    sparkles:    function(c){ return svg('<path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z"/><path d="M19 13l.75 2.25L22 16l-2.25.75L19 19l-.75-2.25L16 16l2.25-.75z"/>', c); }
+    sparkles:    function(c){ return svg('<path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z"/><path d="M19 13l.75 2.25L22 16l-2.25.75L19 19l-.75-2.25L16 16l2.25-.75z"/>', c); },
+    calendar:    function(c){ return svg('<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>', c); }
   };
 
   PPM.ui.icons = Object.freeze(icons);

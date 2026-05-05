@@ -54,6 +54,10 @@
 
     if(table === 'milestones'){
       enriched._rag = PPM.domain.scheduling.computeRAG(row);
+      // Dependency status needs the full milestone array; viewService synthesizes
+      // from state if present, else from a passed-in array (test path).
+      var allMs = (state && state.milestones) || [row];
+      enriched._depStatus = PPM.domain.scheduling.computeDependencyStatus(row, allMs);
     } else if(table === 'risks'){
       enriched._score     = PPM.domain.risk.computeScore(row);
       // Lowercase the band so CSS class names like 'ppm-status-high' work
@@ -112,6 +116,25 @@
   function isValidISO(d){ return PPM.domain.dates.isValidISO(d); }
 
   // -------------------------------------------------------------------------
+  // SCHEDULING (FRS-005)
+  // -------------------------------------------------------------------------
+  function computeDependencyStatus(milestone, allMilestones, todayStr){
+    return PPM.domain.scheduling.computeDependencyStatus(milestone, allMilestones, todayStr);
+  }
+
+  function previewCascade(milestones, edit, workingDays, holidays){
+    return PPM.domain.scheduling.previewCascade(milestones, edit, workingDays, holidays);
+  }
+
+  function scheduleBackward(milestones, anchorDate, workingDays){
+    return PPM.domain.scheduling.scheduleBackward(milestones, anchorDate, workingDays);
+  }
+
+  function computeEndFromDuration(startDate, duration, workingDays){
+    return PPM.domain.scheduling.computeEndFromDuration(startDate, duration, workingDays);
+  }
+
+  // -------------------------------------------------------------------------
   // VALIDATION (proxy through, kept on services so UI never imports domain.validation)
   // -------------------------------------------------------------------------
   function validateWizardStep1(answers){
@@ -143,7 +166,13 @@
     isValidISO:           isValidISO,
 
     // Validation
-    validateWizardStep1:  validateWizardStep1,
-    validateField:        validateField
+    validateWizardStep1:       validateWizardStep1,
+    validateField:             validateField,
+
+    // Scheduling (FRS-005)
+    computeDependencyStatus:   computeDependencyStatus,
+    previewCascade:            previewCascade,
+    scheduleBackward:          scheduleBackward,
+    computeEndFromDuration:    computeEndFromDuration
   });
 })();

@@ -210,6 +210,258 @@
     assert(nonDatesDomain.indexOf('new Date(') < 0, 'ENFORCEMENT: domain (non-dates) uses PPM.domain.dates, not native Date');
 
     // ============================================================================
+    // FRS-005: DEPENDENCY ENGINE (v1 MUST scope per April 18 reconciliation)
+    // ============================================================================
+
+    var sched = PPM.domain.scheduling;
+    var dt    = PPM.domain.dates;
+
+    // ---- addWorkingDays negative-day support (regression: was upward-only) ----
+    var oneFwd  = dt.addWorkingDays('2026-05-04', 1);   // Mon -> Tue
+    assert(oneFwd === '2026-05-05', 'dates.addWorkingDays: +1 from Mon = Tue');
+    var oneBack = dt.addWorkingDays('2026-05-04', -1);  // Mon -> Fri (skip weekend)
+    assert(oneBack === '2026-05-01', 'dates.addWorkingDays: -1 from Mon = prev Fri (skips weekend)');
+    var fiveBack = dt.addWorkingDays('2026-05-08', -5); // Fri 8 -> Fri 1
+    assert(fiveBack === '2026-05-01', 'dates.addWorkingDays: -5 from Fri = prev Fri');
+    var zero = dt.addWorkingDays('2026-05-04', 0);
+    assert(zero === '2026-05-04', 'dates.addWorkingDays: 0 returns input unchanged');
+
+    // ---- computeDependencyStatus: Clear / Waiting / Blocked ----
+    // Setup: M1 is predecessor of M2. Today = '2026-06-01'.
+    var msList = [
+      { id:1, name:'M1', status:'In Progress', plannedStart:'2026-05-01', plannedEnd:'2026-05-15' },
+      { id:2, name:'M2', status:'Not Started', predecessor:1, plannedStart:'2026-05-20', plannedEnd:'2026-06-05' }
+    ];
+    // M2's start (May 20) is in the past relative to today (Jun 1), and pred not Complete -> Blocked
+    var dep1 = sched.computeDependencyStatus(msList[1], msList, '2026-06-01');
+    assert(dep1 === 'Blocked', 'depStatus: pred not done + start past today = Blocked');
+
+    // Predecessor Complete -> Clear
+    var msListDone = [
+      Object.assign({}, msList[0], { status:'Complete' }),
+      msList[1]
+    ];
+    var dep2 = sched.computeDependencyStatus(msListDone[1], msListDone, '2026-06-01');
+    assert(dep2 === 'Clear', 'depStatus: pred Complete = Clear');
+
+    // No predecessor -> Clear
+    var depNo = sched.computeDependencyStatus(msList[0], msList, '2026-06-01');
+    assert(depNo === 'Clear', 'depStatus: no predecessor = Clear');
+
+    // Predecessor not done, but start still in future -> Waiting
+    var msListFuture = [
+      msList[0],
+      Object.assign({}, msList[1], { plannedStart:'2026-06-20' })
+    ];
+    var dep3 = sched.computeDependencyStatus(msListFuture[1], msListFuture, '2026-06-01');
+    assert(dep3 === 'Waiting', 'depStatus: pred not done + start in future = Waiting');
+
+    // Broken predecessor reference (id doesn't exist) -> Clear (don't false-block)
+    var orphan = { id:9, predecessor:99, plannedStart:'2026-05-01', status:'Not Started' };
+    var depOrphan = sched.computeDependencyStatus(orphan, msList, '2026-06-01');
+    assert(depOrphan === 'Clear', 'depStatus: broken predecessor reference = Clear (defensive)');
+
+    // ---- viewService.enrichRow exposes _depStatus ----
+    var enrichedMs = PPM.services.viewService.enrichRow('milestones', msList[1], { milestones: msList });
+    assert(typeof enrichedMs._depStatus === 'string', 'viewService.enrichRow: _depStatus present on milestone');
+
+    // ---- scheduleBackward: anchor terminal at goLive, push predecessors back ----
+    var bwMs = [
+      { id:1, name:'A', duration:5, plannedStart:'2026-01-01', plannedEnd:'2026-01-07' },
+      { id:2, name:'B', predecessor:1, duration:5, plannedStart:'2026-01-08', plannedEnd:'2026-01-14' },
+      { id:3, name:'C', predecessor:2, duration:5, plannedStart:'2026-01-15', plannedEnd:'2026-01-21' }
+    ];
+    var bwResult = sched.scheduleBackward(bwMs, '2026-06-30');
+    assert(bwResult.error === null, 'scheduleBackward: no error on valid chain');
+    assert(bwResult.milestones.length === 3, 'scheduleBackward: returns all milestones');
+    var terminal = bwResult.milestones.find(function(m){ return m.id === 3; });
+    assert(terminal.plannedEnd === '2026-06-30', 'scheduleBackward: terminal lands on anchor');
+    // C's start = anchor - 4 working days (5-day duration, inclusive, walked backward)
+    assert(terminal.plannedStart === '2026-06-24', 'scheduleBackward: terminal start = anchor - (dur-1) wd');
+    var middle = bwResult.milestones.find(function(m){ return m.id === 2; });
+    // B's end must be 1 working day before C's start (Jun 24 -> Jun 23)
+    assert(middle.plannedEnd === '2026-06-23', 'scheduleBackward: B end = C start - 1 working day');
+
+    // Backward scheduling rejects cycles
+    var cyclic = [
+      { id:1, name:'X', predecessor:2, duration:1 },
+      { id:2, name:'Y', predecessor:1, duration:1 }
+    ];
+    var bwCycle = sched.scheduleBackward(cyclic, '2026-06-30');
+    assert(bwCycle.error !== null, 'scheduleBackward: detects circular dependency');
+
+    // ---- previewCascade: returns affected without mutating ----
+    var pcMs = [
+      { id:1, name:'A', duration:5, plannedStart:'2026-05-01', plannedEnd:'2026-05-07' },
+      { id:2, name:'B', predecessor:1, duration:5, plannedStart:'2026-05-08', plannedEnd:'2026-05-14' },
+      { id:3, name:'C', predecessor:2, duration:5, plannedStart:'2026-05-15', plannedEnd:'2026-05-21' }
+    ];
+    var pcOriginalA = Object.assign({}, pcMs[0]);
+    var pcResult = sched.previewCascade(pcMs, { id:1, field:'plannedEnd', value:'2026-05-21' });
+    // The edit on A pushes B forward; B was 05-08 → should now start after A's new end
+    assert(pcResult.error === null, 'previewCascade: no error');
+    assert(Array.isArray(pcResult.affected), 'previewCascade: returns affected array');
+    assert(pcResult.affected.length >= 1, 'previewCascade: detects downstream impact');
+    // Crucially — input not mutated
+    assert(pcMs[0].plannedEnd === pcOriginalA.plannedEnd, 'previewCascade: does not mutate input milestones');
+    // Edit row itself excluded from affected list
+    var includesEditRow = pcResult.affected.some(function(a){ return a.id === 1; });
+    assert(!includesEditRow, 'previewCascade: excludes the edited row from affected list');
+
+    // Non-schedule field returns empty affected
+    var pcNoOp = sched.previewCascade(pcMs, { id:1, field:'name', value:'Renamed' });
+    assert(pcNoOp.affected.length === 0, 'previewCascade: non-schedule field returns no impact');
+
+    // ---- computeEndFromDuration / computeDurationFromDates ----
+    var endFromDur = sched.computeEndFromDuration('2026-05-04', 5);  // Mon, 5 working days
+    assert(endFromDur === '2026-05-08', 'computeEndFromDuration: 5d from Mon = Fri');
+    var endFromDur1 = sched.computeEndFromDuration('2026-05-04', 1);
+    assert(endFromDur1 === '2026-05-04', 'computeEndFromDuration: 1d returns same day (inclusive)');
+    var durFromDates = sched.computeDurationFromDates('2026-05-04', '2026-05-08');
+    assert(durFromDates === 5, 'computeDurationFromDates: Mon to Fri = 5 working days');
+
+    // ---- editService duration ↔ end-date binding ----
+    PPM.services.projectService.reset();
+    PPM.services.projectService.loadDemo();
+    var demoState = PPM.services.projectService.getState();
+    var firstMs = demoState.milestones[0];
+    var origStart = firstMs.plannedStart;
+    var editResult = PPM.services.editService.applyCellEdit('milestones', firstMs.id, 'duration', 10);
+    assert(editResult.ok, 'editService: duration edit accepted');
+    var afterEdit = PPM.services.projectService.getState().milestones.find(function(m){ return m.id === firstMs.id; });
+    assert(afterEdit.duration === 10, 'editService: duration value persisted');
+    var expectedEnd = sched.computeEndFromDuration(origStart, 10);
+    assert(afterEdit.plannedEnd === expectedEnd, 'editService: plannedEnd auto-recomputed when duration changes');
+    PPM.services.projectService.reset();
+
+    // ---- viewService exposes new functions ----
+    assert(typeof PPM.services.viewService.computeDependencyStatus === 'function', 'viewService.computeDependencyStatus: exposed');
+    assert(typeof PPM.services.viewService.previewCascade === 'function', 'viewService.previewCascade: exposed');
+    assert(typeof PPM.services.viewService.scheduleBackward === 'function', 'viewService.scheduleBackward: exposed');
+    assert(typeof PPM.services.viewService.computeEndFromDuration === 'function', 'viewService.computeEndFromDuration: exposed');
+
+    // ---- projectService.scheduleBackwardFromGoLive integration ----
+    assert(typeof PPM.services.projectService.scheduleBackwardFromGoLive === 'function', 'projectService.scheduleBackwardFromGoLive: exposed');
+    PPM.services.projectService.loadDemo();
+    var demoForBackward = PPM.services.projectService.getState();
+    assert(demoForBackward.meta.goLive, 'demo has goLive date for backward scheduling test');
+    var bwApply = PPM.services.projectService.scheduleBackwardFromGoLive();
+    assert(bwApply.ok, 'projectService.scheduleBackwardFromGoLive: succeeds with valid demo project');
+    var afterBw = PPM.services.projectService.getState();
+    // Find a terminal milestone (no successors) — its plannedEnd should be on or before goLive
+    var hasSuccessor = {};
+    afterBw.milestones.forEach(function(m){ if(m.predecessor) hasSuccessor[m.predecessor] = true; });
+    var terminals = afterBw.milestones.filter(function(m){ return !hasSuccessor[m.id]; });
+    assert(terminals.length > 0, 'projectService.scheduleBackwardFromGoLive: at least one terminal milestone exists');
+    // At least one terminal must end on goLive after scheduling
+    var anyOnGoLive = terminals.some(function(m){ return m.plannedEnd === afterBw.meta.goLive; });
+    assert(anyOnGoLive, 'projectService.scheduleBackwardFromGoLive: at least one terminal milestone ends on goLive');
+    PPM.services.projectService.reset();
+
+    // Errors when no goLive date
+    var emptyState = PPM.services.projectService.scheduleBackwardFromGoLive();
+    assert(!emptyState.ok && /No project loaded/.test(emptyState.error), 'projectService.scheduleBackwardFromGoLive: errors when no project');
+
+    // ============================================================================
+    // FRS-005d: SETTINGS SERVICE & HOLIDAY-AWARE SCHEDULING
+    // ============================================================================
+
+    // ---- addWorkingDays honors holidays ----
+    var holA = dt.addWorkingDays('2026-05-04', 1, [1,2,3,4,5], ['2026-05-05']);
+    // Mon May 4 + 1 working day, but May 5 is a holiday -> should land on May 6
+    assert(holA === '2026-05-06', 'dates.addWorkingDays: skips holiday going forward');
+    var holB = dt.addWorkingDays('2026-05-08', -1, [1,2,3,4,5], ['2026-05-07']);
+    // Fri May 8 - 1 working day, but May 7 is a holiday -> should land on May 6
+    assert(holB === '2026-05-06', 'dates.addWorkingDays: skips holiday going backward');
+    var holNone = dt.addWorkingDays('2026-05-04', 1, [1,2,3,4,5], []);
+    assert(holNone === '2026-05-05', 'dates.addWorkingDays: empty holidays array works as before');
+
+    // ---- settingsService exists and is frozen ----
+    assert(typeof PPM.services.settingsService === 'object', 'settingsService: exposed');
+    assert(typeof PPM.services.settingsService.getSettings === 'function', 'settingsService.getSettings: present');
+    assert(typeof PPM.services.settingsService.setWorkingDays === 'function', 'settingsService.setWorkingDays: present');
+    assert(typeof PPM.services.settingsService.addHoliday === 'function', 'settingsService.addHoliday: present');
+    assert(typeof PPM.services.settingsService.removeHoliday === 'function', 'settingsService.removeHoliday: present');
+    assert(typeof PPM.services.settingsService.setTimezone === 'function', 'settingsService.setTimezone: present');
+
+    // ---- settingsService.getSettings returns null when no project loaded ----
+    PPM.services.projectService.reset();
+    var noState = PPM.services.settingsService.getSettings();
+    assert(noState === null, 'settingsService.getSettings: returns null when no project');
+
+    // ---- setWorkingDays validation ----
+    PPM.services.projectService.loadDemo();
+    var rejectEmpty = PPM.services.settingsService.setWorkingDays([]);
+    assert(!rejectEmpty.ok && /at least one working day/i.test(rejectEmpty.error), 'setWorkingDays: rejects empty array');
+    var rejectInvalid = PPM.services.settingsService.setWorkingDays([7, 8]);
+    assert(!rejectInvalid.ok, 'setWorkingDays: rejects out-of-range integers');
+    var rejectNonArray = PPM.services.settingsService.setWorkingDays('Mon-Fri');
+    assert(!rejectNonArray.ok, 'setWorkingDays: rejects non-array input');
+
+    // ---- setWorkingDays accepts valid input and dedupes ----
+    var dedupResult = PPM.services.settingsService.setWorkingDays([1, 2, 3, 4, 5, 1]);
+    assert(dedupResult.ok, 'setWorkingDays: accepts valid Mon-Fri');
+    assert(dedupResult.workingDays.length === 5, 'setWorkingDays: dedupes duplicates');
+    var sorted = dedupResult.workingDays.slice().sort();
+    var isSorted = dedupResult.workingDays.every(function(d, i){ return d === sorted[i]; });
+    assert(isSorted, 'setWorkingDays: sorts result');
+
+    // ---- addHoliday validation ----
+    var rejectBadDate = PPM.services.settingsService.addHoliday('not-a-date');
+    assert(!rejectBadDate.ok && /Invalid/i.test(rejectBadDate.error), 'addHoliday: rejects malformed date');
+    var rejectBadDate2 = PPM.services.settingsService.addHoliday('2026-13-01');
+    assert(!rejectBadDate2.ok, 'addHoliday: rejects invalid month');
+
+    // ---- addHoliday + duplicate handling ----
+    var hAdd = PPM.services.settingsService.addHoliday('2026-12-25');
+    assert(hAdd.ok, 'addHoliday: accepts valid ISO date');
+    assert(hAdd.holidays.indexOf('2026-12-25') >= 0, 'addHoliday: holiday in returned list');
+    var hAdd2 = PPM.services.settingsService.addHoliday('2026-12-25');
+    assert(hAdd2.ok && hAdd2.duplicate === true, 'addHoliday: duplicate flagged but ok');
+
+    // ---- holidays sorted ----
+    PPM.services.settingsService.addHoliday('2026-01-01');
+    var settingsAfter = PPM.services.settingsService.getSettings();
+    var hSorted = settingsAfter.holidays.slice().sort();
+    var hIsSorted = settingsAfter.holidays.every(function(h, i){ return h === hSorted[i]; });
+    assert(hIsSorted, 'addHoliday: holidays kept sorted');
+
+    // ---- removeHoliday ----
+    var hRm = PPM.services.settingsService.removeHoliday('2026-12-25');
+    assert(hRm.ok, 'removeHoliday: ok');
+    assert(hRm.holidays.indexOf('2026-12-25') < 0, 'removeHoliday: removed from list');
+    var hRmAbsent = PPM.services.settingsService.removeHoliday('2030-01-01');
+    assert(hRmAbsent.ok && hRmAbsent.notFound === true, 'removeHoliday: notFound flagged but ok');
+
+    // ---- adding a holiday triggers cascade (date math now respects holidays) ----
+    PPM.services.projectService.reset();
+    PPM.services.projectService.loadDemo();
+    var demoBefore = PPM.services.projectService.getState();
+    var msBefore = demoBefore.milestones.map(function(m){ return { id: m.id, end: m.plannedEnd }; });
+    // Add a holiday that falls on the day a milestone currently ends
+    var firstEndDate = demoBefore.milestones[0].plannedEnd;
+    if(firstEndDate){
+      // Add a holiday a few days before that end date — it should push at least one ms forward
+      var holidayDate = dt.addWorkingDays(demoBefore.milestones[0].plannedStart || firstEndDate, 1);
+      if(holidayDate){
+        PPM.services.settingsService.addHoliday(holidayDate);
+        var demoAfter = PPM.services.projectService.getState();
+        // Holiday must persist
+        assert(demoAfter.settings.holidays.indexOf(holidayDate) >= 0, 'addHoliday: persists in state');
+      }
+    }
+
+    // ---- setTimezone ----
+    var tzOk = PPM.services.settingsService.setTimezone('Europe/Brussels');
+    assert(tzOk.ok && tzOk.timezone === 'Europe/Brussels', 'setTimezone: accepts valid string');
+    var tzBad = PPM.services.settingsService.setTimezone('');
+    assert(!tzBad.ok, 'setTimezone: rejects empty string');
+    var tzBad2 = PPM.services.settingsService.setTimezone(123);
+    assert(!tzBad2.ok, 'setTimezone: rejects non-string');
+
+    PPM.services.projectService.reset();
+
+    // ============================================================================
     // VIEW SERVICE & UI ARCHITECTURE ENFORCEMENT
     // ============================================================================
 

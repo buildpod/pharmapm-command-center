@@ -181,6 +181,11 @@
       var rag = enriched._rag || 'Green';
       return '<span class="ppm-status-badge ppm-status-' + rag.toLowerCase() + '">' + rag + '</span>';
     }
+    if(table === 'milestones' && key === '_depStatus'){
+      var dep = enriched._depStatus || 'Clear';
+      var depClass = dep === 'Clear' ? 'green' : (dep === 'Waiting' ? 'amber' : 'red');
+      return '<span class="ppm-status-badge ppm-status-' + depClass + '">' + dep + '</span>';
+    }
     if(table === 'risks' && key === '_score'){
       var band = enriched._scoreBand || 'low';
       return '<span class="ppm-status-badge ppm-status-' + band + '">' + (enriched._score || 0) + '</span>';

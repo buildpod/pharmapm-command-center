@@ -118,6 +118,9 @@
               '<span class="ppm-health-dot"></span>' + _escape(health.reason) +
             '</span>' +
             '<span class="ppm-countdown">' + countdownText + '</span>' +
+            '<button class="ppm-btn-tool" id="ppm-btn-settings" title="Working days and holidays">' +
+              icons.calendar() + '<span class="ppm-btn-label">Settings</span>' +
+            '</button>' +
             '<button class="ppm-btn-tool" id="ppm-btn-export" title="Export project as JSON">' +
               icons.download() + '<span class="ppm-btn-label">Export</span>' +
             '</button>';
@@ -296,6 +299,10 @@
     if(exportBtn){
       exportBtn.addEventListener('click', _handleExport);
     }
+    var settingsBtn = document.getElementById('ppm-btn-settings');
+    if(settingsBtn){
+      settingsBtn.addEventListener('click', _showSettingsPanel);
+    }
   }
 
   function _wireSidebarNav(){
@@ -354,6 +361,150 @@
   function _escape(s){
     return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
       return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // SETTINGS PANEL (FRS-005d: working days + holidays)
+  // Modal — toggle weekend days, manage holiday list. All edits go through
+  // PPM.services.settingsService which triggers a milestone cascade.
+  // -------------------------------------------------------------------------
+  function _showSettingsPanel(){
+    var state = PPM.services.projectService.getState();
+    if(!state){ PPM.ui.toast.show('No project loaded', 'error'); return; }
+
+    // Remove existing panel if any
+    var existing = document.getElementById('ppm-settings-modal');
+    if(existing) existing.parentNode.removeChild(existing);
+
+    var settings = PPM.services.settingsService.getSettings();
+    var workingDays = settings.workingDays || [1,2,3,4,5];
+    var holidays    = (settings.holidays || []).slice().sort();
+
+    var dayLabels = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    var dayCheckboxes = dayLabels.map(function(label, idx){
+      var checked = workingDays.indexOf(idx) >= 0;
+      return '<label class="ppm-settings-day' + (checked ? ' ppm-settings-day-on' : '') + '">' +
+        '<input type="checkbox" data-day="' + idx + '"' + (checked ? ' checked' : '') + '>' +
+        '<span>' + label + '</span>' +
+      '</label>';
+    }).join('');
+
+    var holidayRows = holidays.length > 0
+      ? holidays.map(function(h){
+          return '<li class="ppm-settings-holiday-row">' +
+            '<span class="ppm-settings-holiday-date">' + _escape(h) + '</span>' +
+            '<button class="ppm-settings-holiday-rm" data-rm-holiday="' + _escape(h) + '" aria-label="Remove">×</button>' +
+          '</li>';
+        }).join('')
+      : '<li class="ppm-settings-holiday-empty">No holidays added yet</li>';
+
+    var modal = document.createElement('div');
+    modal.id = 'ppm-settings-modal';
+    modal.className = 'ppm-cascade-overlay';
+    modal.innerHTML =
+      '<div class="ppm-cascade-dialog" role="dialog" aria-labelledby="ppm-settings-title" style="max-width: 520px;">' +
+        '<div class="ppm-cascade-header">' +
+          '<h3 id="ppm-settings-title" class="ppm-cascade-title">Working calendar</h3>' +
+          '<div class="ppm-cascade-subtitle">Working days and holidays affect every milestone\'s scheduled dates. Changes will recalculate the cascade.</div>' +
+        '</div>' +
+        '<div class="ppm-cascade-body">' +
+          '<div class="ppm-settings-section">' +
+            '<div class="ppm-settings-section-label">Working days</div>' +
+            '<div class="ppm-settings-days">' + dayCheckboxes + '</div>' +
+            '<div class="ppm-settings-help">Tap days to toggle. At least one day must remain selected.</div>' +
+          '</div>' +
+          '<div class="ppm-settings-section">' +
+            '<div class="ppm-settings-section-label">Holidays</div>' +
+            '<div class="ppm-settings-holiday-add">' +
+              '<input type="date" id="ppm-settings-holiday-input" class="ppm-settings-holiday-input">' +
+              '<button class="ppm-btn-tool" id="ppm-settings-holiday-add-btn">Add holiday</button>' +
+            '</div>' +
+            '<ul class="ppm-settings-holiday-list">' + holidayRows + '</ul>' +
+          '</div>' +
+        '</div>' +
+        '<div class="ppm-cascade-footer">' +
+          '<button class="ppm-btn-tool ppm-btn-primary" id="ppm-settings-close">Done</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(modal);
+
+    var cleanup = function(){
+      if(modal.parentNode) modal.parentNode.removeChild(modal);
+    };
+
+    // Re-render the panel (after a settings change) so list & toggles reflect new state
+    var reopen = function(){
+      cleanup();
+      _showSettingsPanel();
+    };
+
+    // Day toggle handlers
+    modal.querySelectorAll('input[data-day]').forEach(function(cb){
+      cb.addEventListener('change', function(){
+        var current = PPM.services.settingsService.getSettings().workingDays || [1,2,3,4,5];
+        var dayIdx = parseInt(cb.getAttribute('data-day'), 10);
+        var newSet;
+        if(cb.checked){
+          newSet = current.indexOf(dayIdx) >= 0 ? current.slice() : current.concat([dayIdx]);
+        } else {
+          newSet = current.filter(function(d){ return d !== dayIdx; });
+        }
+        var result = PPM.services.settingsService.setWorkingDays(newSet);
+        if(!result.ok){
+          // Revert checkbox visually
+          cb.checked = !cb.checked;
+          PPM.ui.toast.show(result.error, 'error', 3000);
+          return;
+        }
+        PPM.ui.toast.show('Working days updated — schedule recalculated', 'success', 2500);
+        reopen();
+      });
+    });
+
+    // Holiday add
+    var addBtn = document.getElementById('ppm-settings-holiday-add-btn');
+    var addInput = document.getElementById('ppm-settings-holiday-input');
+    if(addBtn && addInput){
+      addBtn.addEventListener('click', function(){
+        var val = addInput.value;
+        if(!val){ PPM.ui.toast.show('Pick a date first', 'info'); return; }
+        var result = PPM.services.settingsService.addHoliday(val);
+        if(!result.ok){
+          PPM.ui.toast.show(result.error, 'error', 3000);
+          return;
+        }
+        if(result.duplicate){
+          PPM.ui.toast.show('That date is already a holiday', 'info', 2500);
+          return;
+        }
+        PPM.ui.toast.show('Holiday added — schedule recalculated', 'success', 2500);
+        reopen();
+      });
+    }
+
+    // Holiday remove
+    modal.querySelectorAll('[data-rm-holiday]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var iso = btn.getAttribute('data-rm-holiday');
+        var result = PPM.services.settingsService.removeHoliday(iso);
+        if(!result.ok){
+          PPM.ui.toast.show(result.error, 'error', 3000);
+          return;
+        }
+        PPM.ui.toast.show('Holiday removed — schedule recalculated', 'success', 2500);
+        reopen();
+      });
+    });
+
+    // Close
+    document.getElementById('ppm-settings-close').addEventListener('click', cleanup);
+    modal.addEventListener('click', function(e){ if(e.target === modal) cleanup(); });
+    document.addEventListener('keydown', function escHandler(e){
+      if(e.key === 'Escape'){
+        document.removeEventListener('keydown', escHandler);
+        cleanup();
+      }
     });
   }
 

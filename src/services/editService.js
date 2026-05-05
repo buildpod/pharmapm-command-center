@@ -44,8 +44,31 @@
 
     row[field] = value;
     state.updatedAt = PPM.domain.dates.nowISO();
+
+    // FRS-005: Duration ↔ end-date binding for milestones.
+    // If user edits duration and the milestone has a plannedStart, recompute
+    // plannedEnd. This must happen BEFORE the cascade so it sees consistent
+    // dates. Pure value derivation — no service calls, no events.
+    if(table === 'milestones' && field === 'duration' && row.plannedStart){
+      var workingDays = state.settings && state.settings.workingDays;
+      var holidays    = state.settings && state.settings.holidays;
+      var newEnd = PPM.domain.scheduling.computeEndFromDuration(row.plannedStart, value, workingDays, holidays);
+      if(newEnd) row.plannedEnd = newEnd;
+    }
+    // If user edits plannedStart and duration is set, also push plannedEnd forward
+    if(table === 'milestones' && field === 'plannedStart' && row.duration){
+      var wd2 = state.settings && state.settings.workingDays;
+      var hol2 = state.settings && state.settings.holidays;
+      var newEnd2 = PPM.domain.scheduling.computeEndFromDuration(value, row.duration, wd2, hol2);
+      if(newEnd2) row.plannedEnd = newEnd2;
+    }
+
     if(table === 'milestones' && ['plannedStart','plannedEnd','duration','predecessor','lag'].indexOf(field) >= 0){
-      var cascadeResult = PPM.domain.scheduling.cascade(state.milestones, state.settings && state.settings.workingDays);
+      var cascadeResult = PPM.domain.scheduling.cascade(
+        state.milestones,
+        state.settings && state.settings.workingDays,
+        state.settings && state.settings.holidays
+      );
       if(cascadeResult.error){
         PPM.events.emit('schedule:cycle_detected', cascadeResult.error);
       } else {

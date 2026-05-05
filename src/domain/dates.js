@@ -79,16 +79,24 @@ PPM.domain = PPM.domain || {};
 
   // Add N working days (Mon–Fri by default, or custom workingDays array)
   // workingDays default: [1,2,3,4,5] (Mon–Fri)
-  function addWorkingDays(iso, days, workingDays){
+  // Negative `days` walks backward — used by backward scheduling and
+  // dependency-aware preview. When days === 0, returns input unchanged.
+  // Optional `holidays`: array of ISO date strings to skip (treated as non-working).
+  function addWorkingDays(iso, days, workingDays, holidays){
     var wd = workingDays || [1,2,3,4,5];
+    var hol = holidays || [];
+    if(!days) return iso;
     var current = iso;
-    var added = 0;
+    var step = days > 0 ? 1 : -1;
+    var target = Math.abs(days);
+    var moved = 0;
     var guard = 0;
-    while(added < days){
-      current = addDays(current, 1);
+    while(moved < target){
+      current = addDays(current, step);
       guard++;
       if(guard > 10000){ return null; } // Safety
-      if(wd.indexOf(dayOfWeek(current)) >= 0) added++;
+      // Skip if not a working day OR if it's a holiday
+      if(wd.indexOf(dayOfWeek(current)) >= 0 && hol.indexOf(current) < 0) moved++;
     }
     return current;
   }

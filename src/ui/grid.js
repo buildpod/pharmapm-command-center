@@ -24,13 +24,15 @@
   PPM.ui = PPM.ui || {};
   var icons = PPM.ui.icons;
 
-  // Per-table state: sort key/direction, filter text, selected row id
+  // Per-table state: sort key/direction, filter text, per-column filters, selected row id
+  // colFilters: { columnKey: { activeValues: Set-like object {value: true, ...} } }
+  // Empty/missing colFilters[k] = no filter for that column.
   var gridState = {
-    milestones: { sortKey: null, sortDir: 'asc', filter: '', selectedId: null },
-    tasks:      { sortKey: null, sortDir: 'asc', filter: '', selectedId: null },
-    risks:      { sortKey: null, sortDir: 'asc', filter: '', selectedId: null },
-    documents:  { sortKey: null, sortDir: 'asc', filter: '', selectedId: null },
-    costs:      { sortKey: null, sortDir: 'asc', filter: '', selectedId: null }
+    milestones: { sortKey: null, sortDir: 'asc', filter: '', colFilters: {}, selectedId: null },
+    tasks:      { sortKey: null, sortDir: 'asc', filter: '', colFilters: {}, selectedId: null },
+    risks:      { sortKey: null, sortDir: 'asc', filter: '', colFilters: {}, selectedId: null },
+    documents:  { sortKey: null, sortDir: 'asc', filter: '', colFilters: {}, selectedId: null },
+    costs:      { sortKey: null, sortDir: 'asc', filter: '', colFilters: {}, selectedId: null }
   };
 
   // Status priority maps (lower = sort first when "exception-first" is on)
@@ -73,7 +75,7 @@
 
     var rows = (state[table] || []).slice();
     rows = _enrichRows(table, rows, state);
-    rows = _filterRows(rows, gridState[table].filter, cols);
+    rows = _filterRows(rows, gridState[table].filter, gridState[table].colFilters, cols);
     rows = _sortRows(rows, gridState[table].sortKey, gridState[table].sortDir, cols);
 
     content.innerHTML =
@@ -109,16 +111,35 @@
     return PPM.services.viewService.enrichRows(table, rows, state);
   }
 
-  function _filterRows(rows, filter, cols){
-    if(!filter) return rows;
-    var needle = filter.toLowerCase();
-    return rows.filter(function(r){
-      return cols.some(function(c){
-        var v = r[c.key];
-        if(v == null) return false;
-        return String(v).toLowerCase().indexOf(needle) >= 0;
+  function _filterRows(rows, filter, colFilters, cols){
+    var filtered = rows;
+
+    // Step 1: per-column filters (AND across columns)
+    if(colFilters && Object.keys(colFilters).length > 0){
+      filtered = filtered.filter(function(r){
+        return Object.keys(colFilters).every(function(colKey){
+          var active = colFilters[colKey];
+          if(!active || Object.keys(active).length === 0) return true;
+          var v = r[colKey];
+          var displayVal = (v == null || v === '') ? '(empty)' : String(v);
+          return active[displayVal] === true;
+        });
       });
-    });
+    }
+
+    // Step 2: global text filter (across all columns)
+    if(filter){
+      var needle = filter.toLowerCase();
+      filtered = filtered.filter(function(r){
+        return cols.some(function(c){
+          var v = r[c.key];
+          if(v == null) return false;
+          return String(v).toLowerCase().indexOf(needle) >= 0;
+        });
+      });
+    }
+
+    return filtered;
   }
 
   function _sortRows(rows, sortKey, sortDir, cols){
@@ -158,6 +179,10 @@
     var s = gridState[table];
     var filterShown = s.filter ? '<span class="ppm-grid-filter-active">Filtering: "' + _esc(s.filter) + '"</span>' : '';
     var clearSort = s.sortKey ? '<button class="ppm-grid-pill" id="ppm-clear-sort">Clear sort: ' + _esc(s.sortKey) + '</button>' : '';
+    // FRS-005: backward scheduling action — only on milestones table.
+    var bwButton = (table === 'milestones')
+      ? '<button class="ppm-btn-tool" id="ppm-grid-bw" title="Re-anchor schedule so terminal milestone lands on go-live date">' + icons.calendar() + '<span class="ppm-btn-label">Schedule from Go-Live</span></button>'
+      : '';
     return '<div class="ppm-grid-toolbar">' +
       '<div class="ppm-grid-toolbar-left">' +
         '<input class="ppm-grid-filter" type="text" placeholder="Filter…" value="' + _esc(s.filter) + '" id="ppm-grid-filter-input">' +
@@ -166,6 +191,7 @@
       '</div>' +
       '<div class="ppm-grid-toolbar-right">' +
         '<span class="ppm-grid-count">' + shownCount + (shownCount !== totalCount ? ' of ' + totalCount : '') + ' rows</span>' +
+        bwButton +
         '<button class="ppm-btn-tool" id="ppm-grid-add">' + icons.plus() + '<span class="ppm-btn-label">Add row</span></button>' +
       '</div>' +
     '</div>';
@@ -209,6 +235,26 @@
         }
       });
     }
+    // FRS-005: backward schedule from go-live (milestones grid only)
+    var bwBtn = document.getElementById('ppm-grid-bw');
+    if(bwBtn){
+      bwBtn.addEventListener('click', function(){
+        var state = PPM.services.projectService.getState();
+        if(!state || !state.meta || !state.meta.goLive){
+          PPM.ui.toast.show('Set a go-live date in project meta first', 'error', 4000);
+          return;
+        }
+        var msg = 'Re-anchor the schedule so the terminal milestone lands on ' + state.meta.goLive +
+                  '?\n\nThis will rewrite all milestone start and end dates working backward through dependencies. Existing dates will be replaced.';
+        if(!confirm(msg)) return;
+        var result = PPM.services.projectService.scheduleBackwardFromGoLive();
+        if(result.ok){
+          PPM.ui.toast.show('Schedule anchored to ' + result.anchor + ' (' + result.milestoneCount + ' milestones)', 'success', 4000);
+        } else {
+          PPM.ui.toast.show('Backward scheduling failed: ' + result.error, 'error', 4000);
+        }
+      });
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -236,9 +282,15 @@
       var alignClass = c.num ? ' ppm-num-col' : '';
       var widthAttr = c.w ? ' style="width:' + c.w + 'px;min-width:' + c.w + 'px"' : '';
       var canSort = c.type !== 'computed' && c.type !== 'auto';
+      // FRS: filter icon — show on every column. Highlight when active.
+      var hasActiveFilter = s.colFilters[c.key] && Object.keys(s.colFilters[c.key]).length > 0;
+      var filterIconClass = 'ppm-grid-filter-icon' + (hasActiveFilter ? ' ppm-grid-filter-icon-active' : '');
+      var filterIcon = '<button class="' + filterIconClass + '" data-filter-col="' + _esc(c.key) + '" title="Filter ' + _esc(c.label) + '" aria-label="Filter">▾</button>';
+
       return '<th class="ppm-grid-th' + sortClass + alignClass + (canSort ? ' ppm-grid-th-sortable' : '') + '" ' +
         'data-col-key="' + _esc(c.key) + '"' + widthAttr + '>' +
-        _esc(c.label) + sortMark +
+        '<span class="ppm-grid-th-label">' + _esc(c.label) + sortMark + '</span>' +
+        filterIcon +
       '</th>';
     }).join('');
 
@@ -307,6 +359,12 @@
       var rag = r._rag || 'Green';
       return '<span class="ppm-status-badge ppm-status-' + rag.toLowerCase() + '">' + rag + '</span>';
     }
+    if(table === 'milestones' && key === '_depStatus'){
+      var dep = r._depStatus || 'Clear';
+      // Map dep status to existing status colour bands: Clear=green, Waiting=amber, Blocked=red
+      var depClass = dep === 'Clear' ? 'green' : (dep === 'Waiting' ? 'amber' : 'red');
+      return '<span class="ppm-status-badge ppm-status-' + depClass + '">' + dep + '</span>';
+    }
     if(table === 'risks' && key === '_score'){
       var band = r._scoreBand || 'low';
       return '<span class="ppm-status-badge ppm-status-' + band + '">' + (r._score || 0) + '</span>';
@@ -348,9 +406,11 @@
   // GRID EVENT WIRING
   // -------------------------------------------------------------------------
   function _wireGrid(table, cols){
-    // Sort by column header click
+    // Sort by column header click — but NOT when click came from the filter icon
     document.querySelectorAll('.ppm-grid-th-sortable').forEach(function(th){
       th.addEventListener('click', function(e){
+        // Skip if click originated on or inside the filter icon
+        if(e.target.closest('.ppm-grid-filter-icon')) return;
         var key = e.currentTarget.getAttribute('data-col-key');
         var s = gridState[table];
         if(s.sortKey === key){
@@ -360,6 +420,17 @@
           s.sortDir = 'asc';
         }
         render(table);
+      });
+    });
+
+    // Filter icon click — open filter dropdown for that column
+    document.querySelectorAll('.ppm-grid-filter-icon').forEach(function(btn){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        var colKey = btn.getAttribute('data-filter-col');
+        var col = cols.find(function(c){ return c.key === colKey; });
+        if(!col) return;
+        _showColumnFilter(table, col, btn);
       });
     });
 
@@ -464,6 +535,38 @@
       }
       // Save only if changed
       if(String(newVal) !== String(currentValue)){
+        // FRS-005c: cascade preview for schedule-affecting milestone edits.
+        // Show confirm modal if downstream milestones would shift.
+        if(table === 'milestones' && ['plannedStart','plannedEnd','duration','predecessor','lag'].indexOf(col.key) >= 0){
+          var state = PPM.services.projectService.getState();
+          var settings = PPM.services.settingsService.getSettings() || {};
+          var preview = PPM.services.viewService.previewCascade(
+            state.milestones,
+            { id: rowId, field: col.key, value: newVal },
+            settings.workingDays,
+            settings.holidays
+          );
+          if(preview.error){
+            PPM.ui.toast.show('Cannot apply: ' + preview.error, 'error', 4000);
+            render(table);
+            return;
+          }
+          if(preview.affected && preview.affected.length > 0){
+            _showCascadePreview(preview.affected, function(confirmed){
+              if(confirmed){
+                var result = PPM.services.editService.applyCellEdit(table, rowId, col.key, newVal);
+                if(!result.ok){
+                  PPM.ui.toast.show('Edit rejected: ' + (result.message || result.error), 'error', 3500);
+                } else {
+                  PPM.ui.toast.show(preview.affected.length + ' downstream milestone' + (preview.affected.length === 1 ? '' : 's') + ' shifted', 'info', 3000);
+                }
+              }
+              render(table);
+            });
+            return; // wait for modal — render happens in callback
+          }
+        }
+        // Non-schedule edit, or schedule edit with no downstream impact
         var result = PPM.services.editService.applyCellEdit(table, rowId, col.key, newVal);
         if(!result.ok){
           PPM.ui.toast.show('Edit rejected: ' + (result.message || result.error), 'error', 3500);
@@ -492,6 +595,190 @@
     return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
       return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
     });
+  }
+
+  // -------------------------------------------------------------------------
+  // COLUMN FILTER DROPDOWN
+  // Lists distinct values in the column. User toggles which to include.
+  // No selections = show all. Anchored to the clicked filter icon.
+  // -------------------------------------------------------------------------
+  function _showColumnFilter(table, col, anchorEl){
+    // Close any existing filter dropdown
+    var existing = document.getElementById('ppm-colfilter-popup');
+    if(existing) existing.parentNode.removeChild(existing);
+
+    // Compute distinct values from the current state (enriched, like grid sees)
+    var state = PPM.services.projectService.getState();
+    if(!state) return;
+    var rows = (state[table] || []).slice();
+    rows = PPM.services.viewService.enrichRows(table, rows, state);
+
+    var seen = {};
+    var distinct = [];
+    rows.forEach(function(r){
+      var v = r[col.key];
+      var label = (v == null || v === '') ? '(empty)' : String(v);
+      if(!seen[label]){
+        seen[label] = true;
+        distinct.push(label);
+      }
+    });
+    distinct.sort();
+    if(distinct.length === 0){
+      PPM.ui.toast.show('No values to filter on', 'info');
+      return;
+    }
+
+    var active = gridState[table].colFilters[col.key] || {};
+    var hasAny = Object.keys(active).length > 0;
+
+    var checkboxRows = distinct.map(function(label){
+      var checked = hasAny ? (active[label] === true) : true; // default: all on
+      return '<label class="ppm-colfilter-item">' +
+        '<input type="checkbox" data-filter-value="' + _esc(label) + '"' + (checked ? ' checked' : '') + '>' +
+        '<span class="ppm-colfilter-label">' + _esc(label) + '</span>' +
+      '</label>';
+    }).join('');
+
+    var popup = document.createElement('div');
+    popup.id = 'ppm-colfilter-popup';
+    popup.className = 'ppm-colfilter-popup';
+    popup.innerHTML =
+      '<div class="ppm-colfilter-header">' +
+        '<span class="ppm-colfilter-title">Filter ' + _esc(col.label) + '</span>' +
+        '<button class="ppm-colfilter-close" aria-label="Close">×</button>' +
+      '</div>' +
+      '<div class="ppm-colfilter-actions">' +
+        '<button class="ppm-colfilter-action" data-action="all">Select all</button>' +
+        '<button class="ppm-colfilter-action" data-action="none">Clear</button>' +
+      '</div>' +
+      '<div class="ppm-colfilter-list">' + checkboxRows + '</div>' +
+      '<div class="ppm-colfilter-footer">' +
+        '<button class="ppm-btn-tool" data-action="cancel">Cancel</button>' +
+        '<button class="ppm-btn-tool ppm-btn-primary" data-action="apply">Apply</button>' +
+      '</div>';
+    document.body.appendChild(popup);
+
+    // Position near the anchor (right-aligned to avoid going off-screen)
+    var rect = anchorEl.getBoundingClientRect();
+    popup.style.position = 'fixed';
+    popup.style.top = (rect.bottom + 4) + 'px';
+    var left = rect.right - 240;
+    if(left < 8) left = 8;
+    popup.style.left = left + 'px';
+
+    var cleanup = function(){
+      if(popup.parentNode) popup.parentNode.removeChild(popup);
+      document.removeEventListener('click', outsideClick, true);
+      document.removeEventListener('keydown', escHandler);
+    };
+    var outsideClick = function(e){
+      if(!popup.contains(e.target)) cleanup();
+    };
+    var escHandler = function(e){
+      if(e.key === 'Escape') cleanup();
+    };
+    setTimeout(function(){ // defer so the click that opened doesn't immediately close
+      document.addEventListener('click', outsideClick, true);
+      document.addEventListener('keydown', escHandler);
+    }, 0);
+
+    popup.querySelector('.ppm-colfilter-close').addEventListener('click', cleanup);
+    popup.querySelector('[data-action="cancel"]').addEventListener('click', cleanup);
+    popup.querySelector('[data-action="all"]').addEventListener('click', function(){
+      popup.querySelectorAll('input[type=checkbox]').forEach(function(cb){ cb.checked = true; });
+    });
+    popup.querySelector('[data-action="none"]').addEventListener('click', function(){
+      popup.querySelectorAll('input[type=checkbox]').forEach(function(cb){ cb.checked = false; });
+    });
+    popup.querySelector('[data-action="apply"]').addEventListener('click', function(){
+      var newFilter = {};
+      var allChecked = true;
+      popup.querySelectorAll('input[type=checkbox]').forEach(function(cb){
+        if(cb.checked){
+          newFilter[cb.getAttribute('data-filter-value')] = true;
+        } else {
+          allChecked = false;
+        }
+      });
+      // If all checkboxes are checked, treat as "no filter" (clearer semantics)
+      if(allChecked){
+        delete gridState[table].colFilters[col.key];
+      } else {
+        gridState[table].colFilters[col.key] = newFilter;
+      }
+      cleanup();
+      render(table);
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // CASCADE PREVIEW MODAL (FRS-005c)
+  // Shows what would shift before committing a schedule edit.
+  // Caller passes affected[] from viewService.previewCascade and a callback
+  // that receives boolean confirmed.
+  // -------------------------------------------------------------------------
+  function _showCascadePreview(affected, callback){
+    // Remove any prior modal
+    var existing = document.getElementById('ppm-cascade-modal');
+    if(existing) existing.parentNode.removeChild(existing);
+
+    var rows = affected.slice(0, 8).map(function(a){
+      var shiftLabel = (a.daysShifted > 0 ? '+' : '') + a.daysShifted + 'd';
+      var shiftClass = a.daysShifted > 0 ? 'ppm-cascade-shift-fwd' : (a.daysShifted < 0 ? 'ppm-cascade-shift-back' : '');
+      return '<tr>' +
+        '<td>' + _esc(a.name || ('#' + a.id)) + '</td>' +
+        '<td class="ppm-num">' + _esc(a.oldStart || '—') + '</td>' +
+        '<td class="ppm-num">' + _esc(a.newStart || '—') + '</td>' +
+        '<td class="ppm-num">' + _esc(a.oldEnd || '—') + '</td>' +
+        '<td class="ppm-num">' + _esc(a.newEnd || '—') + '</td>' +
+        '<td class="ppm-num ' + shiftClass + '">' + shiftLabel + '</td>' +
+      '</tr>';
+    }).join('');
+    var more = affected.length > 8 ? '<div class="ppm-cascade-more">+ ' + (affected.length - 8) + ' more downstream milestones</div>' : '';
+
+    var modal = document.createElement('div');
+    modal.id = 'ppm-cascade-modal';
+    modal.className = 'ppm-cascade-overlay';
+    modal.innerHTML =
+      '<div class="ppm-cascade-dialog" role="dialog" aria-labelledby="ppm-cascade-title">' +
+        '<div class="ppm-cascade-header">' +
+          '<h3 id="ppm-cascade-title" class="ppm-cascade-title">Schedule cascade preview</h3>' +
+          '<div class="ppm-cascade-subtitle">This change will shift ' + affected.length + ' downstream milestone' + (affected.length === 1 ? '' : 's') + '. Review the impact below.</div>' +
+        '</div>' +
+        '<div class="ppm-cascade-body">' +
+          '<table class="ppm-cascade-table">' +
+            '<thead><tr><th>Milestone</th><th>Old Start</th><th>New Start</th><th>Old End</th><th>New End</th><th>Shift</th></tr></thead>' +
+            '<tbody>' + rows + '</tbody>' +
+          '</table>' +
+          more +
+        '</div>' +
+        '<div class="ppm-cascade-footer">' +
+          '<button class="ppm-btn-tool" id="ppm-cascade-cancel">Cancel</button>' +
+          '<button class="ppm-btn-tool ppm-btn-primary" id="ppm-cascade-confirm">Apply changes</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(modal);
+
+    var cleanup = function(confirmed){
+      if(modal.parentNode) modal.parentNode.removeChild(modal);
+      callback(confirmed);
+    };
+    document.getElementById('ppm-cascade-cancel').addEventListener('click', function(){ cleanup(false); });
+    document.getElementById('ppm-cascade-confirm').addEventListener('click', function(){ cleanup(true); });
+    modal.addEventListener('click', function(e){ if(e.target === modal) cleanup(false); });
+    document.addEventListener('keydown', function escHandler(e){
+      if(e.key === 'Escape'){
+        document.removeEventListener('keydown', escHandler);
+        cleanup(false);
+      }
+    });
+
+    // Focus the confirm button by default for keyboard users
+    setTimeout(function(){
+      var btn = document.getElementById('ppm-cascade-confirm');
+      if(btn) btn.focus();
+    }, 50);
   }
 
   // -------------------------------------------------------------------------

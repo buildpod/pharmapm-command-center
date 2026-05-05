@@ -34,6 +34,7 @@
       { key:'status',       label:'Status',    type:'dropdown', w:130, options: enums.milestoneStatus },
       { key:'pct',          label:'%',         type:'number',   w:60,  num:true },
       { key:'_rag',         label:'RAG',       type:'computed', w:80 },
+      { key:'_depStatus',   label:'Dep',       type:'computed', w:80, help:'Dependency status: Clear / Waiting / Blocked' },
       { key:'notes',        label:'Notes',     type:'text',     w:220 }
     ],
     tasks: [
