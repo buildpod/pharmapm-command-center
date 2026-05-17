@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PharmaPM Command Center</title>
+<base href="/pharmapm-command-center/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="src/ui/styles.css">
+<link rel="stylesheet" href="src/ui/wizardStyles.css">
+<link rel="stylesheet" href="src/ui/gridStyles.css">
+<link rel="stylesheet" href="src/ui/reportStyles.css">
+</head>
+<body>
+
+<!-- ============================================================================
+     SCRIPT LOADING ORDER
+     Strict dependency order. UI scripts load AFTER all backend modules.
+     ============================================================================ -->
+
+<!-- 1. Root namespace -->
+<script src="src/ppm.js"></script>
+
+<!-- 2. Config + Schema -->
+<script src="src/config/rules.js"></script>
+<script src="src/config/countryHolidays.js"></script>
+<script src="src/schema/schema.js"></script>
+<script src="src/schema/migrations.js"></script>
+
+<!-- 3. Domain (pure logic) -->
+<script src="src/domain/dates.js"></script>
+<script src="src/domain/scheduling.js"></script>
+<script src="src/domain/risk.js"></script>
+<script src="src/domain/budget.js"></script>
+<script src="src/domain/documents.js"></script>
+<script src="src/domain/milestones.js"></script>
+<script src="src/domain/health.js"></script>
+<script src="src/domain/validation.js"></script>
+
+<!-- 4. Adapters -->
+<script src="src/adapters/storage.js"></script>
+<script src="src/adapters/exporter.js"></script>
+<script src="src/adapters/printer.js"></script>
+
+<!-- 5. Services (events first) -->
+<script src="src/services/events.js"></script>
+<script src="src/services/projectService.js"></script>
+<script src="src/services/editService.js"></script>
+<script src="src/services/lifecycleService.js"></script>
+<script src="src/services/commentService.js"></script>
+<script src="src/services/reportService.js"></script>
+<script src="src/services/viewService.js"></script>
+<script src="src/services/settingsService.js"></script>
+
+<!-- 6. UI base layer -->
+<script src="src/ui/icons.js"></script>
+<script src="src/ui/toast.js"></script>
+<script src="src/ui/router.js"></script>
+<script src="src/ui/banner.js"></script>
+<script src="src/ui/welcome.js"></script>
+<script src="src/ui/wizard.js"></script>
+<script src="src/ui/columns.js"></script>
+<script src="src/ui/detail.js"></script>
+<script src="src/ui/grid.js"></script>
+<script src="src/ui/dashboard.js"></script>
+<script src="src/ui/steerco.js"></script>
+<script src="src/ui/shell.js"></script>
+
+<!-- 7. Boot — runs welcome or shell based on saved state -->
+<script src="src/ui/boot.js"></script>
+
+</body>
+</html>
