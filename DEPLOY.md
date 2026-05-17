@@ -1,4 +1,4 @@
-# Deployment Guide — PharmaPM Pro
+# Deployment Guide — PharmaPM Command Center
 
 This is a **zero-build static web app**. No bundler, no transpiler, no `npm install` required for production. Deploy by copying files to any static host.
 
@@ -8,7 +8,7 @@ This is a **zero-build static web app**. No bundler, no transpiler, no `npm inst
 
 ### One-time setup
 
-1. **Create repository:** `https://github.com/new` → name it `pharmapm-pro` → **Public** → tick "Add a README file" → **Create repository**.
+1. **Create repository:** `https://github.com/new` → name it `pharmapm-command-center` → **Public** → tick "Add a README file" → **Create repository**.
 
 2. **Upload code:**
    - In the new repo, click **Add file → Upload files**.
@@ -24,7 +24,7 @@ This is a **zero-build static web app**. No bundler, no transpiler, no `npm inst
 
 4. **Open the URL** that GitHub Pages displays:
    ```
-   https://YOUR_USERNAME.github.io/pharmapm-pro/
+   https://YOUR_USERNAME.github.io/pharmapm-command-center/
    ```
 
 ### Subsequent deploys
@@ -46,7 +46,7 @@ GitHub typically redeploys within 30–90 seconds.
 If you have Python installed:
 
 ```bash
-cd pharmapm-pro
+cd pharmapm-command-center
 python3 -m http.server 8000
 ```
 
@@ -55,7 +55,7 @@ Open `http://localhost:8000`.
 If you have Node.js:
 
 ```bash
-cd pharmapm-pro
+cd pharmapm-command-center
 npx serve
 ```
 

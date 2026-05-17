@@ -1,4 +1,6 @@
-# PharmaPM Pro — Multi-File Hardened Backbone
+# PharmaPM Command Center — PharmaPM Pro Reference Copy
+
+This repository is seeded from `buildpod/pharmapm-pro`. It keeps the PharmaPM Pro app experience while providing a fresh `pharmapm-command-center` repo for future iteration.
 
 This is the v1.1 hardened architecture backbone, physically split into module files.
 No build step. No npm install. No bundler. Just open `index.html` and run.
@@ -21,7 +23,7 @@ No build step. No npm install. No bundler. Just open `index.html` and run.
 Some browsers restrict `file://` access for sub-script loading. Easiest fix:
 
 ```bash
-# from the pharmapm-pro/ folder
+# from the pharmapm-command-center/ folder
 python3 -m http.server 8000
 # then open http://localhost:8000/ in your browser
 ```
@@ -43,7 +45,7 @@ Works in some browsers (Firefox does, recent Chrome may not without flags). If y
 ## File structure
 
 ```
-pharmapm-pro/
+pharmapm-command-center/
 ├── index.html                          ← boot only; loads scripts in dep order
 ├── README.md                           ← you are here
 ├── src/
