@@ -22,6 +22,7 @@ import {
   computeCriticalPath,
   previewTaskCascade,
   topoSortTasks,
+  analyzeDependencyRepairPlan,
   findConstraintViolations,
   previewMilestoneToTaskImpact,
   previewTaskToMilestonePush,
@@ -138,6 +139,65 @@ describe("M20.4 §1 Topology — milestone cascade", () => {
     const tasks = [task("t1", "2026-05-04", ["t1"])];
     const topo = topoSortTasks(tasks);
     expect(topo.hasCycle).toBe(true);
+  });
+
+  it("repair plan — single waiting loop returns ranked per-link options", () => {
+    const tasks: TaskScheduleEntry[] = [
+      { ...task("t1", "2026-05-04", ["t3"]), name: "Roles", workstream: "Config" },
+      { ...task("t2", "2026-05-05", ["t1"]), name: "Scripts", workstream: "Validation" },
+      { ...task("t3", "2026-05-06", ["t2"]), name: "Summary", workstream: "Validation" },
+    ];
+    const plan = analyzeDependencyRepairPlan(tasks);
+    expect(plan.hasRepairableLoops).toBe(true);
+    expect(plan.groupCount).toBe(1);
+    expect(plan.groups[0].edges).toHaveLength(3);
+    expect(plan.groups[0].suggestedEdge).toBeDefined();
+    expect(plan.groups[0].edges.every((edge) => edge.fromId && edge.toId && edge.plainReason)).toBe(true);
+    expect(plan.complexity).toEqual({ time: "O(V + E)", space: "O(V + E)" });
+  });
+
+  it("repair plan — reports independent waiting areas proactively", () => {
+    const tasks = [
+      task("a", "2026-05-04", ["b"]),
+      task("b", "2026-05-05", ["a"]),
+      task("c", "2026-05-06", ["d"]),
+      task("d", "2026-05-07", ["c"]),
+      task("e", "2026-05-08"),
+    ];
+    const plan = analyzeDependencyRepairPlan(tasks);
+    expect(plan.groupCount).toBe(2);
+    expect(plan.taskCount).toBe(4);
+    expect(plan.linkCount).toBe(4);
+  });
+
+  it("repair plan — self-reference is the first repair", () => {
+    const plan = analyzeDependencyRepairPlan([task("t1", "2026-05-04", ["t1"])]);
+    expect(plan.groupCount).toBe(1);
+    expect(plan.groups[0].suggestedEdge?.reason).toBe("self-reference");
+    expect(plan.groups[0].suggestedEdge?.recommendedAction).toBe("remove");
+  });
+
+  it("repair plan — ignores soft coordination links", () => {
+    const tasks: TaskScheduleEntry[] = [
+      { ...task("a", "2026-05-04", ["b"]), parallelDeps: ["c"] },
+      { ...task("b", "2026-05-05") },
+      { ...task("c", "2026-05-06", ["a"]) },
+    ];
+    const plan = analyzeDependencyRepairPlan(tasks);
+    expect(plan.groupCount).toBe(0);
+  });
+
+  it("repair plan — handles an 80-link waiting loop without collapsing detail", () => {
+    const tasks: TaskScheduleEntry[] = Array.from({ length: 80 }, (_, idx) => {
+      const id = `t${idx + 1}`;
+      const dep = `t${idx === 79 ? 1 : idx + 2}`;
+      return task(id, "2026-05-04", [dep]);
+    });
+    const plan = analyzeDependencyRepairPlan(tasks);
+    expect(plan.groupCount).toBe(1);
+    expect(plan.groups[0].taskCount).toBe(80);
+    expect(plan.groups[0].linkCount).toBe(80);
+    expect(plan.groups[0].suggestedEdge).toBeDefined();
   });
 
   it("disconnected graph — two independent chains; edit on one leaves the other untouched", () => {

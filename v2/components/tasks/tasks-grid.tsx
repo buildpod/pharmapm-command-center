@@ -16,6 +16,8 @@ import { useSettings } from "@/lib/settingsStore";
 import {
   previewTaskCascade, findConstraintViolations, groupViolationsByTask, diffViolations,
   previewTaskToMilestonePush,
+  analyzeDependencyRepairPlan,
+  type DependencyRepairAction, type DependencyRepairEdge,
   type TaskScheduleEntry, type ScheduleMilestone,
 } from "@/lib/domain/scheduling";
 import { workingDaysBetween } from "@/lib/domain/dates";
@@ -631,9 +633,40 @@ export function TasksGrid() {
         // Snapshot tasks at drawer open so recompute is deterministic
         const projTasks = tasks.filter((x) => x.projectId === activeProjectId);
         const entries: TaskScheduleEntry[] = projTasks.map((x) => ({
-          id: x.id, name: x.name, dueDate: x.dueDate,
-          dependsOn: x.dependsOn, milestoneId: x.milestoneId,
+          id: x.id, name: x.name, workstream: x.workstream, dueDate: x.dueDate,
+          dependsOn: x.dependsOn, parallelDeps: x.parallelDeps, depNotes: x.depNotes,
+          milestoneId: x.milestoneId,
         }));
+
+        function resolveDependencyLink(action: DependencyRepairAction, edge: DependencyRepairEdge) {
+          const pendingTasks = tasks.map((x) => {
+            if (x.id !== edge.fromId) return x;
+            const hardLinks = (x.dependsOn ?? []).filter((depId) => depId !== edge.toId);
+            if (action === "make-parallel") {
+              const softLinks = Array.from(new Set([...(x.parallelDeps ?? []), edge.toId]));
+              return {
+                ...x,
+                dependsOn: hardLinks,
+                parallelDeps: softLinks,
+                depNotes: {
+                  ...(x.depNotes ?? {}),
+                  [edge.toId]: x.depNotes?.[edge.toId] ?? "Tracked as a coordination note after schedule preview repair.",
+                },
+              };
+            }
+            return { ...x, dependsOn: hardLinks };
+          });
+          replaceAllTasks(pendingTasks, {
+            source: "cascade",
+            note: action === "make-parallel"
+              ? "dependency repair: hard wait moved to coordination note"
+              : "dependency repair: hard wait removed",
+          });
+          toast.success(action === "make-parallel" ? "Waiting link changed to a coordination note" : "Waiting link removed", {
+            description: `${edge.fromId.toUpperCase()} no longer hard-waits for ${edge.toId.toUpperCase()}.`,
+          });
+          setCascadePreview(null);
+        }
 
         // M20.3 — snapshot live milestones for task→milestone push detection
         const projMilestones = liveMilestones.filter((m) => m.projectId === activeProjectId);
@@ -679,6 +712,7 @@ export function TasksGrid() {
               // default + an action button that takes the PM to the Tasks page
               // to resolve. Plain language, no jargon, what/why/next structure.
               if (r.error) {
+                const repairPlan = analyzeDependencyRepairPlan(entries);
                 const cycleMatch = r.error.match(/Tasks involved:\s*(.+)/i);
                 const cycleIds = cycleMatch
                   ? cycleMatch[1].split(/[→,\s]+/).map((s) => s.trim().toLowerCase()).filter(Boolean)
@@ -695,21 +729,29 @@ export function TasksGrid() {
                   }));
 
                 return {
-                  sections: [{
-                    kind: "callout",
-                    tone: "amber",
-                    title: "Downstream preview unavailable",
-                    body: `Some tasks reference each other in a loop, so we can't compute what would shift.\n\nYour change to ${cascadePreview!.editedTask.name} will still save.`,
-                    collapsibleLabel: `Show ${cycleItems.length} task${cycleItems.length === 1 ? "" : "s"} in the loop`,
-                    collapsibleItems: cycleItems,
-                    actionLabel: "Open Tasks page",
-                    onAction: () => {
-                      // Soft navigate; tasks-grid is the current page so this just
-                      // closes the drawer. A future enhancement could deep-link to
-                      // a filtered tasks view of just the cycle members.
-                      setCascadePreview(null);
+                  sections: [
+                    {
+                      kind: "callout",
+                      tone: "amber",
+                      title: "Downstream preview unavailable",
+                      body: `Some tasks reference each other in a loop, so we can't compute what would shift.\n\nYour change to ${cascadePreview!.editedTask.name} will still save.`,
+                      collapsibleLabel: `Show ${cycleItems.length} task${cycleItems.length === 1 ? "" : "s"} in the loop`,
+                      collapsibleItems: cycleItems,
+                      actionLabel: "Open Tasks page",
+                      onAction: () => {
+                        // Soft navigate; tasks-grid is the current page so this just
+                        // closes the drawer. A future enhancement could deep-link to
+                        // a filtered tasks view of just the cycle members.
+                        setCascadePreview(null);
+                      },
                     },
-                  }],
+                    ...(repairPlan.hasRepairableLoops ? [{
+                      kind: "dependency-workbench" as const,
+                      title: "Waiting-link repair",
+                      plan: repairPlan,
+                      onResolveLink: resolveDependencyLink,
+                    }] : []),
+                  ],
                 };
               }
 

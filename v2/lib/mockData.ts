@@ -520,6 +520,8 @@ export type Task = {
   owner: string;
   dueDate: string;
   dependsOn?: string[];  // task ids this task is blocked by
+  parallelDeps?: string[]; // task ids tracked as coordination notes, not hard waits
+  depNotes?: Record<string, string>; // notes keyed by task id for dependency context
   projectId: string;     // FK → Project.id
 };
 

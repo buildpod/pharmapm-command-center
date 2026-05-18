@@ -2,9 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  X, ArrowRight, AlertTriangle, Info, Milestone as MilestoneIcon, CheckSquare,
+  X, ArrowRight, AlertTriangle, Info, Milestone as MilestoneIcon, CheckSquare, Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type {
+  DependencyRepairAction,
+  DependencyRepairEdge,
+  DependencyRepairPlan,
+} from "@/lib/domain/scheduling";
 
 // M20: Universal selective-cascade impact drawer.
 // - Holds local state for per-row exclusions + date overrides
@@ -70,6 +75,12 @@ export type ImpactSection =
   | { kind: "tasks";      title: string; rows: ImpactRow[] }
   | { kind: "warnings";   title: string; rows: ViolationRow[] }
   | { kind: "info";       title: string; rows: InfoRow[] }
+  | {
+      kind: "dependency-workbench";
+      title: string;
+      plan: DependencyRepairPlan;
+      onResolveLink?: (action: DependencyRepairAction, edge: DependencyRepairEdge) => void;
+    }
   | CalloutSection;
 
 export interface ImpactSummary {
@@ -381,7 +392,11 @@ export function ImpactDrawer({
           ) : (
             sections.map((section, sIdx) => {
               // Callouts render even with no items; other kinds skip when empty
-              if (section.kind !== "callout" && section.rows.length === 0) return null;
+              if (
+                section.kind !== "callout" &&
+                section.kind !== "dependency-workbench" &&
+                section.rows.length === 0
+              ) return null;
               return (
                 <Section
                   key={sIdx}
@@ -455,6 +470,9 @@ function Section({
   // M21-DrawerRewrite — callouts get their own rendering path (no row list).
   if (section.kind === "callout") {
     return <Callout section={section} />;
+  }
+  if (section.kind === "dependency-workbench") {
+    return <DependencyWorkbench section={section} />;
   }
 
   const sectionStyle =
@@ -763,5 +781,220 @@ function Callout({ section }: { section: CalloutSection }) {
         </div>
       </div>
     </section>
+  );
+}
+
+function DependencyWorkbench({
+  section,
+}: {
+  section: Extract<ImpactSection, { kind: "dependency-workbench" }>;
+}) {
+  const { plan } = section;
+  const [activeId, setActiveId] = useState(plan.groups[0]?.id ?? "");
+  const [query, setQuery] = useState("");
+  const [workstream, setWorkstream] = useState("All");
+  const [showAll, setShowAll] = useState(false);
+
+  const activeGroup = plan.groups.find((group) => group.id === activeId) ?? plan.groups[0];
+  if (!activeGroup) return null;
+
+  const workstreams = ["All", ...activeGroup.workstreams];
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredEdges = activeGroup.edges.filter((edge) => {
+    const matchesWorkstream =
+      workstream === "All" ||
+      edge.fromWorkstream === workstream ||
+      edge.toWorkstream === workstream;
+    const haystack = [
+      edge.fromId,
+      edge.fromName,
+      edge.fromWorkstream,
+      edge.toId,
+      edge.toName,
+      edge.toWorkstream,
+    ].filter(Boolean).join(" ").toLowerCase();
+    return matchesWorkstream && (!normalizedQuery || haystack.includes(normalizedQuery));
+  });
+  const visibleEdges = showAll ? filteredEdges : filteredEdges.slice(0, 8);
+  const suggested = activeGroup.suggestedEdge;
+
+  function actionLabel(action: DependencyRepairAction) {
+    return action === "make-parallel" ? "Make coordination note" : "Remove waiting link";
+  }
+
+  return (
+    <section className="rounded-lg border border-amber-200 bg-amber-50/40">
+      <div className="border-b border-amber-200 px-4 py-3">
+        <div className="flex items-start gap-3">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+            <AlertTriangle className="h-3.5 w-3.5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-amber-950">{section.title}</p>
+            <div className="mt-1 grid gap-1 text-xs text-foreground/80">
+              <p><span className="font-semibold">What happened:</span> Some tasks point back to work that is already waiting on them.</p>
+              <p><span className="font-semibold">Why it matters:</span> The preview cannot decide which task should move first.</p>
+              <p><span className="font-semibold">What to do:</span> Choose one waiting link to turn into a coordination note or remove.</p>
+            </div>
+          </div>
+        </div>
+
+        {plan.groups.length > 1 && (
+          <div className="mt-3 flex gap-1 overflow-x-auto">
+            {plan.groups.map((group, idx) => (
+              <button
+                key={group.id}
+                type="button"
+                onClick={() => {
+                  setActiveId(group.id);
+                  setShowAll(false);
+                  setQuery("");
+                  setWorkstream("All");
+                }}
+                className={cn(
+                  "shrink-0 rounded-md border px-2.5 py-1 text-[11px] font-semibold transition-colors",
+                  group.id === activeGroup.id
+                    ? "border-amber-300 bg-card text-foreground shadow-sm"
+                    : "border-transparent bg-transparent text-amber-800 hover:bg-amber-100"
+                )}
+              >
+                Area {idx + 1} · {group.taskCount}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-3 bg-card px-4 py-3">
+        <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+          <span className="rounded-full border border-border bg-muted/30 px-2 py-0.5 font-semibold">
+            {activeGroup.summary}
+          </span>
+          <span className="rounded-full border border-border bg-muted/30 px-2 py-0.5">
+            {plan.complexity.time} check
+          </span>
+        </div>
+
+        {suggested && (
+          <div className="rounded-md border border-amber-200 bg-amber-50/60 px-3 py-2.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-800">
+              Recommended first repair
+            </p>
+            <DependencyEdgeText edge={suggested} />
+            <p className="mt-1 text-[11px] text-foreground/75">{suggested.plainReason}</p>
+            {section.onResolveLink && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => section.onResolveLink?.(suggested.recommendedAction, suggested)}
+                  className="rounded-md bg-amber-700 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-amber-800"
+                >
+                  {actionLabel(suggested.recommendedAction)}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => section.onResolveLink?.(
+                    suggested.recommendedAction === "make-parallel" ? "remove" : "make-parallel",
+                    suggested
+                  )}
+                  className="rounded-md border border-amber-200 bg-card px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-amber-50"
+                >
+                  {actionLabel(suggested.recommendedAction === "make-parallel" ? "remove" : "make-parallel")}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+          <label className="relative block">
+            <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search tasks or workstreams"
+              className="h-8 w-full rounded-md border border-border bg-background pl-7 pr-2 text-xs outline-none focus:ring-1 focus:ring-ring"
+            />
+          </label>
+          <select
+            value={workstream}
+            onChange={(e) => setWorkstream(e.target.value)}
+            className="h-8 rounded-md border border-border bg-background px-2 text-xs outline-none focus:ring-1 focus:ring-ring"
+          >
+            {workstreams.map((ws) => (
+              <option key={ws} value={ws}>{ws}</option>
+            ))}
+          </select>
+        </div>
+
+        <ul className="max-h-72 divide-y divide-border overflow-y-auto rounded-md border border-border">
+          {visibleEdges.map((edge) => (
+            <li key={edge.id} className={cn("px-3 py-2", edge.suggested && "bg-amber-50/50")}>
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <DependencyEdgeText edge={edge} compact />
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">{edge.plainReason}</p>
+                </div>
+                {section.onResolveLink && (
+                  <div className="flex shrink-0 flex-col gap-1">
+                    <button
+                      type="button"
+                      onClick={() => section.onResolveLink?.("make-parallel", edge)}
+                      className="rounded border border-border px-2 py-0.5 text-[10px] font-medium text-foreground hover:bg-muted"
+                    >
+                      Note
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => section.onResolveLink?.("remove", edge)}
+                      className="rounded border border-border px-2 py-0.5 text-[10px] font-medium text-foreground hover:bg-muted"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+
+        {filteredEdges.length > 8 && (
+          <button
+            type="button"
+            onClick={() => setShowAll((v) => !v)}
+            className="text-[11px] font-medium text-foreground/80 hover:text-foreground hover:underline"
+          >
+            {showAll ? "Show fewer links" : `Show all ${filteredEdges.length} links`}
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function DependencyEdgeText({
+  edge,
+  compact = false,
+}: {
+  edge: DependencyRepairEdge;
+  compact?: boolean;
+}) {
+  return (
+    <div className={cn("min-w-0", compact ? "text-[11px]" : "mt-1 text-xs")}>
+      <p className="truncate font-medium text-foreground">
+        <span className="font-mono text-[10px] font-bold text-muted-foreground">{edge.fromId.toUpperCase()}</span>
+        {edge.fromName && <> · {edge.fromName}</>}
+      </p>
+      <p className="mt-0.5 truncate text-muted-foreground">
+        waits for{" "}
+        <span className="font-mono text-[10px] font-bold">{edge.toId.toUpperCase()}</span>
+        {edge.toName && <> · {edge.toName}</>}
+      </p>
+      {(edge.fromWorkstream || edge.toWorkstream) && (
+        <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
+          {edge.fromWorkstream ?? "Unassigned"} → {edge.toWorkstream ?? "Unassigned"}
+        </p>
+      )}
+    </div>
   );
 }

@@ -409,8 +409,11 @@ export function computeCriticalPath(
 export interface TaskScheduleEntry {
   id: string;
   name?: string;
+  workstream?: string;
   dueDate: string;
   dependsOn?: string[];
+  parallelDeps?: string[];
+  depNotes?: Record<string, string>;
   milestoneId?: string;
 }
 
@@ -483,6 +486,247 @@ export function topoSortTasks(
   // Surface the cycle's tasks (those still with in-degree > 0) for the UI
   const cyclePath = Object.keys(inDegree).filter((id) => inDegree[id] > 0);
   return { sorted: null, hasCycle: true, cyclePath };
+}
+
+export type DependencyRepairAction = "make-parallel" | "remove";
+
+export interface DependencyRepairEdge {
+  id: string;
+  fromId: string;
+  fromName?: string;
+  fromWorkstream?: string;
+  toId: string;
+  toName?: string;
+  toWorkstream?: string;
+  fromDueDate?: string;
+  toDueDate?: string;
+  suggested: boolean;
+  score: number;
+  reason:
+    | "self-reference"
+    | "cross-workstream"
+    | "return-link"
+    | "multi-upstream"
+    | "least-shared";
+  recommendedAction: DependencyRepairAction;
+  plainReason: string;
+}
+
+export interface DependencyRepairGroup {
+  id: string;
+  taskIds: string[];
+  taskCount: number;
+  linkCount: number;
+  workstreams: string[];
+  edges: DependencyRepairEdge[];
+  suggestedEdge?: DependencyRepairEdge;
+  summary: string;
+}
+
+export interface DependencyRepairPlan {
+  hasRepairableLoops: boolean;
+  taskCount: number;
+  linkCount: number;
+  groupCount: number;
+  groups: DependencyRepairGroup[];
+  complexity: {
+    time: "O(V + E)";
+    space: "O(V + E)";
+  };
+}
+
+function findRepresentativeWaitingLoop(
+  startId: string,
+  adjacency: Map<string, string[]>,
+  allowed: Set<string>
+): { fromId: string; toId: string }[] {
+  const stack: string[] = [];
+  const stackIndex = new Map<string, number>();
+  const seen = new Set<string>();
+
+  function visit(id: string): { fromId: string; toId: string }[] | null {
+    seen.add(id);
+    stackIndex.set(id, stack.length);
+    stack.push(id);
+
+    for (const next of adjacency.get(id) ?? []) {
+      if (!allowed.has(next)) continue;
+      if (stackIndex.has(next)) {
+        const loopNodes = stack.slice(stackIndex.get(next)!);
+        const edges: { fromId: string; toId: string }[] = [];
+        for (let i = 0; i < loopNodes.length; i++) {
+          edges.push({
+            fromId: loopNodes[i],
+            toId: loopNodes[(i + 1) % loopNodes.length],
+          });
+        }
+        return edges;
+      }
+      if (!seen.has(next)) {
+        const found = visit(next);
+        if (found) return found;
+      }
+    }
+
+    stack.pop();
+    stackIndex.delete(id);
+    return null;
+  }
+
+  return visit(startId) ?? [];
+}
+
+/**
+ * Finds every closed waiting area in the task dependency graph and ranks the
+ * links a PM could resolve. Uses Tarjan SCC over task → waits-for links, so it
+ * reports all independent problem areas in O(V + E) time without enumerating
+ * every possible loop.
+ */
+export function analyzeDependencyRepairPlan(tasks: TaskScheduleEntry[]): DependencyRepairPlan {
+  const byId = new Map(tasks.map((t) => [t.id, t]));
+  const adjacency = new Map<string, string[]>();
+  tasks.forEach((t) => {
+    adjacency.set(t.id, (t.dependsOn ?? []).filter((depId) => byId.has(depId)));
+  });
+
+  const indexById = new Map<string, number>();
+  const lowLinkById = new Map<string, number>();
+  const stack: string[] = [];
+  const onStack = new Set<string>();
+  const components: string[][] = [];
+  let nextIndex = 0;
+
+  function strongConnect(id: string) {
+    indexById.set(id, nextIndex);
+    lowLinkById.set(id, nextIndex);
+    nextIndex++;
+    stack.push(id);
+    onStack.add(id);
+
+    for (const depId of adjacency.get(id) ?? []) {
+      if (!indexById.has(depId)) {
+        strongConnect(depId);
+        lowLinkById.set(id, Math.min(lowLinkById.get(id)!, lowLinkById.get(depId)!));
+      } else if (onStack.has(depId)) {
+        lowLinkById.set(id, Math.min(lowLinkById.get(id)!, indexById.get(depId)!));
+      }
+    }
+
+    if (lowLinkById.get(id) === indexById.get(id)) {
+      const component: string[] = [];
+      let popped: string;
+      do {
+        popped = stack.pop()!;
+        onStack.delete(popped);
+        component.push(popped);
+      } while (popped !== id);
+      components.push(component);
+    }
+  }
+
+  tasks.forEach((t) => {
+    if (!indexById.has(t.id)) strongConnect(t.id);
+  });
+
+  const inboundCounts = new Map<string, number>();
+  tasks.forEach((t) => {
+    (t.dependsOn ?? []).forEach((depId) => {
+      if (byId.has(depId)) inboundCounts.set(depId, (inboundCounts.get(depId) ?? 0) + 1);
+    });
+  });
+
+  const groups = components
+    .filter((ids) => ids.length > 1 || (ids.length === 1 && adjacency.get(ids[0])?.includes(ids[0])))
+    .map((ids, idx): DependencyRepairGroup => {
+      const allowed = new Set(ids);
+      const representative = findRepresentativeWaitingLoop(ids[0], adjacency, allowed);
+      const representativeIds = new Set(representative.map((e) => `${e.fromId}->${e.toId}`));
+      const closingEdgeId = representative.length
+        ? `${representative[representative.length - 1].fromId}->${representative[representative.length - 1].toId}`
+        : "";
+
+      const edges = ids.flatMap((fromId) => {
+        const from = byId.get(fromId)!;
+        return (from.dependsOn ?? [])
+          .filter((toId) => allowed.has(toId))
+          .map((toId): DependencyRepairEdge => {
+            const to = byId.get(toId)!;
+            const selfReference = fromId === toId;
+            const crossWorkstream = !!from.workstream && !!to.workstream && from.workstream !== to.workstream;
+            const returnLink = `${fromId}->${toId}` === closingEdgeId || representativeIds.has(`${fromId}->${toId}`);
+            const multiUpstream = (from.dependsOn ?? []).length > 1;
+            const sharedUpstream = (inboundCounts.get(toId) ?? 0) > 1;
+            const score =
+              (selfReference ? 1000 : 0) +
+              (crossWorkstream ? 120 : 0) +
+              (`${fromId}->${toId}` === closingEdgeId ? 90 : returnLink ? 40 : 0) +
+              (multiUpstream ? 35 : 0) +
+              (sharedUpstream ? 10 : 0);
+
+            const reason: DependencyRepairEdge["reason"] =
+              selfReference ? "self-reference"
+              : crossWorkstream ? "cross-workstream"
+              : `${fromId}->${toId}` === closingEdgeId ? "return-link"
+              : multiUpstream ? "multi-upstream"
+              : "least-shared";
+
+            const recommendedAction: DependencyRepairAction =
+              crossWorkstream || multiUpstream ? "make-parallel" : "remove";
+
+            const plainReason =
+              reason === "self-reference"
+                ? "This task is waiting on itself, so removing this link is the cleanest repair."
+                : reason === "cross-workstream"
+                  ? "This link crosses workstreams, so it is a good candidate for a coordination note instead of a hard wait."
+                  : reason === "return-link"
+                    ? "This link sends the plan back to work that is already waiting on it."
+                    : reason === "multi-upstream"
+                      ? "This task already has another upstream check, so changing this link is likely lower impact."
+                      : "This is one of the smaller links inside the blocked area.";
+
+            return {
+              id: `${fromId}->${toId}`,
+              fromId,
+              fromName: from.name,
+              fromWorkstream: from.workstream,
+              toId,
+              toName: to.name,
+              toWorkstream: to.workstream,
+              fromDueDate: from.dueDate,
+              toDueDate: to.dueDate,
+              suggested: false,
+              score,
+              reason,
+              recommendedAction,
+              plainReason,
+            };
+          });
+      }).sort((a, b) => b.score - a.score || a.fromId.localeCompare(b.fromId));
+
+      const suggested = edges[0];
+      const markedEdges = edges.map((edge) => ({ ...edge, suggested: edge.id === suggested?.id }));
+      const workstreams = Array.from(new Set(ids.map((id) => byId.get(id)?.workstream).filter((v): v is string => !!v))).sort();
+
+      return {
+        id: `repair-area-${idx + 1}`,
+        taskIds: ids.slice().sort(),
+        taskCount: ids.length,
+        linkCount: markedEdges.length,
+        workstreams,
+        edges: markedEdges,
+        suggestedEdge: markedEdges.find((edge) => edge.suggested),
+        summary: `${ids.length} task${ids.length === 1 ? "" : "s"} and ${markedEdges.length} waiting link${markedEdges.length === 1 ? "" : "s"} need review.`,
+      };
+    });
+
+  return {
+    hasRepairableLoops: groups.length > 0,
+    taskCount: groups.reduce((sum, group) => sum + group.taskCount, 0),
+    linkCount: groups.reduce((sum, group) => sum + group.linkCount, 0),
+    groupCount: groups.length,
+    groups,
+    complexity: { time: "O(V + E)", space: "O(V + E)" },
+  };
 }
 
 export function previewTaskCascade(
