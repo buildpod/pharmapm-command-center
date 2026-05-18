@@ -165,7 +165,7 @@ export function SettingsPanel() {
       {/* ── Working days ── */}
       <Section
         title="Working Days"
-        description="Select which days of the week count as working days. Used for all date arithmetic — addWorkingDays, cascade, backward scheduling."
+        description="Choose which days count as working days. PharmaPM uses this calendar when it proposes task dates, milestone shifts, and go-live schedules."
       >
         <div className="flex flex-wrap gap-2">
           {DAYS.map((d) => {
@@ -196,7 +196,7 @@ export function SettingsPanel() {
       {/* ── Country holiday preset ── */}
       <Section
         title="Country Holiday Presets"
-        description="Bulk-add national public holidays from 15 pharma-hub countries. Duplicates are skipped automatically."
+        description="Add public holidays for common pharma delivery locations. Existing dates are skipped automatically."
       >
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
@@ -282,8 +282,8 @@ export function SettingsPanel() {
 
       {/* ── RAG thresholds ── */}
       <Section
-        title="RAG Schedule Thresholds"
-        description="Number of days a milestone is delayed before flipping status. Amber threshold must be lower than Red."
+        title="Schedule Status Bands"
+        description="Set when a delayed milestone should move from Green to Amber or Red. Amber must stay below Red."
       >
         <div className="flex flex-wrap gap-6">
           <div className="space-y-1">
@@ -331,7 +331,7 @@ export function SettingsPanel() {
       {/* ── Budget burn bands ── */}
       <Section
         title="Budget Burn Bands"
-        description="Percentage of budget spent that triggers Amber or Red on burn indicators."
+        description="Set when spend should move from Green to Amber or Red on budget indicators."
       >
         <div className="flex flex-wrap gap-6">
           <div className="space-y-1">

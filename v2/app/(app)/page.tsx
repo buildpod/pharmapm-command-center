@@ -1,16 +1,22 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import {
   TrendingUp, TrendingDown, AlertTriangle, DollarSign, Clock, Milestone,
   FileText, CheckCircle2, Circle, AlertCircle, ArrowUpRight, ChevronRight,
+  ListChecks, ShieldCheck, UsersRound, UserCheck, ClipboardCheck, Database,
 } from "lucide-react";
-import { getKpis, budgetTrend, riskTrend } from "@/lib/mockData";
+import {
+  getKpis, budgetTrend, riskTrend,
+  type Document, type Milestone as ProjectMilestone, type Risk, type Task,
+} from "@/lib/mockData";
 import { PhaseProgress } from "@/components/dashboard/phase-progress";
 import { Sparkline } from "@/components/dashboard/sparkline";
 import { ProjectHealth } from "@/components/dashboard/project-health";
 import { CharterCard } from "@/components/dashboard/charter-card";
 import { useProject } from "@/components/projects/project-provider";
+import { useEntityStore } from "@/lib/stores/entity-store";
 import { cn } from "@/lib/utils";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -35,6 +41,272 @@ const statusIcon = {
   "at-risk":     { icon: AlertCircle,  cls: "text-rose-600"    },
   "pending":     { icon: Circle,       cls: "text-muted-foreground" },
 } as const;
+
+type RoleId = "junior-pm" | "senior-pm" | "workstream" | "qa" | "data" | "sponsor";
+
+const roleGuides: Record<RoleId, {
+  label: string;
+  eyebrow: string;
+  summary: string;
+  focus: string[];
+  workstream?: string;
+  Icon: typeof ListChecks;
+}> = {
+  "junior-pm": {
+    label: "Junior PM",
+    eyebrow: "guided run mode",
+    summary: "Start with the safest next actions, then escalate anything that needs senior judgement.",
+    focus: ["Today’s actions", "Blocked tasks", "Decision follow-up", "Escalation notes"],
+    Icon: ListChecks,
+  },
+  "senior-pm": {
+    label: "Senior PM",
+    eyebrow: "control mode",
+    summary: "Watch schedule risk, governance readiness, cross-workstream dependency pressure, and budget signal.",
+    focus: ["Schedule risk", "Critical path", "High risks", "SteerCo readiness"],
+    Icon: ShieldCheck,
+  },
+  workstream: {
+    label: "Workstream Lead",
+    eyebrow: "execution mode",
+    summary: "Keep your stream unblocked and make upcoming handoffs visible before they threaten the plan.",
+    focus: ["My workstream", "Upcoming due dates", "Blocked handoffs", "Dependency notes"],
+    workstream: "Configuration",
+    Icon: UsersRound,
+  },
+  qa: {
+    label: "QA / Validation",
+    eyebrow: "evidence mode",
+    summary: "Track validation work, review pressure, and any task that could affect CSV evidence readiness.",
+    focus: ["Validation tasks", "Review items", "Protocol readiness", "UAT blockers"],
+    workstream: "Validation",
+    Icon: ClipboardCheck,
+  },
+  data: {
+    label: "Data Migration",
+    eyebrow: "migration mode",
+    summary: "Focus on extraction, cleansing, dry-run, reconciliation, and migration risks.",
+    focus: ["Migration tasks", "Data risks", "Dry-run readiness", "Reconciliation"],
+    workstream: "Data Migration",
+    Icon: Database,
+  },
+  sponsor: {
+    label: "Sponsor / SteerCo",
+    eyebrow: "decision mode",
+    summary: "See the project health story, decisions required, escalations, and go-live confidence.",
+    focus: ["Decisions", "Escalations", "Go-live confidence", "Budget and risk"],
+    Icon: UserCheck,
+  },
+};
+
+interface TodayAction {
+  id: string;
+  title: string;
+  detail: string;
+  next: string;
+  href: string;
+  tone: "rose" | "amber" | "blue" | "emerald" | "slate";
+  tag: string;
+  Icon: typeof AlertTriangle;
+}
+
+const actionTone: Record<TodayAction["tone"], string> = {
+  rose: "border-rose-200 bg-rose-50/70 text-rose-800",
+  amber: "border-amber-200 bg-amber-50/70 text-amber-800",
+  blue: "border-blue-200 bg-blue-50/70 text-blue-800",
+  emerald: "border-emerald-200 bg-emerald-50/70 text-emerald-800",
+  slate: "border-slate-200 bg-slate-50/70 text-slate-700",
+};
+
+const TODAY = "2026-05-18";
+
+function daysUntil(iso: string) {
+  return Math.ceil((new Date(iso).getTime() - new Date(TODAY).getTime()) / 86_400_000);
+}
+
+function buildTodayActions(
+  role: RoleId,
+  data: {
+    tasks: Task[];
+    milestones: ProjectMilestone[];
+    risks: Risk[];
+    documents: Document[];
+    scheduleVariance: number;
+    openRisksCount: number;
+    daysToGoLive: number;
+  }
+): TodayAction[] {
+  const guide = roleGuides[role];
+  const roleWorkstream = guide.workstream;
+  const roleTasks = roleWorkstream
+    ? data.tasks.filter((task) => task.workstream === roleWorkstream)
+    : data.tasks;
+  const blockedTasks = roleTasks.filter((task) => task.status === "Blocked");
+  const dueSoonTasks = roleTasks
+    .filter((task) => task.status !== "Complete" && daysUntil(task.dueDate) <= 14)
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  const waitingMilestones = data.milestones
+    .filter((milestone) => milestone.status === "at-risk" || milestone.forecastDate > milestone.plannedDate)
+    .sort((a, b) => b.forecastDate.localeCompare(a.forecastDate));
+  const highRisks = data.risks
+    .filter((risk) => risk.status === "open" && risk.score >= 15)
+    .sort((a, b) => b.score - a.score);
+  const roleRisks = roleWorkstream
+    ? data.risks.filter((risk) => risk.status === "open" && risk.owner === roleOwnerForWorkstream(roleWorkstream))
+    : data.risks.filter((risk) => risk.status === "open");
+  const pendingDocs = data.documents
+    .filter((doc) => doc.status === "in-review")
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  const validationDocs = data.documents
+    .filter((doc) => doc.phase === "Validation" && doc.status !== "approved")
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+
+  const actions: TodayAction[] = [];
+
+  if (role === "sponsor") {
+    actions.push({
+      id: "sponsor-decision",
+      title: `${pendingDocs.length} decision pack${pendingDocs.length === 1 ? "" : "s"} need attention`,
+      detail: pendingDocs[0]
+        ? `${pendingDocs[0].name} is the next document waiting for review or sign-off.`
+        : "No decision pack is waiting right now. Review the latest weekly status instead.",
+      next: pendingDocs[0] ? "Review decisions" : "Open reports",
+      href: pendingDocs[0] ? "/documents" : "/reports",
+      tone: pendingDocs[0] ? "amber" : "emerald",
+      tag: "governance",
+      Icon: FileText,
+    });
+    actions.push({
+      id: "sponsor-risk",
+      title: highRisks[0] ? `${highRisks[0].title}` : "No high risk is open",
+      detail: highRisks[0]
+        ? `Score ${highRisks[0].score}. PM should confirm mitigation: ${highRisks[0].mitigation}.`
+        : `${data.openRisksCount} lower-priority risk${data.openRisksCount === 1 ? "" : "s"} remain open.`,
+      next: highRisks[0] ? "Open risk" : "Review risks",
+      href: "/risks",
+      tone: highRisks[0] ? "rose" : "blue",
+      tag: "escalation",
+      Icon: AlertTriangle,
+    });
+    actions.push({
+      id: "sponsor-golive",
+      title: `${data.daysToGoLive} days to go-live`,
+      detail: data.scheduleVariance > 0
+        ? `Schedule is showing +${data.scheduleVariance} days variance. Ask for recovery options.`
+        : "Schedule is not showing a forward variance on the next milestone.",
+      next: "Check milestones",
+      href: "/milestones",
+      tone: data.scheduleVariance > 0 ? "amber" : "emerald",
+      tag: "go-live",
+      Icon: Clock,
+    });
+    return actions;
+  }
+
+  if (role === "qa") {
+    actions.push({
+      id: "qa-validation",
+      title: validationDocs[0] ? `${validationDocs.length} validation document${validationDocs.length === 1 ? "" : "s"} open` : "Validation documents are calm",
+      detail: validationDocs[0]
+        ? `${validationDocs[0].name} is due ${formatDate(validationDocs[0].dueDate)}.`
+        : "No validation document needs immediate attention.",
+      next: "Open validation docs",
+      href: "/documents",
+      tone: validationDocs[0] ? "amber" : "emerald",
+      tag: "evidence",
+      Icon: ClipboardCheck,
+    });
+  }
+
+  if (blockedTasks.length > 0) {
+    actions.push({
+      id: "blocked-task",
+      title: `${blockedTasks.length} blocked task${blockedTasks.length === 1 ? "" : "s"}`,
+      detail: `${blockedTasks[0].name} is blocked. Check owner, upstream work, and whether escalation is needed.`,
+      next: "Open tasks",
+      href: "/tasks",
+      tone: "rose",
+      tag: "blocker",
+      Icon: AlertTriangle,
+    });
+  } else if (dueSoonTasks.length > 0) {
+    actions.push({
+      id: "due-soon",
+      title: `${dueSoonTasks.length} task${dueSoonTasks.length === 1 ? "" : "s"} due soon`,
+      detail: `${dueSoonTasks[0].name} is due ${formatDate(dueSoonTasks[0].dueDate)}.`,
+      next: "Review tasks",
+      href: "/tasks",
+      tone: "amber",
+      tag: "execution",
+      Icon: ListChecks,
+    });
+  }
+
+  if (waitingMilestones.length > 0) {
+    actions.push({
+      id: "schedule-risk",
+      title: `${waitingMilestones.length} milestone${waitingMilestones.length === 1 ? "" : "s"} need schedule review`,
+      detail: `${waitingMilestones[0].name} has shifted from ${formatDate(waitingMilestones[0].plannedDate)} to ${formatDate(waitingMilestones[0].forecastDate)}.`,
+      next: "Review schedule",
+      href: "/milestones",
+      tone: data.scheduleVariance > 0 ? "amber" : "blue",
+      tag: "schedule",
+      Icon: Milestone,
+    });
+  }
+
+  if (role === "data" || role === "senior-pm" || role === "junior-pm") {
+    const risk = role === "data" ? roleRisks[0] : highRisks[0];
+    actions.push({
+      id: "risk-focus",
+      title: risk ? risk.title : "Risk log is ready for review",
+      detail: risk
+        ? `Owner ${risk.owner}. Next check: confirm mitigation is still enough.`
+        : "No high-priority risk is open for this role.",
+      next: "Open risks",
+      href: "/risks",
+      tone: risk?.score && risk.score >= 15 ? "rose" : risk ? "amber" : "emerald",
+      tag: "risk",
+      Icon: AlertTriangle,
+    });
+  }
+
+  if (pendingDocs.length > 0 && role !== "data") {
+    actions.push({
+      id: "decision-follow-up",
+      title: `${pendingDocs.length} document${pendingDocs.length === 1 ? "" : "s"} waiting for decisions`,
+      detail: `${pendingDocs[0].name} has pending reviewers or approvers.`,
+      next: "Follow up",
+      href: "/documents",
+      tone: "amber",
+      tag: "decision",
+      Icon: FileText,
+    });
+  }
+
+  if (actions.length < 3) {
+    actions.push({
+      id: "report-ready",
+      title: "Prepare the next status story",
+      detail: "Generate the weekly or SteerCo view so stakeholders see the same plan, risks, and decisions.",
+      next: "Open reports",
+      href: "/reports",
+      tone: "blue",
+      tag: "reporting",
+      Icon: FileText,
+    });
+  }
+
+  return actions.slice(0, 3);
+}
+
+function roleOwnerForWorkstream(workstream: string) {
+  if (workstream === "Validation") return "QA";
+  if (workstream === "Data Migration") return "AR";
+  if (workstream === "Configuration") return "KM";
+  if (workstream === "Training") return "HR";
+  return "VP";
+}
 
 // ─── KPI card ───────────────────────────────────────────────────────────────
 
@@ -83,23 +355,118 @@ function KpiCard({
 
 export default function DashboardPage() {
   const { activeProjectId, activeProject } = useProject();
+  const tasks = useEntityStore((s) => s.tasks).filter((t) => t.projectId === activeProjectId);
+  const milestones = useEntityStore((s) => s.milestones).filter((m) => m.projectId === activeProjectId);
+  const risks = useEntityStore((s) => s.risks).filter((r) => r.projectId === activeProjectId);
+  const documents = useEntityStore((s) => s.documents).filter((d) => d.projectId === activeProjectId);
   const kpis = getKpis(activeProjectId);
+  const [role, setRole] = useState<RoleId>("junior-pm");
+  const roleGuide = roleGuides[role];
   const scheduleOnTrack = kpis.scheduleVariance <= 0;
   const varianceLabel = kpis.scheduleVariance === 0
     ? "On schedule"
     : kpis.scheduleVariance > 0
     ? `+${kpis.scheduleVariance} day variance`
     : `${kpis.scheduleVariance} day ahead`;
+  const actions = buildTodayActions(role, {
+    tasks,
+    milestones,
+    risks,
+    documents,
+    scheduleVariance: kpis.scheduleVariance,
+    openRisksCount: kpis.openRisksCount,
+    daysToGoLive: kpis.daysToGoLive,
+  });
 
   return (
     <div className="space-y-8">
       {/* Header — context from the active project */}
-      <header className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Project Dashboard</h1>
-        <p className="text-sm text-muted-foreground">
-          {activeProject.name} · {activeProject.phase} · Go-Live target {activeProject.goLiveDate}
-        </p>
+      <header className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Project Command Center</h1>
+          <p className="text-sm text-muted-foreground">
+            {activeProject.name} · {activeProject.phase} · Go-Live target {activeProject.goLiveDate}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {(Object.keys(roleGuides) as RoleId[]).map((id) => {
+            const guide = roleGuides[id];
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setRole(id)}
+                className={cn(
+                  "rounded-md border px-2.5 py-1.5 text-xs font-semibold transition-colors",
+                  role === id
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                {guide.label}
+              </button>
+            );
+          })}
+        </div>
       </header>
+
+      {/* Role-guided command layer */}
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[0.9fr_1.6fr]">
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <roleGuide.Icon className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{roleGuide.eyebrow}</p>
+              <h2 className="mt-0.5 text-lg font-semibold text-foreground">{roleGuide.label}</h2>
+              <p className="mt-1 text-sm leading-5 text-muted-foreground">{roleGuide.summary}</p>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {roleGuide.focus.map((item) => (
+              <span key={item} className="rounded-full border border-border bg-muted/30 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                {item}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card shadow-sm">
+          <div className="flex items-center gap-2 border-b border-border bg-muted/30 px-5 py-3">
+            <ListChecks className="h-4 w-4 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">Today’s Actions</p>
+              <p className="text-[11px] text-muted-foreground">Recommended next steps for the selected role.</p>
+            </div>
+          </div>
+          <div className="grid gap-2 p-3 md:grid-cols-3">
+            {actions.map((action) => (
+              <Link
+                key={action.id}
+                href={action.href}
+                className={cn(
+                  "group flex min-h-[148px] flex-col rounded-lg border p-3 transition-shadow hover:shadow-sm",
+                  actionTone[action.tone]
+                )}
+              >
+                <div className="flex items-start gap-2">
+                  <action.Icon className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider opacity-70">{action.tag}</p>
+                    <p className="mt-0.5 text-sm font-semibold leading-5">{action.title}</p>
+                  </div>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-foreground/75">{action.detail}</p>
+                <p className="mt-auto flex items-center gap-1 pt-3 text-[11px] font-semibold">
+                  {action.next}
+                  <ChevronRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+                </p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* KPI cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
