@@ -15,6 +15,10 @@ import {
   Users,
   Inbox,
   Scroll,
+  ClipboardCheck,
+  GitBranch,
+  Scale,
+  Rocket,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -24,44 +28,38 @@ import { ProjectSwitcher } from "@/components/projects/project-switcher";
 
 const navGroups = [
   {
-    label: "OVERVIEW",
+    label: "RUN",
     items: [
-      { label: "Dashboard", href: "/", icon: LayoutDashboard },
-      { label: "My Items",  href: "/my-items", icon: Inbox },
+      { label: "Command Center", href: "/", icon: LayoutDashboard },
+      { label: "Worklist",       href: "/worklist", icon: Inbox },
+      { label: "Readiness",      href: "/readiness", icon: Rocket },
     ],
   },
   {
-    label: "PLANNING",
+    label: "CONTROL",
+    items: [
+      { label: "Plan",       href: "/plan", icon: GitBranch },
+      { label: "Governance", href: "/governance", icon: Scale },
+      { label: "Reports",    href: "/reports", icon: BarChart2 },
+    ],
+  },
+  {
+    label: "DETAIL",
     items: [
       { label: "Charter", href: "/charter", icon: Scroll },
       { label: "Milestones", href: "/milestones", icon: Milestone },
       { label: "Tasks", href: "/tasks", icon: CheckSquare },
-    ],
-  },
-  {
-    label: "RISK & FINANCE",
-    items: [
       { label: "Risks", href: "/risks", icon: AlertTriangle, badge: "3" },
-      { label: "Costs", href: "/costs", icon: DollarSign },
-    ],
-  },
-  {
-    label: "PEOPLE",
-    items: [
-      { label: "Resources", href: "/resources", icon: Users },
-    ],
-  },
-  {
-    label: "DOCUMENTATION",
-    items: [
       { label: "Documents", href: "/documents", icon: FileText, badge: "2" },
-      { label: "Reports", href: "/reports", icon: BarChart2 },
+      { label: "Costs", href: "/costs", icon: DollarSign },
+      { label: "Resources", href: "/resources", icon: Users },
+      { label: "My Items", href: "/my-items", icon: ClipboardCheck },
     ],
   },
   {
-    label: "CONFIGURATION",
+    label: "ADMIN",
     items: [
-      { label: "Settings", href: "/settings", icon: Settings },
+      { label: "Project Rules", href: "/settings", icon: Settings },
     ],
   },
 ];

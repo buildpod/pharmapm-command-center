@@ -6,14 +6,18 @@ import { Command } from "cmdk";
 import {
   LayoutDashboard, Milestone, CheckSquare, AlertTriangle,
   DollarSign, FileText, BarChart2, Settings, Search, Users, FolderKanban,
-  Inbox, Calendar,
+  Inbox, Calendar, GitBranch, Scale, Rocket,
 } from "lucide-react";
 import { useProject } from "@/components/projects/project-provider";
 import { searchEntities, type SearchHit } from "@/lib/searchIndex";
 import { cn } from "@/lib/utils";
 
 const PAGES = [
-  { label: "Dashboard",   href: "/",           icon: LayoutDashboard },
+  { label: "Command Center", href: "/",           icon: LayoutDashboard },
+  { label: "Worklist",       href: "/worklist",   icon: Inbox },
+  { label: "Plan",           href: "/plan",       icon: GitBranch },
+  { label: "Governance",     href: "/governance", icon: Scale },
+  { label: "Readiness",      href: "/readiness",  icon: Rocket },
   { label: "My Items",    href: "/my-items",   icon: Inbox },
   { label: "Projects",    href: "/projects",   icon: FolderKanban },
   { label: "Milestones",  href: "/milestones", icon: Milestone },
@@ -23,7 +27,7 @@ const PAGES = [
   { label: "Resources",   href: "/resources",  icon: Users },
   { label: "Documents",   href: "/documents",  icon: FileText },
   { label: "Reports",     href: "/reports",    icon: BarChart2 },
-  { label: "Settings",    href: "/settings",   icon: Settings },
+  { label: "Project Rules", href: "/settings", icon: Settings },
 ];
 
 // Per-entity-kind icon for search hits.

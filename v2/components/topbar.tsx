@@ -13,7 +13,11 @@ import { useProject } from "@/components/projects/project-provider";
 import { useState } from "react";
 
 const routeLabels: Record<string, string> = {
-  "/":           "Dashboard",
+  "/":           "Command Center",
+  "/worklist":   "Worklist",
+  "/plan":       "Plan",
+  "/governance": "Governance",
+  "/readiness":  "Readiness",
   "/my-items":   "My Items",
   "/projects":   "Projects",
   "/milestones": "Milestones",
@@ -23,7 +27,7 @@ const routeLabels: Record<string, string> = {
   "/resources":  "Resources",
   "/documents":  "Documents",
   "/reports":    "Reports",
-  "/settings":   "Settings",
+  "/settings":   "Project Rules",
 };
 
 export function Topbar() {
