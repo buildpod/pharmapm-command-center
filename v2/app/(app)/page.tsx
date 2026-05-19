@@ -118,7 +118,7 @@ const actionTone: Record<TodayAction["tone"], string> = {
   slate: "border-slate-200 bg-slate-50/70 text-slate-700",
 };
 
-const TODAY = "2026-05-18";
+const TODAY = "2026-05-19";
 
 function daysUntil(iso: string) {
   return Math.ceil((new Date(iso).getTime() - new Date(TODAY).getTime()) / 86_400_000);

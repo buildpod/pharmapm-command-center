@@ -6,7 +6,7 @@ import { useProject } from "@/components/projects/project-provider";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { cn } from "@/lib/utils";
 
-const TODAY = "2026-05-18";
+const TODAY = "2026-05-19";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });

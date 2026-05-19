@@ -71,7 +71,7 @@ export default function GovernancePage() {
       </header>
 
       <section className="grid grid-cols-1 gap-3 md:grid-cols-4">
-        <GovernanceCard title="Open risks" value={openRisks.length} detail={`${highRisks.length} high-priority risk${highRisks.length === 1 ? "" : "s"} need escalation discipline.`} href="/risks" tone={highRisks.length ? "rose" : openRisks.length ? "amber" : "emerald"} icon={AlertTriangle} />
+        <GovernanceCard title="Open risks" value={openRisks.length} detail={`${highRisks.length} high-priority risk${highRisks.length === 1 ? "" : "s"} ${highRisks.length === 1 ? "needs" : "need"} escalation discipline.`} href="/risks" tone={highRisks.length ? "rose" : openRisks.length ? "amber" : "emerald"} icon={AlertTriangle} />
         <GovernanceCard title="Decision packs" value={pendingDocs.length} detail="Documents currently waiting for review or approval." href="/documents" tone={pendingDocs.length ? "amber" : "emerald"} icon={FileText} />
         <GovernanceCard title="Budget used" value={`${budgetPct}%`} detail={`$${totalActual}k actual against $${totalBudget}k budget.`} href="/costs" tone={budgetPct >= 85 ? "rose" : budgetPct >= 60 ? "amber" : "blue"} icon={DollarSign} />
         <GovernanceCard title="Charter" value="Live" detail="Scope, assumptions, constraints, and success criteria." href="/charter" tone="blue" icon={ScrollText} />
