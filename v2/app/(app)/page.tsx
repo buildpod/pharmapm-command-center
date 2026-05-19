@@ -42,7 +42,7 @@ const statusIcon = {
   "pending":     { icon: Circle,       cls: "text-muted-foreground" },
 } as const;
 
-type RoleId = "junior-pm" | "senior-pm" | "workstream" | "qa" | "data" | "sponsor";
+type RoleId = "pm-operator" | "program-lead" | "workstream" | "qa" | "data" | "sponsor";
 
 const roleGuides: Record<RoleId, {
   label: string;
@@ -52,17 +52,17 @@ const roleGuides: Record<RoleId, {
   workstream?: string;
   Icon: typeof ListChecks;
 }> = {
-  "junior-pm": {
-    label: "Junior PM",
+  "pm-operator": {
+    label: "PM Operator",
     eyebrow: "guided run mode",
-    summary: "Start with the safest next actions, then escalate anything that needs senior judgement.",
-    focus: ["Today’s actions", "Blocked tasks", "Decision follow-up", "Escalation notes"],
+    summary: "Run the project from next actions, workstream signals, and clear follow-up without needing deep tool knowledge.",
+    focus: ["Today’s actions", "Blocked tasks", "Decision follow-up", "Agent handoffs"],
     Icon: ListChecks,
   },
-  "senior-pm": {
-    label: "Senior PM",
+  "program-lead": {
+    label: "Program Lead",
     eyebrow: "control mode",
-    summary: "Watch schedule risk, governance readiness, cross-workstream dependency pressure, and budget signal.",
+    summary: "Watch schedule risk, governance readiness, cross-workstream pressure, agent/human ownership, and budget signal.",
     focus: ["Schedule risk", "Critical path", "High risks", "SteerCo readiness"],
     Icon: ShieldCheck,
   },
@@ -255,7 +255,7 @@ function buildTodayActions(
     });
   }
 
-  if (role === "data" || role === "senior-pm" || role === "junior-pm") {
+  if (role === "data" || role === "program-lead" || role === "pm-operator") {
     const risk = role === "data" ? roleRisks[0] : highRisks[0];
     actions.push({
       id: "risk-focus",
@@ -360,7 +360,7 @@ export default function DashboardPage() {
   const risks = useEntityStore((s) => s.risks).filter((r) => r.projectId === activeProjectId);
   const documents = useEntityStore((s) => s.documents).filter((d) => d.projectId === activeProjectId);
   const kpis = getKpis(activeProjectId);
-  const [role, setRole] = useState<RoleId>("junior-pm");
+  const [role, setRole] = useState<RoleId>("pm-operator");
   const roleGuide = roleGuides[role];
   const scheduleOnTrack = kpis.scheduleVariance <= 0;
   const varianceLabel = kpis.scheduleVariance === 0
@@ -437,7 +437,7 @@ export default function DashboardPage() {
             <ListChecks className="h-4 w-4 text-muted-foreground" />
             <div>
               <p className="text-sm font-semibold text-foreground">Today’s Actions</p>
-              <p className="text-[11px] text-muted-foreground">Recommended next steps for the selected role.</p>
+              <p className="text-[11px] text-muted-foreground">Recommended next steps for the selected operating view.</p>
             </div>
           </div>
           <div className="grid gap-2 p-3 md:grid-cols-3">

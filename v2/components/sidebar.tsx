@@ -19,6 +19,7 @@ import {
   GitBranch,
   Scale,
   Rocket,
+  Wand2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -31,6 +32,7 @@ const navGroups = [
     label: "RUN",
     items: [
       { label: "Command Center", href: "/", icon: LayoutDashboard },
+      { label: "Guided Setup",   href: "/setup", icon: Wand2 },
       { label: "Worklist",       href: "/worklist", icon: Inbox },
       { label: "Readiness",      href: "/readiness", icon: Rocket },
     ],
