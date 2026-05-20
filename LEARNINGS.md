@@ -40,6 +40,8 @@ This is intentionally different from a pure CRUD app. Detailed modules remain av
 
 - Keep the original repo untouched when experimenting in this fork.
 - Engine correctness comes before UI polish.
+- For any delivery-truth engine, forecast model, impact analysis, or agent-cost model, write the behavior/spec and tests before polishing the screen.
+- Keep one main module per session; extra ideas go to the operating doc backlog.
 - Avoid heavy visualization libraries unless the product problem proves they are needed.
 - Tests passing are necessary, but UI work also needs dogfooding.
 - Commit messages and session logs are product memory.

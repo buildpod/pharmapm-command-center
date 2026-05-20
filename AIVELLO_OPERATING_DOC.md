@@ -43,40 +43,44 @@ Detailed module screens remain available, but should not be the only way a PM ru
 
 ## 4. Current Module And Next Module
 
-### Current Module: UI simplification and guided operating views
+### Current Module: M6 - Delivery Truth Foundation
 
-Goal: make the app easy for a PM, workstream lead, or human/agent delivery team to set up and run a project with minimal tool training.
+Goal: create the first product-defining layer for the command center: a deterministic Delivery Truth Engine that tells the PM whether the project promise is still credible, what is eroding it, and which tradeoffs need a decision. This is the foundation for the larger AI-native operating system: not another dashboard, but a project truth layer for mixed human and AI-agent delivery teams.
+
+Status: built locally, tests/build clean, awaiting browser dogfood and commit/deploy decision.
 
 Done means:
 
-- The public GitHub Pages app loads at `/v2/` without 404.
-- Command Center, Worklist, Plan, Governance, and Readiness routes are deployed and reachable.
-- Sidebar labels are organized around project operating modes, not only data entities.
-- UI copy uses plain project language, not graph-theory or implementation terms.
-- The setup and run experience feels guided, as if an AI project assistant is helping structure the work even before real LLM features exist.
+- A formal spec exists at `v2/docs/DELIVERY_TRUTH_ENGINE.md` describing inputs, outputs, scoring, signals, non-goals, and test coverage.
+- A pure TypeScript domain module calculates delivery truth from current project data: confidence score, target vs forecast date, budget pressure, top signals, and suggested decision options.
+- Tests cover at minimum: clean project, schedule drift, cost variance, decision/document debt, testing or readiness compression, blocked work, and high-risk pressure.
+- A new `/truth` operating route renders the engine output in plain language for a PM or Program Lead.
+- The sidebar, command palette, and topbar know the Delivery Truth route.
+- The view highlights delivery truth, not vanity metrics: "is the promise still credible?", "what changed the promise?", and "what decision is needed next?"
 - Tests and build pass before commit or deploy.
-- Browser or live URL UAT confirms the deployed app, not only local files.
+- Browser or local UAT confirms the route renders with seeded Veeva RIM data.
 
 Out of scope for this module:
 
 - Authentication and permissions.
 - Database migration.
 - Multi-user collaboration.
-- Full design-system rebuild.
-- Replacing the scheduling engine.
+- Full enterprise/portfolio hierarchy.
+- Real LLM prediction or Monte Carlo simulation.
+- Full agent token telemetry.
+- Replacing the existing dashboard or detailed module screens.
+- Committing/deploying unless Vineet explicitly asks after review.
 
-### Next Candidate Module: Guided setup and import layer
+### Next Candidate Module: Impact Ledger
 
-Potential goal: add guided project setup, Microsoft Project/Planner import, and role/workstream coaching similar to a lightweight DAP, without adding a heavy third-party platform.
+Potential goal: turn every material project event into an impact record that shows schedule, cost, quality, readiness, decision, and evidence consequences before the team drifts into month-four fire mode.
 
 Candidate done means:
 
-- A PM can start from a blank project, a template, or a Microsoft Project/Planner export.
-- Imported tasks, owners, dates, dependencies, and milestones are mapped into the command-center model with a review step before save.
-- Each human or agent-led workstream has a first-run path and "what should happen next?" guidance.
-- Guidance is contextual and dismissible, not a marketing tour.
-- PMs can reach the next action from any main operating view.
-- Guidance respects tone semantics and does not over-alert.
+- Impact records can be created from schedule drift, issue/risk movement, document readiness, cost pressure, or manual PM input.
+- Each impact record names what changed, why it matters, affected workstreams, affected artifacts, decision owner, and recommended next action.
+- A first ledger view exists with filters by severity, workstream, and decision status.
+- Impact records are deterministic and audit-friendly, not AI-generated prose without traceability.
 
 ## 5. Module Breakdown
 
@@ -85,10 +89,12 @@ Candidate done means:
 - M3: Role-guided Command Center.
 - M4: Operating views and simplified navigation.
 - M5: Guided setup, import, and workstream onboarding.
-- M6: Persistence/database path evaluation.
-- M7: Multi-role permissions and collaboration model.
-- M8: Audit/change feed and "what changed today".
-- M9: Scenario planning and what-if saves.
+- M6: Delivery Truth Foundation.
+- M7: Impact Ledger.
+- M8: Persistence/database path evaluation.
+- M9: Multi-role permissions and collaboration model.
+- M10: Audit/change feed and "what changed today".
+- M11: Scenario planning and what-if saves.
 
 ## 5.1 Post-Launch Module Sequence
 
@@ -140,6 +146,35 @@ Plain-language rule: do not show users terms like "cycle", "back-edge", "DFS", "
 - Compare against Veeva, MS Project, Primavera, Smartsheet, Monday, Asana, and Jira Product Discovery for enterprise PM usability patterns.
 
 ## 8. Last Session Log
+
+### 2026-05-19 - M6 Delivery Truth Foundation
+
+Built the first deterministic Delivery Truth layer for the command-center fork. This is the first product-defining move away from "better PM dashboard" and toward an AI-native project operating system: the app now calculates whether the project promise is still credible, which conditions are changing that promise, and what decision options the PM should take to leadership.
+
+Built:
+
+- `v2/docs/DELIVERY_TRUTH_ENGINE.md` formal spec covering purpose, inputs, outputs, signal rules, scoring, non-goals, and test coverage.
+- `v2/lib/domain/delivery-truth.ts` pure TypeScript engine. It calculates confidence score, confidence band, target vs forecast date, budget pressure, ordered delivery signals, traceable source records, and deterministic decision options.
+- `v2/lib/domain/delivery-truth.test.ts` with coverage for clean project, schedule drift, cost pressure, document/decision debt, readiness compression, blocked work, high-risk pressure, and combined signal confidence.
+- `/truth` operating route showing "Is the project promise still credible?", top delivery signals, source traces, budget/date pressure, and decision options.
+- Sidebar, command palette, and topbar wiring for Delivery Truth.
+
+Decided:
+
+- Delivery Truth stays deterministic first. No LLM prediction, Monte Carlo, database, or impact ledger persistence in M6.
+- Current route reads the existing entity store and project context; no new dependency or parallel state layer.
+- Signals use plain-language PM framing: promise, pressure, readiness, decisions, and trace, not implementation language.
+
+Verification:
+
+- `pnpm test` passed: 140 passing, 4 skipped.
+- `pnpm build` passed: 22 static pages generated, including `/truth`.
+- Browser UAT was not completed because the local dev server bind was blocked by sandbox permissions and escalation was unavailable in this session. Remaining risk: visual layout needs a browser pass before deploy.
+
+Next:
+
+- Dogfood `/truth` locally or after deploy.
+- If the direction holds, M7 should become the Impact Ledger: persistent records for schedule, cost, readiness, decision, evidence, and quality consequences.
 
 ### 2026-05-19 - Guided setup and import module
 

@@ -16,6 +16,7 @@ import {
   Inbox,
   Scroll,
   ClipboardCheck,
+  Gauge,
   GitBranch,
   Scale,
   Rocket,
@@ -32,6 +33,7 @@ const navGroups = [
     label: "RUN",
     items: [
       { label: "Command Center", href: "/", icon: LayoutDashboard },
+      { label: "Delivery Truth", href: "/truth", icon: Gauge },
       { label: "Guided Setup",   href: "/setup", icon: Wand2 },
       { label: "Worklist",       href: "/worklist", icon: Inbox },
       { label: "Readiness",      href: "/readiness", icon: Rocket },

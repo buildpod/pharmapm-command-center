@@ -6,7 +6,7 @@ import { Command } from "cmdk";
 import {
   LayoutDashboard, Milestone, CheckSquare, AlertTriangle,
   DollarSign, FileText, BarChart2, Settings, Search, Users, FolderKanban,
-  Inbox, Calendar, GitBranch, Scale, Rocket, Wand2,
+  Inbox, Calendar, GitBranch, Scale, Rocket, Wand2, Gauge,
 } from "lucide-react";
 import { useProject } from "@/components/projects/project-provider";
 import { searchEntities, type SearchHit } from "@/lib/searchIndex";
@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 
 const PAGES = [
   { label: "Command Center", href: "/",           icon: LayoutDashboard },
+  { label: "Delivery Truth", href: "/truth",      icon: Gauge },
   { label: "Guided Setup",   href: "/setup",      icon: Wand2 },
   { label: "Worklist",       href: "/worklist",   icon: Inbox },
   { label: "Plan",           href: "/plan",       icon: GitBranch },
