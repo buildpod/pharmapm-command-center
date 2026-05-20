@@ -59,7 +59,14 @@ export function CommandPalette() {
       if (e.key === "Escape") setOpen(false);
     }
     document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
+    function openPalette() {
+      setOpen(true);
+    }
+    document.addEventListener("aivello-open-command-palette", openPalette);
+    return () => {
+      document.removeEventListener("keydown", down);
+      document.removeEventListener("aivello-open-command-palette", openPalette);
+    };
   }, []);
 
   // Reset query when palette closes
@@ -189,7 +196,10 @@ export function CommandPalette() {
 export function CommandPaletteTrigger() {
   return (
     <button
-      onClick={() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }))}
+      type="button"
+      aria-label="Open search"
+      title="Open search"
+      onClick={() => document.dispatchEvent(new Event("aivello-open-command-palette"))}
       className="hidden sm:flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted transition-colors"
     >
       <Search className="h-3.5 w-3.5" />

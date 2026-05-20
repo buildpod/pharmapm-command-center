@@ -127,7 +127,8 @@ export function NotificationBell() {
         size="icon"
         className="relative h-8 w-8"
         onClick={() => setOpen((v) => !v)}
-        title="Alerts"
+        aria-label={alerts.length ? `Open alerts, ${alerts.length} active` : "Open alerts"}
+        title={alerts.length ? `${alerts.length} alerts` : "Alerts"}
       >
         <Bell className="h-4 w-4" />
         {alerts.length > 0 && (
@@ -138,7 +139,7 @@ export function NotificationBell() {
             {alerts.length}
           </span>
         )}
-        <span className="sr-only">Alerts</span>
+        <span className="sr-only">{alerts.length ? `Alerts, ${alerts.length} active` : "Alerts"}</span>
       </Button>
 
       {open && (

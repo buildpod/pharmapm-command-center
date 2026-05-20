@@ -48,7 +48,7 @@ const navGroups = [
     ],
   },
   {
-    label: "DETAIL",
+    label: "REGISTERS",
     items: [
       { label: "Charter", href: "/charter", icon: Scroll },
       { label: "Milestones", href: "/milestones", icon: Milestone },

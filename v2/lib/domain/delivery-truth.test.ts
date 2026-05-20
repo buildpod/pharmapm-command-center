@@ -91,10 +91,26 @@ describe("calculateDeliveryTruth", () => {
   it("keeps confidence high for a clean project", () => {
     const truth = calculateDeliveryTruth(input());
 
+    expect(truth.coverage.isReady).toBe(true);
     expect(truth.confidenceBand).toBe("credible");
     expect(truth.confidenceScore).toBe(100);
     expect(truth.signals).toHaveLength(0);
     expect(truth.decisionOptions[0].id).toBe("maintain-course");
+  });
+
+  it("does not call an empty project credible", () => {
+    const truth = calculateDeliveryTruth(input({
+      milestones: [],
+      tasks: [],
+      documents: [],
+      costLines: [],
+    }));
+
+    expect(truth.coverage.isReady).toBe(false);
+    expect(truth.confidenceBand).toBe("not-ready");
+    expect(truth.confidenceScore).toBe(0);
+    expect(truth.decisionOptions[0].id).toBe("finish-setup");
+    expect(truth.coverage.reasons).toContain("Add at least one milestone so the promise has a target path.");
   });
 
   it("raises schedule drift when forecast dates move later than plan", () => {

@@ -84,6 +84,7 @@ export function ExportButton({
       <button
         onClick={handleExport}
         disabled={busy}
+        aria-label={`Export ${project.name}`}
         title={`Export ${project.name} as Excel workbook`}
         className={cn(
           "flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50",
@@ -100,6 +101,7 @@ export function ExportButton({
     <button
       onClick={handleExport}
       disabled={busy}
+      aria-label={`Export ${project.name}`}
       title={`Export ${project.name} as Excel workbook (8 sheets)`}
       className={cn(
         "flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50",

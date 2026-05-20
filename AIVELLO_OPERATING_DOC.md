@@ -43,22 +43,21 @@ Detailed module screens remain available, but should not be the only way a PM ru
 
 ## 4. Current Module And Next Module
 
-### Current Module: M6 - Delivery Truth Foundation
+### Current Module: M6.1 - Product Spine Cleanup
 
-Goal: create the first product-defining layer for the command center: a deterministic Delivery Truth Engine that tells the PM whether the project promise is still credible, what is eroding it, and which tradeoffs need a decision. This is the foundation for the larger AI-native operating system: not another dashboard, but a project truth layer for mixed human and AI-agent delivery teams.
+Goal: tighten the product spine after dogfooding revealed the app was starting to feel like many screens stitched together. Fix the highest-friction UX issues before adding another feature: Delivery Truth empty-state correctness, dark-mode readability, guided setup safety, navigation hierarchy, and topbar accessibility.
 
-Status: built locally, tests/build clean, awaiting browser dogfood and commit/deploy decision.
+Status: built locally; tests/build clean; browser render check partially complete.
 
 Done means:
 
-- A formal spec exists at `v2/docs/DELIVERY_TRUTH_ENGINE.md` describing inputs, outputs, scoring, signals, non-goals, and test coverage.
-- A pure TypeScript domain module calculates delivery truth from current project data: confidence score, target vs forecast date, budget pressure, top signals, and suggested decision options.
-- Tests cover at minimum: clean project, schedule drift, cost variance, decision/document debt, testing or readiness compression, blocked work, and high-risk pressure.
-- A new `/truth` operating route renders the engine output in plain language for a PM or Program Lead.
-- The sidebar, command palette, and topbar know the Delivery Truth route.
-- The view highlights delivery truth, not vanity metrics: "is the promise still credible?", "what changed the promise?", and "what decision is needed next?"
-- Tests and build pass before commit or deploy.
-- Browser or local UAT confirms the route renders with seeded Veeva RIM data.
+- Delivery Truth does not show false `100 credible` for an empty/new project; it shows a "not enough data yet" state with next setup actions.
+- Delivery Truth tone cards are readable in dark mode and no longer use pale-card text combinations that wash out.
+- Guided Setup is review-first. Primary action prepares a review, and project creation happens only after explicit confirmation.
+- Sidebar exposes operating views first and moves raw detail modules under a clearer "Registers" group so the app feels less overgrown.
+- Search, alerts, and export controls have stable accessible labels.
+- Tests/build pass.
+- Browser UAT checks Delivery Truth, setup confirmation, nav, and mobile menu.
 
 Out of scope for this module:
 
@@ -68,7 +67,8 @@ Out of scope for this module:
 - Full enterprise/portfolio hierarchy.
 - Real LLM prediction or Monte Carlo simulation.
 - Full agent token telemetry.
-- Replacing the existing dashboard or detailed module screens.
+- Replacing existing detailed module screens.
+- Building the Impact Ledger.
 - Committing/deploying unless Vineet explicitly asks after review.
 
 ### Next Candidate Module: Impact Ledger
@@ -146,6 +146,32 @@ Plain-language rule: do not show users terms like "cycle", "back-edge", "DFS", "
 - Compare against Veeva, MS Project, Primavera, Smartsheet, Monday, Asana, and Jira Product Discovery for enterprise PM usability patterns.
 
 ## 8. Last Session Log
+
+### 2026-05-20 - M6.1 Product Spine Cleanup
+
+Dogfood feedback was blunt: the app was starting to feel like a broad, vibe-coded collection of screens rather than one opinionated project operating system. M6.1 tightened the most visible issues before adding any new feature.
+
+Built:
+
+- Delivery Truth now has a data-coverage model. Empty/new projects show `not-ready` with setup actions instead of a false `100 credible`.
+- Delivery Truth dark-mode contrast fixed by replacing pale-card text combinations with tone-aware dark classes.
+- Delivery Truth decision-option owner pills now render as readable badges, not unlabeled switch-like controls.
+- Guided Setup is now review-first. The primary button starts as `Review setup`; only a second explicit confirmation creates the project and imports tasks/owners.
+- Sidebar detail section renamed from `DETAIL` to `REGISTERS` so detailed modules feel like drill-down registers, not the main product spine.
+- Command palette trigger now opens through an explicit app event instead of dispatching a fake keyboard event.
+- Alerts and Export controls gained stable accessible labels.
+
+Verification:
+
+- `pnpm test` passed: 141 passing, 4 skipped.
+- `pnpm build` passed: 22 static pages.
+- Local browser render check confirmed `/truth` shows `NOT READY` for an incomplete setup project, setup shows `Review setup`, and sidebar shows `REGISTERS`.
+- Some browser click automation was unstable after page load (`Runtime.evaluate` / screenshot CDP timeouts), so final manual dogfood is still recommended before deploy.
+
+Next:
+
+- If this cleanup feels right, commit/deploy M6.1.
+- Then continue toward M7 Impact Ledger, but only after the product spine feels calmer.
 
 ### 2026-05-19 - M6 Delivery Truth Foundation
 

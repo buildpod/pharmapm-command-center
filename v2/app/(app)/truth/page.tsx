@@ -26,15 +26,36 @@ function formatDate(iso: string) {
 
 function toneClasses(tone: DeliveryTruthTone) {
   return {
-    rose: "border-rose-200 bg-rose-50 text-rose-800",
-    amber: "border-amber-200 bg-amber-50 text-amber-800",
-    blue: "border-blue-200 bg-blue-50 text-blue-800",
-    emerald: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    rose: "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200",
+    amber: "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200",
+    blue: "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-200",
+    emerald: "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200",
     slate: "border-border bg-card text-foreground",
   }[tone];
 }
 
-function bandTone(score: number) {
+function panelToneClasses(tone: DeliveryTruthTone) {
+  return {
+    rose: "border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-900/60 dark:bg-rose-950/25 dark:text-rose-100",
+    amber: "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-100",
+    blue: "border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/25 dark:text-blue-100",
+    emerald: "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/25 dark:text-emerald-100",
+    slate: "border-border bg-card text-foreground",
+  }[tone];
+}
+
+function metricBoxClasses(tone: DeliveryTruthTone) {
+  return {
+    rose: "border-rose-200 bg-white/70 dark:border-rose-800/70 dark:bg-rose-950/40",
+    amber: "border-amber-200 bg-white/70 dark:border-amber-800/70 dark:bg-amber-950/40",
+    blue: "border-blue-200 bg-white/70 dark:border-blue-800/70 dark:bg-blue-950/40",
+    emerald: "border-emerald-200 bg-white/70 dark:border-emerald-800/70 dark:bg-emerald-950/40",
+    slate: "border-border bg-background",
+  }[tone];
+}
+
+function bandTone(score: number, ready: boolean): DeliveryTruthTone {
+  if (!ready) return "blue";
   if (score >= 75) return "emerald";
   if (score >= 55) return "amber";
   return "rose";
@@ -84,7 +105,7 @@ export default function DeliveryTruthPage() {
     costLines,
   }), [activeProject, milestones, tasks, risks, documents, costLines]);
 
-  const confidenceTone = bandTone(truth.confidenceScore);
+  const confidenceTone = bandTone(truth.confidenceScore, truth.coverage.isReady);
   const topSignal = truth.signals[0];
 
   return (
@@ -108,38 +129,50 @@ export default function DeliveryTruthPage() {
       </header>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-        <div className={cn("rounded-xl border p-5 shadow-sm", toneClasses(confidenceTone))}>
+        <div className={cn("rounded-xl border p-5 shadow-sm", panelToneClasses(confidenceTone))}>
           <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider opacity-75">Is the promise still credible?</p>
               <div className="mt-3 flex items-end gap-3">
-                <span className="text-6xl font-bold tabular-nums leading-none">{truth.confidenceScore}</span>
+                <span className="text-6xl font-bold tabular-nums leading-none">{truth.coverage.isReady ? truth.confidenceScore : "—"}</span>
                 <span className="pb-2 text-sm font-semibold uppercase tracking-wide">{truth.confidenceBand.replace("-", " ")}</span>
               </div>
-              <p className="mt-3 max-w-xl text-sm leading-6 text-foreground/75">
-                {topSignal
+              <p className="mt-3 max-w-xl text-sm leading-6 opacity-90">
+                {!truth.coverage.isReady
+                  ? "Delivery Truth needs a basic plan before it can judge the promise. Finish setup or import a plan first."
+                  : topSignal
                   ? `${topSignal.title}. ${topSignal.nextAction}`
                   : "No major pressure signal is active. Keep the next status cycle focused on preserving the current path."}
               </p>
+              {!truth.coverage.isReady && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link href="/setup" className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90">
+                    Finish setup
+                  </Link>
+                  <Link href="/plan" className="rounded-md border border-current/20 px-3 py-1.5 text-xs font-semibold hover:bg-background/50">
+                    Review plan
+                  </Link>
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-3 text-sm md:w-80">
-              <div className="rounded-lg border border-current/15 bg-white/45 p-3">
+              <div className={cn("rounded-lg border p-3", metricBoxClasses(confidenceTone))}>
                 <p className="text-[11px] font-semibold uppercase tracking-wide opacity-70">Target</p>
                 <p className="mt-1 font-semibold">{formatDate(truth.targetDate)}</p>
               </div>
-              <div className="rounded-lg border border-current/15 bg-white/45 p-3">
+              <div className={cn("rounded-lg border p-3", metricBoxClasses(confidenceTone))}>
                 <p className="text-[11px] font-semibold uppercase tracking-wide opacity-70">Forecast</p>
-                <p className="mt-1 font-semibold">{formatDate(truth.forecastDate)}</p>
+                <p className="mt-1 font-semibold">{truth.coverage.isReady ? formatDate(truth.forecastDate) : "Needs plan"}</p>
               </div>
-              <div className="rounded-lg border border-current/15 bg-white/45 p-3">
+              <div className={cn("rounded-lg border p-3", metricBoxClasses(confidenceTone))}>
                 <p className="text-[11px] font-semibold uppercase tracking-wide opacity-70">Schedule delta</p>
                 <p className="mt-1 font-semibold">
-                  {truth.scheduleDeltaDays > 0 ? `+${truth.scheduleDeltaDays} days` : truth.scheduleDeltaDays === 0 ? "On target" : `${truth.scheduleDeltaDays} days`}
+                  {!truth.coverage.isReady ? "Needs milestones" : truth.scheduleDeltaDays > 0 ? `+${truth.scheduleDeltaDays} days` : truth.scheduleDeltaDays === 0 ? "On target" : `${truth.scheduleDeltaDays} days`}
                 </p>
               </div>
-              <div className="rounded-lg border border-current/15 bg-white/45 p-3">
+              <div className={cn("rounded-lg border p-3", metricBoxClasses(confidenceTone))}>
                 <p className="text-[11px] font-semibold uppercase tracking-wide opacity-70">Budget used</p>
-                <p className="mt-1 font-semibold">{truth.budget.burnPct}%</p>
+                <p className="mt-1 font-semibold">{truth.coverage.isReady ? `${truth.budget.burnPct}%` : "Needs budget"}</p>
               </div>
             </div>
           </div>
@@ -155,11 +188,11 @@ export default function DeliveryTruthPage() {
               <div key={option.id} className={cn("rounded-lg border p-3", toneClasses(option.tone))}>
                 <div className="flex items-start justify-between gap-3">
                   <p className="text-sm font-semibold">{option.title}</p>
-                  <Badge variant="outline" className="shrink-0 border-current/20 bg-white/40 text-[10px]">
+                  <Badge variant="outline" className="shrink-0 border-current/25 bg-background/70 text-[10px]">
                     {option.ownerHint}
                   </Badge>
                 </div>
-                <p className="mt-2 text-xs leading-5 text-foreground/75">{option.summary}</p>
+                <p className="mt-2 text-xs leading-5 opacity-85">{option.summary}</p>
               </div>
             ))}
           </div>
@@ -202,7 +235,22 @@ export default function DeliveryTruthPage() {
           </Badge>
         </div>
 
-        {truth.signals.length === 0 ? (
+        {!truth.coverage.isReady ? (
+          <div className="flex items-start gap-3 px-5 py-6">
+            <Target className="mt-0.5 h-5 w-5 text-blue-600" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">Delivery Truth is not ready yet.</p>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                Add enough project structure before trusting delivery confidence.
+              </p>
+              <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
+                {truth.coverage.reasons.map((reason) => (
+                  <li key={reason}>• {reason}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        ) : truth.signals.length === 0 ? (
           <div className="flex items-start gap-3 px-5 py-6">
             <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
             <div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -88,6 +88,7 @@ export default function GuidedSetupPage() {
   const [importText, setImportText] = useState(SAMPLE_IMPORT);
   const [importError, setImportError] = useState<string | null>(null);
   const [isReadingFile, setIsReadingFile] = useState(false);
+  const [readyToCreate, setReadyToCreate] = useState(false);
 
   const preview = useMemo<ImportPreview | null>(() => {
     if (mode === "blank") return null;
@@ -101,6 +102,10 @@ export default function GuidedSetupPage() {
       return buildImportPreview([]);
     }
   }, [goLiveDate, importText, mode, startDate]);
+
+  useEffect(() => {
+    setReadyToCreate(false);
+  }, [client, goLiveDate, importText, methodology, mode, name, phase, startDate]);
 
   async function handleFile(file: File | undefined) {
     if (!file) return;
@@ -144,10 +149,18 @@ export default function GuidedSetupPage() {
     return null;
   }
 
-  function handleCreate() {
+  function handleReviewOrCreate() {
     const error = validateProject();
     if (error) {
       toast.error("Setup needs one fix", { description: error });
+      return;
+    }
+
+    if (!readyToCreate) {
+      setReadyToCreate(true);
+      toast.info("Review the setup first", {
+        description: "Check the project shell, owners, and first tasks. Confirm when it looks right.",
+      });
       return;
     }
 
@@ -194,10 +207,10 @@ export default function GuidedSetupPage() {
           </p>
         </div>
         <button
-          onClick={handleCreate}
+          onClick={handleReviewOrCreate}
           className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
         >
-          Create setup <ArrowRight className="h-4 w-4" />
+          {readyToCreate ? "Confirm and create" : "Review setup"} <ArrowRight className="h-4 w-4" />
         </button>
       </header>
 
@@ -412,11 +425,25 @@ export default function GuidedSetupPage() {
             )}
           </div>
 
+          {readyToCreate && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-900 shadow-sm dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100">
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold">Ready to create?</p>
+                  <p className="mt-1 text-xs leading-5 opacity-85">
+                    This will create a new active project and add the reviewed tasks and owners. Use the button at the top to confirm.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
             <h2 className="text-sm font-semibold text-foreground">What happens next</h2>
             <ol className="mt-3 space-y-3 text-xs text-muted-foreground">
-              <li className="flex gap-2"><span className="font-semibold text-foreground">1.</span> Create the project shell and make it active.</li>
-              <li className="flex gap-2"><span className="font-semibold text-foreground">2.</span> Add imported tasks and owners with audit entries.</li>
+              <li className="flex gap-2"><span className="font-semibold text-foreground">1.</span> Review the project shell, workstreams, owners, and first tasks.</li>
+              <li className="flex gap-2"><span className="font-semibold text-foreground">2.</span> Confirm creation only after the preview looks right.</li>
               <li className="flex gap-2"><span className="font-semibold text-foreground">3.</span> Open Command Center so the PM can run the next actions.</li>
             </ol>
           </div>

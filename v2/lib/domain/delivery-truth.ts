@@ -5,7 +5,7 @@ export const DEFAULT_TRUTH_DATE = "2026-05-19";
 
 export type DeliveryTruthSeverity = "critical" | "high" | "medium" | "low";
 export type DeliveryTruthTone = "rose" | "amber" | "blue" | "emerald" | "slate";
-export type DeliveryTruthBand = "credible" | "watch" | "at-risk" | "unlikely";
+export type DeliveryTruthBand = "credible" | "watch" | "at-risk" | "unlikely" | "not-ready";
 
 export type DeliveryTruthSignalKind =
   | "schedule-drift"
@@ -54,6 +54,18 @@ export interface DeliveryTruthBudget {
   variancePct: number;
 }
 
+export interface DeliveryTruthCoverage {
+  isReady: boolean;
+  reasons: string[];
+  counts: {
+    milestones: number;
+    tasks: number;
+    risks: number;
+    documents: number;
+    costLines: number;
+  };
+}
+
 export interface DeliveryTruthResult {
   confidenceScore: number;
   confidenceBand: DeliveryTruthBand;
@@ -61,6 +73,7 @@ export interface DeliveryTruthResult {
   forecastDate: string;
   scheduleDeltaDays: number;
   budget: DeliveryTruthBudget;
+  coverage: DeliveryTruthCoverage;
   signals: DeliveryTruthSignal[];
   decisionOptions: DeliveryDecisionOption[];
 }
@@ -348,6 +361,33 @@ function confidenceBand(score: number, signals: DeliveryTruthSignal[]): Delivery
   return "unlikely";
 }
 
+function buildCoverage(
+  milestones: Milestone[],
+  tasks: Task[],
+  risks: Risk[],
+  documents: Document[],
+  costLines: CostLine[],
+): DeliveryTruthCoverage {
+  const counts = {
+    milestones: milestones.length,
+    tasks: tasks.length,
+    risks: risks.length,
+    documents: documents.length,
+    costLines: costLines.length,
+  };
+  const reasons: string[] = [];
+  if (counts.milestones === 0) reasons.push("Add at least one milestone so the promise has a target path.");
+  if (counts.tasks === 0) reasons.push("Add tasks or import a plan so workstream pressure can be measured.");
+  if (counts.documents === 0) reasons.push("Add controlled documents so readiness and decision debt can be measured.");
+  if (counts.costLines === 0) reasons.push("Add budget lines so cost pressure can be measured.");
+
+  return {
+    counts,
+    reasons,
+    isReady: reasons.length === 0,
+  };
+}
+
 function buildDecisionOptions(signals: DeliveryTruthSignal[]): DeliveryDecisionOption[] {
   const kinds = new Set(signals.map((signal) => signal.kind));
   const options: DeliveryDecisionOption[] = [];
@@ -417,6 +457,7 @@ export function calculateDeliveryTruth(input: DeliveryTruthInput): DeliveryTruth
   const risks = projectOnly(input.risks, input.project.id);
   const documents = projectOnly(input.documents, input.project.id);
   const costLines = projectOnly(input.costLines, input.project.id);
+  const coverage = buildCoverage(milestones, tasks, risks, documents, costLines);
 
   const forecastDate = calculateForecastDate(input.project, milestones);
   const scheduleSignal = buildScheduleSignal(input.project, milestones, forecastDate);
@@ -431,16 +472,24 @@ export function calculateDeliveryTruth(input: DeliveryTruthInput): DeliveryTruth
   ].filter((signal): signal is DeliveryTruthSignal => Boolean(signal)));
 
   const deduction = signals.reduce((sum, signal) => sum + severityDeduction[signal.severity], 0);
-  const confidenceScore = clamp(100 - deduction, 0, 100);
+  const confidenceScore = coverage.isReady ? clamp(100 - deduction, 0, 100) : 0;
 
   return {
     confidenceScore,
-    confidenceBand: confidenceBand(confidenceScore, signals),
+    confidenceBand: coverage.isReady ? confidenceBand(confidenceScore, signals) : "not-ready",
     targetDate: input.project.goLiveDate,
     forecastDate,
     scheduleDeltaDays: daysBetween(input.project.goLiveDate, forecastDate),
     budget,
+    coverage,
     signals,
-    decisionOptions: buildDecisionOptions(signals),
+    decisionOptions: coverage.isReady ? buildDecisionOptions(signals) : [{
+      id: "finish-setup",
+      title: "Finish the project setup",
+      summary: "Delivery Truth needs milestones, tasks, controlled documents, and budget lines before it can judge the promise.",
+      ownerHint: "PM",
+      tone: "blue",
+      signalKinds: [],
+    }],
   };
 }
