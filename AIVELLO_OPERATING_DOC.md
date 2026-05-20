@@ -43,21 +43,21 @@ Detailed module screens remain available, but should not be the only way a PM ru
 
 ## 4. Current Module And Next Module
 
-### Current Module: M6.1 - Product Spine Cleanup
+### Current Module: M6.2 - Template-Driven Operating Setup
 
-Goal: tighten the product spine after dogfooding revealed the app was starting to feel like many screens stitched together. Fix the highest-friction UX issues before adding another feature: Delivery Truth empty-state correctness, dark-mode readability, guided setup safety, navigation hierarchy, and topbar accessibility.
+Goal: upgrade Guided Setup from "create/import tasks" to "create a project operating model" while keeping the product reusable beyond Veeva. Veeva RIM becomes the first deep stress-test template, not the only product use case.
 
-Status: built locally; tests/build clean; browser render check partially complete.
+Status: built locally; tests/build clean; browser render check completed for setup preview. Browser click automation was partly flaky, so deterministic tests now cover the template generation rules.
 
 Done means:
 
-- Delivery Truth does not show false `100 credible` for an empty/new project; it shows a "not enough data yet" state with next setup actions.
-- Delivery Truth tone cards are readable in dark mode and no longer use pale-card text combinations that wash out.
-- Guided Setup is review-first. Primary action prepares a review, and project creation happens only after explicit confirmation.
-- Sidebar exposes operating views first and moves raw detail modules under a clearer "Registers" group so the app feels less overgrown.
-- Search, alerts, and export controls have stable accessible labels.
+- Guided Setup offers multiple template types, not one generic guided template.
+- Veeva RIM template creates a full operating model: workstreams, owners, milestones, tasks, documents, risks, cost lines, and charter.
+- Setup asks project intent: regulated/GxP, validation, migration, integrations, UAT/PQ, cutover/hypercare, and AI-assisted delivery.
+- Review panel shows operating coverage, not just task import counts.
+- Template creation uses existing registers and store actions; no new backend or production dependency.
+- Veeva RIM generated data does not immediately break project health with milestones past go-live or tasks past linked milestone gates.
 - Tests/build pass.
-- Browser UAT checks Delivery Truth, setup confirmation, nav, and mobile menu.
 
 Out of scope for this module:
 
@@ -70,6 +70,7 @@ Out of scope for this module:
 - Replacing existing detailed module screens.
 - Building the Impact Ledger.
 - Committing/deploying unless Vineet explicitly asks after review.
+- First-class Vault Connection, Migration Run, UAT Scenario, or Traceability entities; those are next data-model modules.
 
 ### Next Candidate Module: Impact Ledger
 
@@ -146,6 +147,47 @@ Plain-language rule: do not show users terms like "cycle", "back-edge", "DFS", "
 - Compare against Veeva, MS Project, Primavera, Smartsheet, Monday, Asana, and Jira Product Discovery for enterprise PM usability patterns.
 
 ## 8. Last Session Log
+
+### 2026-05-20 - M6.2 Template-Driven Operating Setup
+
+Vineet confirmed the intended direction: Veeva RIM should be a strong implementation template, not the whole product becoming Veeva-only. The existing setup skeleton was kept, but upgraded from task setup/import to operating-model setup.
+
+Built:
+
+- New reusable template library at `v2/lib/templates/project-templates.ts`.
+- Template catalog now includes Veeva RIM implementation, CSV validation project, data migration project, and generic implementation.
+- Veeva RIM template creates a full operating model using existing registers:
+  - 13 milestones
+  - 31 tasks
+  - 12 documents
+  - 7 risks
+  - 15 team members
+  - 6 cost lines
+  - 1 charter
+- Guided Setup now has project-intent switches for regulated/GxP, validation, migration, integrations, UAT/PQ, cutover/hypercare, and AI-assisted delivery.
+- Review panel now shows milestones, tasks, documents, risks, owners, cost lines, operating coverage, first gates, and known template limitations.
+- Setup creation now seeds charter, milestones, tasks, documents, risks, team members, and cost lines for template mode.
+- Template generation clamps milestone dates to go-live and task dates to linked milestone gates so the newly-created project does not begin with obvious project-health violations.
+- Added `v2/lib/templates/project-templates.test.ts` to verify Veeva RIM creates an operating model and does not create tasks beyond linked gates.
+
+Decided:
+
+- Veeva RIM is the first deep stress-test template, not a product lock-in.
+- First-class `VaultConnection`, `MigrationRun`, `ValidationRequirement`, and `UATScenario` remain P0 follow-up data-model work; this module represents them through existing tasks/milestones/documents/risks.
+- Do not add new dependencies or backend persistence in this pass.
+
+Verification:
+
+- `pnpm test` passed: 143 passing, 4 skipped.
+- `pnpm build` passed: 22 static pages.
+- Browser render check confirmed `/setup` shows the richer template picker, Veeva RIM coverage, intent switches, and operating-model preview.
+- Browser extension click automation became flaky during repeated create-flow testing, so template correctness is now covered by deterministic Vitest cases.
+
+Next:
+
+- Dogfood creating a Veeva RIM project from setup.
+- If the structure feels right, commit/deploy.
+- Recommended next product module: first-class `VaultConnection` + `MigrationRun` readiness data, or Impact Ledger if Vineet wants to continue the Delivery Truth arc first.
 
 ### 2026-05-20 - M6.1 Product Spine Cleanup
 

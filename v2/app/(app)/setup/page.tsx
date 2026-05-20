@@ -8,8 +8,12 @@ import {
   Bot,
   CheckCircle2,
   ClipboardList,
+  Database,
   FileSpreadsheet,
+  GitBranch,
   Loader2,
+  Rocket,
+  ShieldCheck,
   Sparkles,
   Upload,
   Users,
@@ -27,6 +31,13 @@ import {
   recordsFromMatrix,
   type ImportPreview,
 } from "@/lib/import/project-import";
+import {
+  PROJECT_TEMPLATES,
+  buildTemplateOperatingModel,
+  getProjectTemplate,
+  type ProjectIntentKey,
+  type ProjectTemplateId,
+} from "@/lib/templates/project-templates";
 import { isIsoDate } from "@/lib/validation";
 
 type SetupMode = "template" | "import" | "blank";
@@ -75,16 +86,24 @@ const modeCards: Array<{
 export default function GuidedSetupPage() {
   const router = useRouter();
   const { createProject, setActiveProjectId } = useProject();
+  const addCharter = useEntityStore((s) => s.addCharter);
+  const addMilestone = useEntityStore((s) => s.addMilestone);
   const addTask = useEntityStore((s) => s.addTask);
+  const addRisk = useEntityStore((s) => s.addRisk);
+  const addDocument = useEntityStore((s) => s.addDocument);
+  const addCostLine = useEntityStore((s) => s.addCostLine);
   const addTeamMember = useEntityStore((s) => s.addTeamMember);
 
   const [mode, setMode] = useState<SetupMode>("template");
-  const [name, setName] = useState("Veeva RIM Command Center");
+  const [templateId, setTemplateId] = useState<ProjectTemplateId>("veeva-rim");
+  const selectedTemplate = getProjectTemplate(templateId);
+  const [name, setName] = useState(selectedTemplate.recommendedName);
   const [client, setClient] = useState("AivelloStudio Demo Corp");
-  const [phase, setPhase] = useState("Phase 1 - Mobilise");
+  const [phase, setPhase] = useState(selectedTemplate.recommendedPhase);
   const [startDate, setStartDate] = useState("2026-06-01");
   const [goLiveDate, setGoLiveDate] = useState("2026-09-30");
-  const [methodology, setMethodology] = useState("GAMP 5 / CSV");
+  const [methodology, setMethodology] = useState(selectedTemplate.recommendedMethodology);
+  const [intents, setIntents] = useState<Record<ProjectIntentKey, boolean>>(selectedTemplate.intentDefaults);
   const [importText, setImportText] = useState(SAMPLE_IMPORT);
   const [importError, setImportError] = useState<string | null>(null);
   const [isReadingFile, setIsReadingFile] = useState(false);
@@ -103,9 +122,32 @@ export default function GuidedSetupPage() {
     }
   }, [goLiveDate, importText, mode, startDate]);
 
+  const templateModel = useMemo(() => (
+    mode === "template"
+      ? buildTemplateOperatingModel({
+          templateId,
+          projectId: "preview-project",
+          projectName: name,
+          client,
+          startDate,
+          goLiveDate,
+          methodology,
+        })
+      : null
+  ), [client, goLiveDate, methodology, mode, name, startDate, templateId]);
+
   useEffect(() => {
     setReadyToCreate(false);
-  }, [client, goLiveDate, importText, methodology, mode, name, phase, startDate]);
+  }, [client, goLiveDate, importText, intents, methodology, mode, name, phase, startDate, templateId]);
+
+  function selectTemplate(nextTemplateId: ProjectTemplateId) {
+    const template = getProjectTemplate(nextTemplateId);
+    setTemplateId(nextTemplateId);
+    setName(template.recommendedName);
+    setPhase(template.recommendedPhase);
+    setMethodology(template.recommendedMethodology);
+    setIntents(template.intentDefaults);
+  }
 
   async function handleFile(file: File | undefined) {
     if (!file) return;
@@ -143,6 +185,9 @@ export default function GuidedSetupPage() {
     if (!startDate || !isIsoDate(startDate)) return "Add a valid project start date.";
     if (!goLiveDate || !isIsoDate(goLiveDate)) return "Add a valid target go-live date.";
     if (startDate >= goLiveDate) return "Target go-live must be after the project start date.";
+    if (mode === "template" && !templateModel) {
+      return "Choose a project template before creating the setup.";
+    }
     if (mode !== "blank" && (!preview || preview.tasks.length === 0)) {
       return "No tasks are ready to import. Paste a task table or choose the guided template.";
     }
@@ -173,7 +218,27 @@ export default function GuidedSetupPage() {
       methodology: methodology.trim() || "GAMP 5 / CSV",
     });
 
-    if (preview && preview.tasks.length > 0) {
+    if (mode === "template") {
+      const model = buildTemplateOperatingModel({
+        templateId,
+        projectId: created.id,
+        projectName: created.name,
+        client: created.client,
+        startDate: created.startDate,
+        goLiveDate: created.goLiveDate,
+        methodology: created.methodology,
+      });
+      addCharter(model.charter, { source: "import", note: `${model.template.name} setup` });
+      model.milestones.forEach((milestone) => addMilestone(milestone, { source: "import", note: `${model.template.name} setup` }));
+      model.teamMembers.forEach((member) => addTeamMember(member, { source: "import", note: `${model.template.name} setup` }));
+      model.tasks.forEach((task) => addTask(task, { source: "import", note: `${model.template.name} setup` }));
+      model.documents.forEach((document) => addDocument(document, { source: "import", note: `${model.template.name} setup` }));
+      model.risks.forEach((risk) => addRisk(risk, { source: "import", note: `${model.template.name} setup` }));
+      model.costLines.forEach((line) => addCostLine(line, { source: "import", note: `${model.template.name} setup` }));
+      toast.success("Project operating model created", {
+        description: `${model.tasks.length} tasks, ${model.milestones.length} milestones, ${model.documents.length} documents, and ${model.risks.length} risks prepared.`,
+      });
+    } else if (preview && preview.tasks.length > 0) {
       const teamMembers = previewOwnersToTeamMembers(created.id, preview);
       const tasks = previewTasksToTasks(created.id, preview);
       teamMembers.forEach((member) => addTeamMember(member, {
@@ -184,12 +249,16 @@ export default function GuidedSetupPage() {
         source: "import",
         note: "Created from guided setup",
       }));
+      toast.success("Project setup created", {
+        description: `${preview.tasks.length} tasks and ${preview.owners.length} owners prepared.`,
+      });
+    } else {
+      toast.success("Project shell created", {
+        description: "Blank project shell is ready.",
+      });
     }
 
     setActiveProjectId(created.id);
-    toast.success("Project setup created", {
-      description: preview ? `${preview.tasks.length} tasks and ${preview.owners.length} owners prepared.` : "Blank project shell is ready.",
-    });
     router.push("/");
   }
 
@@ -314,14 +383,79 @@ export default function GuidedSetupPage() {
           )}
 
           {mode === "template" && (
-            <div className="rounded-lg border border-primary/20 bg-primary/5 p-5">
-              <div className="flex items-start gap-3">
-                <Sparkles className="mt-0.5 h-5 w-5 text-primary" />
-                <div>
-                  <h2 className="text-base font-semibold text-foreground">Guided template selected</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    This creates a starter structure with project management, validation, data migration, configuration, training, and readiness workstreams. Two sample workstreams are agent-ready by default.
-                  </p>
+            <div className="space-y-5">
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-5">
+                <div className="flex items-start gap-3">
+                  <Sparkles className="mt-0.5 h-5 w-5 text-primary" />
+                  <div>
+                    <h2 className="text-base font-semibold text-foreground">Choose the operating template</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Templates create the project shell plus the first operating model: workstreams, owners, milestones, tasks, documents, risks, and budget lines.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                  {PROJECT_TEMPLATES.map((template) => {
+                    const active = template.id === templateId;
+                    return (
+                      <button
+                        key={template.id}
+                        onClick={() => selectTemplate(template.id)}
+                        className={cn(
+                          "rounded-lg border bg-card p-4 text-left shadow-sm transition-all hover:shadow-md",
+                          active ? "border-primary/60 ring-2 ring-primary/10" : "border-border",
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">{template.category}</p>
+                            <p className="mt-1 text-sm font-semibold text-foreground">{template.name}</p>
+                          </div>
+                          {active && <CheckCircle2 className="h-4 w-4 text-primary" />}
+                        </div>
+                        <p className="mt-2 text-xs leading-5 text-muted-foreground">{template.description}</p>
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] text-foreground">{template.coverage.workstreams.length} streams</span>
+                          <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] text-foreground">{template.coverage.tasks} tasks</span>
+                          <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] text-foreground">{template.coverage.documents} docs</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
+                <div className="mb-4 flex items-start gap-3">
+                  <ShieldCheck className="mt-0.5 h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <h2 className="text-base font-semibold text-foreground">Project intent</h2>
+                    <p className="text-xs text-muted-foreground">These switches explain why the template creates validation, migration, integration, UAT, cutover, and adoption structure.</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {([
+                    ["regulated", "Regulated / GxP", ShieldCheck],
+                    ["validation", "Validation required", ClipboardList],
+                    ["migration", "Data migration", Database],
+                    ["integrations", "Vault / system connections", GitBranch],
+                    ["uat", "UAT / PQ", CheckCircle2],
+                    ["cutover", "Cutover and hypercare", Rocket],
+                    ["aiDelivery", "AI-assisted delivery", Bot],
+                  ] as const).map(([key, label, Icon]) => (
+                    <button
+                      key={key}
+                      onClick={() => setIntents((current) => ({ ...current, [key]: !current[key] }))}
+                      className={cn(
+                        "flex items-center gap-2 rounded-md border px-3 py-2 text-left text-xs font-medium transition-colors",
+                        intents[key] ? "border-primary/40 bg-primary/5 text-foreground" : "border-border bg-background text-muted-foreground",
+                      )}
+                    >
+                      <Icon className={cn("h-3.5 w-3.5", intents[key] ? "text-primary" : "text-muted-foreground")} />
+                      <span className="flex-1">{label}</span>
+                      {intents[key] && <CheckCircle2 className="h-3.5 w-3.5 text-primary" />}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
@@ -354,7 +488,52 @@ export default function GuidedSetupPage() {
               </div>
             </div>
 
-            {preview ? (
+            {templateModel ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-2">
+                  <Metric label="Milestones" value={templateModel.milestones.length} />
+                  <Metric label="Tasks" value={templateModel.tasks.length} />
+                  <Metric label="Documents" value={templateModel.documents.length} />
+                  <Metric label="Risks" value={templateModel.risks.length} />
+                  <Metric label="Owners" value={templateModel.teamMembers.length} />
+                  <Metric label="Cost lines" value={templateModel.costLines.length} />
+                </div>
+
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Operating coverage</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedTemplate.coverage.workstreams.map((workstream) => (
+                      <span key={workstream} className="rounded-full border border-border bg-muted px-2 py-1 text-[11px] text-foreground">
+                        {workstream}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">First gates</p>
+                  <div className="space-y-2">
+                    {templateModel.milestones.slice(0, 5).map((milestone) => (
+                      <div key={milestone.id} className="rounded-md border border-border bg-background p-2">
+                        <p className="line-clamp-1 text-xs font-medium text-foreground">{milestone.name}</p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          {milestone.phase} · owner {milestone.owner} · {milestone.plannedDate}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-xs leading-5 text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100">
+                  <p className="font-semibold">Template limitation to remember</p>
+                  <ul className="mt-2 space-y-1">
+                    {templateModel.operatingNotes.map((note) => (
+                      <li key={note}>• {note}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            ) : preview ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-2">
                   <Metric label="Tasks" value={preview.stats.importedTasks} />
@@ -442,7 +621,7 @@ export default function GuidedSetupPage() {
           <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
             <h2 className="text-sm font-semibold text-foreground">What happens next</h2>
             <ol className="mt-3 space-y-3 text-xs text-muted-foreground">
-              <li className="flex gap-2"><span className="font-semibold text-foreground">1.</span> Review the project shell, workstreams, owners, and first tasks.</li>
+              <li className="flex gap-2"><span className="font-semibold text-foreground">1.</span> Review the project shell, workstreams, owners, gates, documents, risks, and first tasks.</li>
               <li className="flex gap-2"><span className="font-semibold text-foreground">2.</span> Confirm creation only after the preview looks right.</li>
               <li className="flex gap-2"><span className="font-semibold text-foreground">3.</span> Open Command Center so the PM can run the next actions.</li>
             </ol>
