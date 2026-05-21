@@ -49,6 +49,10 @@ When Vineet says "commit" in this command-center repo, treat that as stage the i
 
 After app changes, commits, pushes, or deploy-related work, always provide Vineet with the most relevant URL to test. Use the local dev URL when the dev server is running, and the GitHub Pages URL when the change has been pushed for deployment.
 
+### ADR-7: Use Context Reset Docs For Long Threads
+
+When a thread becomes long or product direction feels unclear, use `v2/docs/CONTEXT_RESET_PLAYBOOK.md`, `v2/docs/NEXT_CHAT_PROMPT.md`, and `v2/docs/PRODUCT_DECISION_CHECKLIST.md` before continuing. Prefer strategy mode before more implementation when the user questions usefulness or sellability.
+
 ## 4. Current Module And Next Module
 
 ### Current Module: M6.4 - SteerCo Readiness Brief
