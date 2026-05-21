@@ -45,6 +45,10 @@ Detailed module screens remain available, but should not be the only way a PM ru
 
 When Vineet says "commit" in this command-center repo, treat that as stage the intended changes, create the git commit, and push it to `origin/main` unless he explicitly asks for local-only commit behavior or a different branch.
 
+### ADR-6: Always Provide A Test Link
+
+After app changes, commits, pushes, or deploy-related work, always provide Vineet with the most relevant URL to test. Use the local dev URL when the dev server is running, and the GitHub Pages URL when the change has been pushed for deployment.
+
 ## 4. Current Module And Next Module
 
 ### Current Module: M6.4 - SteerCo Readiness Brief
