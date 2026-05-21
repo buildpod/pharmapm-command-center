@@ -41,6 +41,10 @@ The app should lead with operating views rather than raw modules:
 
 Detailed module screens remain available, but should not be the only way a PM runs the project.
 
+### ADR-5: "Commit" Means Commit And Push To GitHub
+
+When Vineet says "commit" in this command-center repo, treat that as stage the intended changes, create the git commit, and push it to `origin/main` unless he explicitly asks for local-only commit behavior or a different branch.
+
 ## 4. Current Module And Next Module
 
 ### Current Module: M6.4 - SteerCo Readiness Brief
