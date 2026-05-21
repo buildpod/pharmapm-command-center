@@ -18,6 +18,7 @@ import { CharterCard } from "@/components/dashboard/charter-card";
 import { useProject } from "@/components/projects/project-provider";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { cn } from "@/lib/utils";
+import { buildSteerCoBrief, type SteerCoTone } from "@/lib/domain/steerco-brief";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -351,9 +352,259 @@ function KpiCard({
   );
 }
 
-// ─── Page ───────────────────────────────────────────────────────────────────
+// ─── SteerCo-ready landing page ─────────────────────────────────────────────
+
+const briefTone: Record<SteerCoTone, string> = {
+  rose: "border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-900/60 dark:bg-rose-950/25 dark:text-rose-100",
+  amber: "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-100",
+  blue: "border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/25 dark:text-blue-100",
+  emerald: "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/25 dark:text-emerald-100",
+  slate: "border-border bg-muted/30 text-muted-foreground",
+};
+
+const briefPill: Record<SteerCoTone, string> = {
+  rose: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/25 dark:text-rose-100",
+  amber: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-100",
+  blue: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/25 dark:text-blue-100",
+  emerald: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/25 dark:text-emerald-100",
+  slate: "border-border bg-muted/30 text-muted-foreground",
+};
+
+function BriefMetric({
+  label,
+  value,
+  detail,
+  tone,
+}: {
+  label: string;
+  value: string | number;
+  detail: string;
+  tone: SteerCoTone;
+}) {
+  return (
+    <div className={cn("rounded-md border p-4", briefTone[tone])}>
+      <p className="text-[11px] font-semibold uppercase tracking-wider opacity-75">{label}</p>
+      <p className="mt-2 text-2xl font-bold tabular-nums">{value}</p>
+      <p className="mt-1 text-xs leading-5 opacity-80">{detail}</p>
+    </div>
+  );
+}
 
 export default function DashboardPage() {
+  const { activeProjectId, activeProject } = useProject();
+  const milestones = useEntityStore((s) => s.milestones).filter((m) => m.projectId === activeProjectId);
+  const tasks = useEntityStore((s) => s.tasks).filter((t) => t.projectId === activeProjectId);
+  const risks = useEntityStore((s) => s.risks).filter((r) => r.projectId === activeProjectId);
+  const documents = useEntityStore((s) => s.documents).filter((d) => d.projectId === activeProjectId);
+  const costLines = useEntityStore((s) => s.costLines).filter((c) => c.projectId === activeProjectId);
+  const brief = buildSteerCoBrief({ project: activeProject, milestones, tasks, risks, documents, costLines });
+  const promiseTone: SteerCoTone =
+    brief.truth.confidenceBand === "credible" ? "emerald" :
+    brief.truth.confidenceBand === "watch" ? "blue" :
+    brief.truth.confidenceBand === "not-ready" ? "slate" :
+    "amber";
+
+  return (
+    <div className="space-y-6">
+      <header className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">SteerCo readiness</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground">Can leadership trust the project story?</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+            {activeProject.name} · {activeProject.phase} · target go-live {formatDate(activeProject.goLiveDate)}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/reports" className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90">
+            <FileText className="h-3.5 w-3.5" />
+            Export brief
+          </Link>
+          <Link href="/truth" className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-muted">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            Delivery Truth
+          </Link>
+        </div>
+      </header>
+
+      <section className="grid gap-4 xl:grid-cols-[1.35fr_0.9fr]">
+        <div className={cn("rounded-md border p-5", briefTone[promiseTone])}>
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider opacity-75">Board answer</p>
+              <h2 className="mt-2 text-3xl font-bold tracking-tight">{brief.promiseAnswer}</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 opacity-85">{brief.headline}</p>
+              <p className="mt-2 max-w-2xl text-sm leading-6 opacity-75">{brief.promiseDetail}</p>
+            </div>
+            <div className="min-w-[180px] rounded-md border border-current/20 bg-background/55 p-4 text-right">
+              <p className="text-[11px] font-semibold uppercase tracking-wider opacity-70">Confidence</p>
+              <p className="mt-1 text-4xl font-bold tabular-nums">{brief.truth.confidenceScore}</p>
+              <p className="text-xs font-semibold uppercase tracking-wider opacity-70">{brief.truth.confidenceBand}</p>
+            </div>
+          </div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-md border border-current/20 bg-background/45 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wider opacity-70">Target</p>
+              <p className="mt-1 text-sm font-semibold">{formatDate(brief.truth.targetDate)}</p>
+            </div>
+            <div className="rounded-md border border-current/20 bg-background/45 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wider opacity-70">Forecast</p>
+              <p className="mt-1 text-sm font-semibold">{formatDate(brief.truth.forecastDate)}</p>
+            </div>
+            <div className="rounded-md border border-current/20 bg-background/45 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wider opacity-70">Budget used</p>
+              <p className="mt-1 text-sm font-semibold">{brief.truth.budget.burnPct}%</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-md border border-border bg-card shadow-sm">
+          <div className="border-b border-border px-4 py-3">
+            <p className="text-sm font-semibold text-foreground">Decisions to take to leadership</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">No theory. These are the choices implied by current project data.</p>
+          </div>
+          <div className="divide-y divide-border">
+            {brief.decisions.map((decision) => (
+              <Link key={decision.id} href={decision.href} className="group block px-4 py-3 transition-colors hover:bg-muted/30">
+                <div className="flex items-start gap-3">
+                  <span className={cn("mt-0.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold", briefPill[decision.tone])}>
+                    {decision.owner}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold leading-5 text-foreground group-hover:text-primary">{decision.title}</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">{decision.summary}</p>
+                  </div>
+                  <ChevronRight className="mt-1 h-3.5 w-3.5 text-muted-foreground" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <BriefMetric label="Blocked" value={brief.blockedTaskCount} detail="Tasks unable to move" tone={brief.blockedTaskCount ? "rose" : "emerald"} />
+        <BriefMetric label="Overdue" value={brief.overdueTaskCount} detail="Tasks past due date" tone={brief.overdueTaskCount ? "amber" : "emerald"} />
+        <BriefMetric label="Decisions" value={brief.pendingDecisionCount} detail="Document decisions pending" tone={brief.pendingDecisionCount ? "amber" : "emerald"} />
+        <BriefMetric label="High Risks" value={brief.highRiskCount} detail="Open risks score 15+" tone={brief.highRiskCount ? "rose" : "emerald"} />
+        <BriefMetric label="Readiness" value={brief.readinessItemCount} detail="Open readiness items" tone={brief.readinessItemCount ? "blue" : "emerald"} />
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[1fr_1fr]">
+        <div className="rounded-md border border-border bg-card shadow-sm">
+          <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+            <ListChecks className="h-4 w-4 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">Before the next SteerCo</p>
+              <p className="text-xs text-muted-foreground">The shortest path to a credible status story.</p>
+            </div>
+          </div>
+          <div className="divide-y divide-border">
+            {brief.actions.map((action) => (
+              <Link key={action.id} href={action.href} className="group grid gap-2 px-4 py-3 transition-colors hover:bg-muted/30 sm:grid-cols-[1fr_auto]">
+                <div>
+                  <div className="flex items-start gap-2">
+                    <span className={cn("mt-0.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold", briefPill[action.tone])}>
+                      {action.owner}
+                    </span>
+                    <p className="text-sm font-semibold leading-5 text-foreground group-hover:text-primary">{action.title}</p>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{action.detail}</p>
+                </div>
+                <span className="flex items-center gap-1 text-xs font-semibold text-primary">
+                  Open
+                  <ChevronRight className="h-3 w-3" />
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-md border border-border bg-card shadow-sm">
+          <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+            <FileText className="h-4 w-4 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">Evidence behind the story</p>
+              <p className="text-xs text-muted-foreground">Every claim links back to a task, risk, document, milestone, or cost line.</p>
+            </div>
+          </div>
+          <div className="divide-y divide-border">
+            {brief.evidence.length ? brief.evidence.map((item) => (
+              <Link key={item.id} href={item.href} className="group grid gap-2 px-4 py-3 transition-colors hover:bg-muted/30 sm:grid-cols-[1fr_auto]">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase", briefPill[item.tone])}>
+                      {item.sourceType}
+                    </span>
+                    <p className="text-sm font-semibold leading-5 text-foreground group-hover:text-primary">{item.label}</p>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.reason}</p>
+                </div>
+                <span className="flex items-center gap-1 text-xs font-semibold text-primary">
+                  Trace
+                  <ChevronRight className="h-3 w-3" />
+                </span>
+              </Link>
+            )) : (
+              <div className="px-4 py-8 text-sm text-muted-foreground">No material delivery signal is active.</div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-md border border-border bg-card shadow-sm">
+        <div className="flex flex-col gap-1 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Workstream operating view</p>
+            <p className="text-xs text-muted-foreground">Borrowing the useful density of the original Tasks UI: progress, blockers, critical work, next due.</p>
+          </div>
+          <Link href="/tasks" className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
+            Open task register
+            <ChevronRight className="h-3 w-3" />
+          </Link>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/30 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <th className="px-4 py-3">Workstream</th>
+                <th className="px-4 py-3">Progress</th>
+                <th className="px-4 py-3">Blocked</th>
+                <th className="px-4 py-3">Critical Open</th>
+                <th className="px-4 py-3">Next Due</th>
+                <th className="px-4 py-3">State</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {brief.workstreams.map((workstream) => (
+                <tr key={workstream.name} className="transition-colors hover:bg-muted/20">
+                  <td className="px-4 py-3 font-semibold text-foreground">{workstream.name}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex min-w-[150px] items-center gap-2">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                        <div className="h-full rounded-full bg-primary" style={{ width: `${workstream.averageProgress}%` }} />
+                      </div>
+                      <span className="w-9 text-right text-xs font-semibold tabular-nums text-muted-foreground">{workstream.averageProgress}%</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 tabular-nums text-muted-foreground">{workstream.blocked}</td>
+                  <td className="px-4 py-3 tabular-nums text-muted-foreground">{workstream.criticalOpen}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{workstream.nextDueDate ? formatDate(workstream.nextDueDate) : "No open work"}</td>
+                  <td className="px-4 py-3">
+                    <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold", briefPill[workstream.tone])}>
+                      {workstream.tone === "rose" ? "Blocked" : workstream.tone === "amber" ? "Pressure" : workstream.tone === "emerald" ? "Stable" : "Active"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function LegacyDashboardPage() {
   const { activeProjectId, activeProject } = useProject();
   const tasks = useEntityStore((s) => s.tasks).filter((t) => t.projectId === activeProjectId);
   const milestones = useEntityStore((s) => s.milestones).filter((m) => m.projectId === activeProjectId);
@@ -666,3 +917,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+void LegacyDashboardPage;

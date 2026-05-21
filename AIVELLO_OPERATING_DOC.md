@@ -43,20 +43,19 @@ Detailed module screens remain available, but should not be the only way a PM ru
 
 ## 4. Current Module And Next Module
 
-### Current Module: M6.3 - Project Intake And Feasibility Setup
+### Current Module: M6.4 - SteerCo Readiness Brief
 
-Goal: make Guided Setup ask the minimum useful setup questions before creating a project, so templates are selected from need rather than preference. The setup must distinguish industry, project type, system family, control model, region, scope, reporting need, ownership model, and timeline credibility.
+Goal: stop widening the app and make the first screen sell one painful workflow: can the PM walk into SteerCo with a credible project story, the required leadership decision, and the evidence behind it?
 
-Status: built locally; tests/build clean.
+Status: first local slice built; tests/build clean; browser DOM check clean.
 
 Done means:
 
-- Guided Setup replaces vague intent switches with parameter fields and examples.
-- Industry controls valid system/control choices.
-- Scope and transparency needs use multi-select chips.
-- Human/agent/hybrid ownership is explicit.
-- Timeline feasibility warns when the selected plan is compressed and blocks obviously impossible setups.
-- Tests cover SAP two-day infeasibility, short workshop feasibility, Veeva timeline compression, and finance control filtering.
+- Command Center first screen becomes a SteerCo readiness brief, not a broad dashboard.
+- The first viewport answers whether leadership can trust the project story.
+- Required decisions, actions before next SteerCo, evidence links, and workstream pressure are visible immediately.
+- Brief is deterministic and built from existing Delivery Truth, tasks, milestones, risks, documents, and cost lines.
+- Tests cover blocked work, high risks, pending document decisions, required leadership decisions, and workstream pressure ordering.
 - Tests/build pass.
 
 Out of scope for this module:
@@ -65,21 +64,22 @@ Out of scope for this module:
 - Database migration.
 - Multi-user collaboration.
 - Real LLM prediction or Monte Carlo simulation.
-- Full template generation from every parameter.
-- New first-class Vault Connection, Migration Run, UAT Scenario, or Traceability entities.
-- Landing page redesign.
-- Full enterprise UI map.
+- New entity types.
+- New setup parameters.
+- Full board-pack export redesign.
+- Full visual design-system rewrite.
 
-### Next Candidate Module: Impact Ledger
+### Next Candidate Module: Sellable Slice Hardening
 
-Potential goal: turn every material project event into an impact record that shows schedule, cost, quality, readiness, decision, and evidence consequences before the team drifts into month-four fire mode.
+Potential goal: make the SteerCo readiness brief demo-ready enough that a buyer can understand the product in 30 seconds.
 
 Candidate done means:
 
-- Impact records can be created from schedule drift, issue/risk movement, document readiness, cost pressure, or manual PM input.
-- Each impact record names what changed, why it matters, affected workstreams, affected artifacts, decision owner, and recommended next action.
-- A first ledger view exists with filters by severity, workstream, and decision status.
-- Impact records are deterministic and audit-friendly, not AI-generated prose without traceability.
+- First screen is visually tighter and closer to the original PharmaPM Pro task density.
+- Each brief action deep-links to the exact relevant filtered register when feasible.
+- Reports page exports the same story seen on the landing page.
+- The old broad dashboard code is removed once the new brief is accepted.
+- Browser screenshot and live dogfood pass on desktop and mobile widths.
 
 ## 5. Module Breakdown
 
@@ -145,6 +145,33 @@ Plain-language rule: do not show users terms like "cycle", "back-edge", "DFS", "
 - Compare against Veeva, MS Project, Primavera, Smartsheet, Monday, Asana, and Jira Product Discovery for enterprise PM usability patterns.
 
 ## 8. Last Session Log
+
+### 2026-05-21 - M6.4 SteerCo Readiness Brief
+
+Context:
+
+- Product concern: the app still did not feel sellable or immediately useful.
+- Direction changed from adding more setup/module depth to making one buyer-facing workflow clear in the first viewport.
+
+Built:
+
+- Added `v2/lib/domain/steerco-brief.ts`, a deterministic brief builder on top of Delivery Truth and existing project entities.
+- Replaced the exported Command Center landing experience with a SteerCo readiness brief.
+- First screen now answers "Can leadership trust the project story?" with confidence, target/forecast, budget used, required decisions, actions before next SteerCo, evidence links, and workstream pressure.
+- Added `v2/lib/domain/steerco-brief.test.ts` covering leadership decisions, blocked work, high risks, document decision debt, and workstream ordering.
+
+Verification:
+
+- `pnpm test` passed: 150 passing, 4 skipped.
+- `pnpm build` passed: 22 static pages.
+- Browser DOM check confirmed the new `/` content renders locally under `/pharmapm-command-center/v2/`.
+- Browser console had no errors.
+- Screenshot capture timed out in the in-app browser despite successful page render.
+
+Next:
+
+- Dogfood the new first screen live.
+- If the direction feels more sellable, remove the retained legacy dashboard component and wire brief actions to tighter filtered register views.
 
 ### 2026-05-21 - M6.3 Project Intake And Feasibility Setup
 
