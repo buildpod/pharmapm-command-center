@@ -8,11 +8,8 @@ import {
   Bot,
   CheckCircle2,
   ClipboardList,
-  Database,
   FileSpreadsheet,
-  GitBranch,
   Loader2,
-  Rocket,
   ShieldCheck,
   Sparkles,
   Upload,
@@ -35,9 +32,28 @@ import {
   PROJECT_TEMPLATES,
   buildTemplateOperatingModel,
   getProjectTemplate,
-  type ProjectIntentKey,
   type ProjectTemplateId,
 } from "@/lib/templates/project-templates";
+import {
+  DELIVERY_METHOD_OPTIONS,
+  INDUSTRY_OPTIONS,
+  OWNERSHIP_OPTIONS,
+  PROJECT_TYPE_OPTIONS,
+  REGION_OPTIONS,
+  REPORTING_OPTIONS,
+  SCOPE_OPTIONS,
+  TIMELINE_OPTIONS,
+  controlOptionsForIndustry,
+  deliveryMethodLabel,
+  evaluateSetupFeasibility,
+  intakeFromTemplate,
+  systemOptionsForIndustry,
+  type IntakeOption,
+  type ReportingModelId,
+  type ScopeElementId,
+  type SetupFeasibility,
+  type SetupIntake,
+} from "@/lib/setup/project-intake";
 import { isIsoDate } from "@/lib/validation";
 
 type SetupMode = "template" | "import" | "blank";
@@ -103,7 +119,7 @@ export default function GuidedSetupPage() {
   const [startDate, setStartDate] = useState("2026-06-01");
   const [goLiveDate, setGoLiveDate] = useState("2026-09-30");
   const [methodology, setMethodology] = useState(selectedTemplate.recommendedMethodology);
-  const [intents, setIntents] = useState<Record<ProjectIntentKey, boolean>>(selectedTemplate.intentDefaults);
+  const [intake, setIntake] = useState<SetupIntake>(() => intakeFromTemplate("veeva-rim"));
   const [importText, setImportText] = useState(SAMPLE_IMPORT);
   const [importError, setImportError] = useState<string | null>(null);
   const [isReadingFile, setIsReadingFile] = useState(false);
@@ -136,17 +152,67 @@ export default function GuidedSetupPage() {
       : null
   ), [client, goLiveDate, methodology, mode, name, startDate, templateId]);
 
+  const feasibility = useMemo(
+    () => evaluateSetupFeasibility(intake, startDate, goLiveDate),
+    [goLiveDate, intake, startDate],
+  );
+
+  const systemOptions = useMemo(() => systemOptionsForIndustry(intake.industry), [intake.industry]);
+  const controlOptions = useMemo(() => controlOptionsForIndustry(intake.industry), [intake.industry]);
+
   useEffect(() => {
     setReadyToCreate(false);
-  }, [client, goLiveDate, importText, intents, methodology, mode, name, phase, startDate, templateId]);
+  }, [client, goLiveDate, importText, intake, methodology, mode, name, phase, startDate, templateId]);
 
   function selectTemplate(nextTemplateId: ProjectTemplateId) {
     const template = getProjectTemplate(nextTemplateId);
     setTemplateId(nextTemplateId);
     setName(template.recommendedName);
     setPhase(template.recommendedPhase);
-    setMethodology(template.recommendedMethodology);
-    setIntents(template.intentDefaults);
+    const nextIntake = intakeFromTemplate(nextTemplateId);
+    setIntake(nextIntake);
+    setMethodology(deliveryMethodLabel(nextIntake.deliveryMethod));
+  }
+
+  function updateIntake<K extends keyof SetupIntake>(key: K, value: SetupIntake[K]) {
+    setIntake((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateIndustry(industry: SetupIntake["industry"]) {
+    setIntake((current) => {
+      const nextSystems = systemOptionsForIndustry(industry);
+      const nextControls = controlOptionsForIndustry(industry);
+      const systemFamily = nextSystems.some((option) => option.id === current.systemFamily)
+        ? current.systemFamily
+        : nextSystems[0].id;
+      const controlModel = nextControls.some((option) => option.id === current.controlModel)
+        ? current.controlModel
+        : nextControls[0].id;
+      return { ...current, industry, systemFamily, controlModel };
+    });
+  }
+
+  function updateDeliveryMethod(deliveryMethod: SetupIntake["deliveryMethod"]) {
+    updateIntake("deliveryMethod", deliveryMethod);
+    setMethodology(deliveryMethodLabel(deliveryMethod));
+  }
+
+  function toggleScope(scope: ScopeElementId) {
+    setIntake((current) => ({
+      ...current,
+      scopeElements: current.scopeElements.includes(scope)
+        ? current.scopeElements.filter((item) => item !== scope)
+        : [...current.scopeElements, scope],
+    }));
+  }
+
+  function toggleReporting(reporting: ReportingModelId) {
+    setIntake((current) => ({
+      ...current,
+      reportingModels: current.reportingModels.includes(reporting)
+        ? current.reportingModels.filter((item) => item !== reporting)
+        : [...current.reportingModels, reporting],
+    }));
   }
 
   async function handleFile(file: File | undefined) {
@@ -188,6 +254,9 @@ export default function GuidedSetupPage() {
     if (mode === "template" && !templateModel) {
       return "Choose a project template before creating the setup.";
     }
+    if (mode === "template" && feasibility.status === "impossible") {
+      return "Timeline is not credible for this setup. Change project type, scope, or dates before creating it.";
+    }
     if (mode !== "blank" && (!preview || preview.tasks.length === 0)) {
       return "No tasks are ready to import. Paste a task table or choose the guided template.";
     }
@@ -204,7 +273,7 @@ export default function GuidedSetupPage() {
     if (!readyToCreate) {
       setReadyToCreate(true);
       toast.info("Review the setup first", {
-        description: "Check the project shell, owners, and first tasks. Confirm when it looks right.",
+        description: "Check shape, timeline credibility, owners, gates, and first tasks before creating.",
       });
       return;
     }
@@ -332,7 +401,11 @@ export default function GuidedSetupPage() {
                 <input value={phase} onChange={(event) => setPhase(event.target.value)} className={inputCls} />
               </Field>
               <Field label="Delivery method">
-                <input value={methodology} onChange={(event) => setMethodology(event.target.value)} className={inputCls} />
+                <select value={intake.deliveryMethod} onChange={(event) => updateDeliveryMethod(event.target.value as SetupIntake["deliveryMethod"])} className={inputCls}>
+                  {DELIVERY_METHOD_OPTIONS.map((option) => (
+                    <option key={option.id} value={option.id}>{option.label}</option>
+                  ))}
+                </select>
               </Field>
               <Field label="Start date" required>
                 <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className={inputCls} />
@@ -429,33 +502,87 @@ export default function GuidedSetupPage() {
                 <div className="mb-4 flex items-start gap-3">
                   <ShieldCheck className="mt-0.5 h-5 w-5 text-muted-foreground" />
                   <div>
-                    <h2 className="text-base font-semibold text-foreground">Project intent</h2>
-                    <p className="text-xs text-muted-foreground">These switches explain why the template creates validation, migration, integration, UAT, cutover, and adoption structure.</p>
+                    <h2 className="text-base font-semibold text-foreground">Project shape</h2>
+                    <p className="text-xs text-muted-foreground">
+                      These answers change the setup recommendation. A two-day SAP implementation should become an assessment, not a fake green project.
+                    </p>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {([
-                    ["regulated", "Regulated / GxP", ShieldCheck],
-                    ["validation", "Validation required", ClipboardList],
-                    ["migration", "Data migration", Database],
-                    ["integrations", "Vault / system connections", GitBranch],
-                    ["uat", "UAT / PQ", CheckCircle2],
-                    ["cutover", "Cutover and hypercare", Rocket],
-                    ["aiDelivery", "AI-assisted delivery", Bot],
-                  ] as const).map(([key, label, Icon]) => (
-                    <button
-                      key={key}
-                      onClick={() => setIntents((current) => ({ ...current, [key]: !current[key] }))}
-                      className={cn(
-                        "flex items-center gap-2 rounded-md border px-3 py-2 text-left text-xs font-medium transition-colors",
-                        intents[key] ? "border-primary/40 bg-primary/5 text-foreground" : "border-border bg-background text-muted-foreground",
-                      )}
-                    >
-                      <Icon className={cn("h-3.5 w-3.5", intents[key] ? "text-primary" : "text-muted-foreground")} />
-                      <span className="flex-1">{label}</span>
-                      {intents[key] && <CheckCircle2 className="h-3.5 w-3.5 text-primary" />}
-                    </button>
-                  ))}
+
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <SelectField
+                    label="Industry"
+                    value={intake.industry}
+                    options={INDUSTRY_OPTIONS}
+                    onChange={updateIndustry}
+                  />
+                  <SelectField
+                    label="Project type"
+                    value={intake.projectType}
+                    options={PROJECT_TYPE_OPTIONS}
+                    onChange={(value) => updateIntake("projectType", value)}
+                  />
+                  <SelectField
+                    label="System family"
+                    value={intake.systemFamily}
+                    options={systemOptions}
+                    onChange={(value) => updateIntake("systemFamily", value)}
+                  />
+                  <SelectField
+                    label="Control model"
+                    value={intake.controlModel}
+                    options={controlOptions}
+                    onChange={(value) => updateIntake("controlModel", value)}
+                  />
+                  <SelectField
+                    label="Region"
+                    value={intake.region}
+                    options={REGION_OPTIONS}
+                    onChange={(value) => updateIntake("region", value)}
+                  />
+                  <SelectField
+                    label="Timeline rule"
+                    value={intake.timelineCriticality}
+                    options={TIMELINE_OPTIONS}
+                    onChange={(value) => updateIntake("timelineCriticality", value)}
+                  />
+                </div>
+
+                <div className="mt-5 space-y-5">
+                  <ChipGroup
+                    label="Scope included"
+                    options={SCOPE_OPTIONS}
+                    selected={intake.scopeElements}
+                    onToggle={toggleScope}
+                  />
+                  <ChipGroup
+                    label="Transparency needed"
+                    options={REPORTING_OPTIONS}
+                    selected={intake.reportingModels}
+                    onToggle={toggleReporting}
+                  />
+                  <div>
+                    <p className="mb-2 text-xs font-semibold text-foreground">Who maintains the data?</p>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                      {OWNERSHIP_OPTIONS.map((option) => {
+                        const active = intake.ownershipModel === option.id;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => updateIntake("ownershipModel", option.id)}
+                            className={cn(
+                              "rounded-md border px-3 py-2 text-left transition-colors",
+                              active ? "border-primary/50 bg-primary/5 text-foreground" : "border-border bg-background text-muted-foreground",
+                            )}
+                          >
+                            <span className="block text-xs font-semibold">{option.label}</span>
+                            <span className="mt-1 block text-[11px] leading-4">{option.example}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -488,8 +615,10 @@ export default function GuidedSetupPage() {
               </div>
             </div>
 
+            {mode === "template" && <FeasibilityCard feasibility={feasibility} />}
+
             {templateModel ? (
-              <div className="space-y-4">
+              <div className="mt-4 space-y-4">
                 <div className="grid grid-cols-2 gap-2">
                   <Metric label="Milestones" value={templateModel.milestones.length} />
                   <Metric label="Tasks" value={templateModel.tasks.length} />
@@ -628,6 +757,98 @@ export default function GuidedSetupPage() {
           </div>
         </aside>
       </section>
+    </div>
+  );
+}
+
+function SelectField<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: IntakeOption<T>[];
+  onChange: (value: T) => void;
+}) {
+  const selected = options.find((option) => option.id === value) ?? options[0];
+
+  return (
+    <Field label={label}>
+      <select value={value} onChange={(event) => onChange(event.target.value as T)} className={inputCls}>
+        {options.map((option) => (
+          <option key={option.id} value={option.id}>{option.label}</option>
+        ))}
+      </select>
+      <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
+        Example: {selected.example}
+      </p>
+    </Field>
+  );
+}
+
+function ChipGroup<T extends string>({
+  label,
+  options,
+  selected,
+  onToggle,
+}: {
+  label: string;
+  options: IntakeOption<T>[];
+  selected: T[];
+  onToggle: (value: T) => void;
+}) {
+  return (
+    <div>
+      <p className="mb-2 text-xs font-semibold text-foreground">{label}</p>
+      <div className="flex flex-wrap gap-2">
+        {options.map((option) => {
+          const active = selected.includes(option.id);
+          return (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => onToggle(option.id)}
+              className={cn(
+                "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                active ? "border-primary/50 bg-primary/5 text-foreground" : "border-border bg-background text-muted-foreground",
+              )}
+              title={option.example}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function FeasibilityCard({ feasibility }: { feasibility: SetupFeasibility }) {
+  const tone = {
+    credible: "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100",
+    compressed: "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100",
+    impossible: "border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-100",
+  }[feasibility.status];
+
+  return (
+    <div className={cn("rounded-md border p-3 text-xs leading-5", tone)}>
+      <div className="flex items-start gap-2">
+        {feasibility.status === "credible" ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" /> : <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
+        <div>
+          <p className="font-semibold">{feasibility.title}</p>
+          <p className="mt-1 opacity-90">{feasibility.summary}</p>
+          <p className="mt-2 font-medium">
+            {feasibility.plannedDays} planned days · {feasibility.minimumDays} recommended days
+          </p>
+          <ul className="mt-2 space-y-1 opacity-90">
+            {feasibility.suggestions.slice(0, 2).map((suggestion) => (
+              <li key={suggestion}>• {suggestion}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
     </div>
   );
 }

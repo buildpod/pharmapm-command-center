@@ -43,20 +43,20 @@ Detailed module screens remain available, but should not be the only way a PM ru
 
 ## 4. Current Module And Next Module
 
-### Current Module: M6.2 - Template-Driven Operating Setup
+### Current Module: M6.3 - Project Intake And Feasibility Setup
 
-Goal: upgrade Guided Setup from "create/import tasks" to "create a project operating model" while keeping the product reusable beyond Veeva. Veeva RIM becomes the first deep stress-test template, not the only product use case.
+Goal: make Guided Setup ask the minimum useful setup questions before creating a project, so templates are selected from need rather than preference. The setup must distinguish industry, project type, system family, control model, region, scope, reporting need, ownership model, and timeline credibility.
 
-Status: built locally; tests/build clean; browser render check completed for setup preview. Browser click automation was partly flaky, so deterministic tests now cover the template generation rules.
+Status: built locally; tests/build clean.
 
 Done means:
 
-- Guided Setup offers multiple template types, not one generic guided template.
-- Veeva RIM template creates a full operating model: workstreams, owners, milestones, tasks, documents, risks, cost lines, and charter.
-- Setup asks project intent: regulated/GxP, validation, migration, integrations, UAT/PQ, cutover/hypercare, and AI-assisted delivery.
-- Review panel shows operating coverage, not just task import counts.
-- Template creation uses existing registers and store actions; no new backend or production dependency.
-- Veeva RIM generated data does not immediately break project health with milestones past go-live or tasks past linked milestone gates.
+- Guided Setup replaces vague intent switches with parameter fields and examples.
+- Industry controls valid system/control choices.
+- Scope and transparency needs use multi-select chips.
+- Human/agent/hybrid ownership is explicit.
+- Timeline feasibility warns when the selected plan is compressed and blocks obviously impossible setups.
+- Tests cover SAP two-day infeasibility, short workshop feasibility, Veeva timeline compression, and finance control filtering.
 - Tests/build pass.
 
 Out of scope for this module:
@@ -64,13 +64,11 @@ Out of scope for this module:
 - Authentication and permissions.
 - Database migration.
 - Multi-user collaboration.
-- Full enterprise/portfolio hierarchy.
 - Real LLM prediction or Monte Carlo simulation.
-- Full agent token telemetry.
-- Replacing existing detailed module screens.
-- Building the Impact Ledger.
-- Committing/deploying unless Vineet explicitly asks after review.
-- First-class Vault Connection, Migration Run, UAT Scenario, or Traceability entities; those are next data-model modules.
+- Full template generation from every parameter.
+- New first-class Vault Connection, Migration Run, UAT Scenario, or Traceability entities.
+- Landing page redesign.
+- Full enterprise UI map.
 
 ### Next Candidate Module: Impact Ledger
 
@@ -147,6 +145,22 @@ Plain-language rule: do not show users terms like "cycle", "back-edge", "DFS", "
 - Compare against Veeva, MS Project, Primavera, Smartsheet, Monday, Asana, and Jira Product Discovery for enterprise PM usability patterns.
 
 ## 8. Last Session Log
+
+### 2026-05-21 - M6.3 Project Intake And Feasibility Setup
+
+Built:
+
+- Added `v2/lib/setup/project-intake.ts` with setup parameters, industry-aware option filtering, and deterministic timeline feasibility.
+- Replaced Guided Setup's vague intent switches with dropdowns/chips for industry, project type, system family, control model, region, scope, transparency need, ownership model, and timeline rule.
+- Added examples beside setup fields so first-time users understand what each answer means.
+- Added feasibility review in the setup preview. Compressed plans are visible; impossible plans are blocked before creation.
+- Added tests for impossible SAP timeline, credible workshop timeline, Veeva RIM compression, and finance control filtering.
+
+Verification:
+
+- `pnpm test` passed: 147 passing, 4 skipped.
+- `pnpm build` passed: 22 static pages.
+- Local dev server could start with approval, but browser automation was not available in this session because the Playwright package is not installed in this workspace.
 
 ### 2026-05-20 - M6.2 Template-Driven Operating Setup
 
