@@ -7,11 +7,32 @@ import { Plus, Check, ExternalLink, Trash2 } from "lucide-react";
 import { useProject } from "@/components/projects/project-provider";
 import { ExportButton } from "@/components/projects/export-button";
 import { Field, inputCls, ConfirmDelete } from "@/components/ui/entity-drawer";
+import { useEntityStore } from "@/lib/stores/entity-store";
 import { isIsoDate, inProjectRange, PROJECT_DATE_MIN, PROJECT_DATE_MAX } from "@/lib/validation";
 import { cn } from "@/lib/utils";
 
 export default function ProjectsPage() {
   const { projects, activeProjectId, setActiveProjectId, createProject, deleteProject } = useProject();
+  const entityStore = useEntityStore((s) => ({
+    milestones: s.milestones,
+    tasks: s.tasks,
+    risks: s.risks,
+    documents: s.documents,
+    costLines: s.costLines,
+    teamMembers: s.teamMembers,
+    meetings: s.meetings,
+    absences: s.absences,
+    charters: s.charters,
+    replaceAllMilestones: s.replaceAllMilestones,
+    replaceAllTasks: s.replaceAllTasks,
+    replaceAllRisks: s.replaceAllRisks,
+    replaceAllDocuments: s.replaceAllDocuments,
+    replaceAllCostLines: s.replaceAllCostLines,
+    replaceAllTeamMembers: s.replaceAllTeamMembers,
+    replaceAllMeetings: s.replaceAllMeetings,
+    replaceAllAbsences: s.replaceAllAbsences,
+    replaceAllCharters: s.replaceAllCharters,
+  }));
   const [showForm, setShowForm] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
@@ -56,6 +77,15 @@ export default function ProjectsPage() {
 
   function handleDelete(id: string) {
     const target = projects.find((p) => p.id === id);
+    entityStore.replaceAllMilestones(entityStore.milestones.filter((item) => item.projectId !== id), { source: "user-edit", note: `Deleted project ${target?.name ?? id}` });
+    entityStore.replaceAllTasks(entityStore.tasks.filter((item) => item.projectId !== id), { source: "user-edit", note: `Deleted project ${target?.name ?? id}` });
+    entityStore.replaceAllRisks(entityStore.risks.filter((item) => item.projectId !== id), { source: "user-edit", note: `Deleted project ${target?.name ?? id}` });
+    entityStore.replaceAllDocuments(entityStore.documents.filter((item) => item.projectId !== id), { source: "user-edit", note: `Deleted project ${target?.name ?? id}` });
+    entityStore.replaceAllCostLines(entityStore.costLines.filter((item) => item.projectId !== id), { source: "user-edit", note: `Deleted project ${target?.name ?? id}` });
+    entityStore.replaceAllTeamMembers(entityStore.teamMembers.filter((item) => item.projectId !== id), { source: "user-edit", note: `Deleted project ${target?.name ?? id}` });
+    entityStore.replaceAllMeetings(entityStore.meetings.filter((item) => item.projectId !== id), { source: "user-edit", note: `Deleted project ${target?.name ?? id}` });
+    entityStore.replaceAllAbsences(entityStore.absences.filter((item) => item.projectId !== id), { source: "user-edit", note: `Deleted project ${target?.name ?? id}` });
+    entityStore.replaceAllCharters(entityStore.charters.filter((item) => item.projectId !== id), { source: "user-edit", note: `Deleted project ${target?.name ?? id}` });
     deleteProject(id);
     toast.success("Project deleted", { description: target?.name });
     setConfirmDeleteId(null);
@@ -160,6 +190,9 @@ export default function ProjectsPage() {
                   <div className="min-w-0 flex-1 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="text-base font-semibold text-foreground">{p.name}</h3>
+                      <span className="rounded-full border border-border bg-muted px-2 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground">
+                        {p.code ?? p.id}
+                      </span>
                       {isActive && (
                         <span className="flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
                           <Check className="h-3 w-3" /> Active
@@ -198,10 +231,11 @@ export default function ProjectsPage() {
                     {projects.length > 1 && (
                       <button
                         onClick={() => setConfirmDeleteId(p.id)}
-                        className="rounded-md border border-rose-200 bg-rose-50 p-1.5 text-rose-700 hover:bg-rose-100 dark:bg-rose-950/30"
+                        className="flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/30"
                         title="Delete project"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
+                        Delete
                       </button>
                     )}
                   </div>
@@ -213,7 +247,7 @@ export default function ProjectsPage() {
       </div>
 
       <p className="text-[11px] text-muted-foreground">
-        Note: deleting a project keeps its entities in mockData (this is a demo). In a real backend, deletion would cascade.
+        Deleting a project removes its locally created tasks, milestones, risks, documents, costs, people, meetings, absences, and charter records.
       </p>
     </div>
   );

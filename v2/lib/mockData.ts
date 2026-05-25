@@ -16,6 +16,7 @@ export type ProjectPhase = "Initiation" | "Design" | "Config" | "Testing" | "Tra
 
 export type Project = {
   id: string;
+  code?: string;
   name: string;
   client: string;
   phase: string;
@@ -27,6 +28,7 @@ export type Project = {
 export const projects: Project[] = [
   {
     id: "proj-veeva-rim",
+    code: "ADC-VRIM-2026",
     name: "Veeva RIM Implementation",
     client: "AivelloStudio Demo Corp",
     phase: "Phase 2 — Configuration & Testing",
@@ -36,6 +38,7 @@ export const projects: Project[] = [
   },
   {
     id: "proj-promomats",
+    code: "ADC-VPM-2026",
     name: "Veeva PromoMats Migration",
     client: "AivelloStudio Demo Corp",
     phase: "Phase 0 — Discovery",

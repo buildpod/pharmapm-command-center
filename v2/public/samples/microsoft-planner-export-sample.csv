@@ -1,0 +1,4 @@
+Task ID,Task title,Bucket Name,Status,Start Date,Due Date,Assignments,Priority
+1,Confirm validation scope,Validation,In progress,2026-06-01,2026-06-10,Priya Sharma,Important
+2,Run dry migration,Data Migration,Not started,2026-06-11,2026-06-20,Migration Agent,Medium
+3,Approve cutover checklist,Cutover,Not started,2026-06-21,2026-06-24,Vineet Pathak,Urgent

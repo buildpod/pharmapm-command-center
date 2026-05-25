@@ -11,6 +11,7 @@ Path: /Users/vineetpathak/Documents/Codex/2026-05-17/can-you-connect-to-my-ithub
 Important project rules:
 - Read AIVELLO_OPERATING_DOC.md first.
 - Read v2/docs/CONTEXT_RESET_PLAYBOOK.md.
+- Read v2/docs/CODEBASE_INDEX.md before searching broadly.
 - Do not touch the original pharmapm-pro repo unless I explicitly ask.
 - When I say "commit", stage intended changes, commit, and push to GitHub origin/main.
 - Always give me a link to test after app changes, commits, pushes, or deploy work.
@@ -41,7 +42,7 @@ Do not jump straight into implementation unless I explicitly say "execute" or as
 Use this when you want less ceremony:
 
 ```text
-Read AIVELLO_OPERATING_DOC.md and v2/docs/CONTEXT_RESET_PLAYBOOK.md.
+Read AIVELLO_OPERATING_DOC.md, v2/docs/CONTEXT_RESET_PLAYBOOK.md, and v2/docs/CODEBASE_INDEX.md.
 Strategy mode first, no code.
 Tell me whether the current SteerCo readiness slice feels sellable, what is weak, and the smallest next move.
 ```

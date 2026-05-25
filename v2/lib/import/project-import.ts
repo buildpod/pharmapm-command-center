@@ -170,10 +170,10 @@ export function buildImportPreview(records: ImportRecord[], options: BuildImport
   }
 
   if (tasks.length === 0 && records.length > 0) {
-    warnings.push("No task title column was found. Check that the export includes task names or titles.");
+    warnings.push("No task title column was found. Map a column to Task Name, Task Title, Name, or Title.");
   }
   if (records.length === 0) {
-    warnings.push("No rows were found. Paste or upload a Microsoft Project, Planner, or CSV task export.");
+    warnings.push("No recognizable task table was found. Use a Microsoft Project or Planner export, or a CSV with Task Name plus Start/Finish or Due Date.");
   }
 
   const workstreams = unique(tasks.map((task) => task.workstream));

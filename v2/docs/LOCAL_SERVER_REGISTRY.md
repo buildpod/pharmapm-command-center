@@ -62,7 +62,22 @@ cd v2
 pnpm exec next dev -p 3000
 ```
 
+Shortcut:
+
+```bash
+cd v2
+pnpm dev:fresh
+```
+
+`pnpm dev:fresh` moves `.next` to `/tmp` before starting. It does not delete the cache in place.
+
 5. Re-run the required checks above before giving Vineet a test link.
+
+## Cache Notes
+
+The stale `.next` chunk issue is a local development-server problem. Production builds avoid this class of issue by emitting immutable hashed asset filenames, serving those assets with long-lived cache headers, and updating the HTML shell to point at the new hashes on every deploy. Enterprise apps usually add blue/green or rolling deployment, CDN purge for HTML/API routes, and service-worker version checks when a PWA/service worker exists.
+
+For this repo, do not run `next build` and keep using an already-running dev server without a clean restart. Use `pnpm dev:fresh` when the UI looks stale, raw, or route chunks return missing-module errors.
 
 ## Current Known State
 

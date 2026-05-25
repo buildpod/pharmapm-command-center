@@ -52,12 +52,18 @@ import {
 import { isIsoDate } from "@/lib/validation";
 
 type SetupMode = "template" | "import" | "blank";
+type ImportSource = "planner" | "project" | "excel" | "manual";
 
 const SAMPLE_IMPORT = `ID,Task Name,Workstream,Start,Finish,Resource Names,Priority,% Complete,Predecessors
 1,Confirm project charter,Project Mgmt,2026-06-01,2026-06-03,Vineet Pathak,High,50%,
 2,Prepare validation approach,Validation,2026-06-04,2026-06-12,QA Agent,High,0%,1
 3,Map source data,Data Migration,2026-06-04,2026-06-14,Data Migration Lead,Critical,0%,1
 4,Configure first workflow,Configuration,2026-06-15,2026-06-26,Config Agent,High,0%,2;3`;
+
+const PLANNER_SAMPLE_IMPORT = `Task ID,Task title,Bucket Name,Status,Start Date,Due Date,Assignments,Priority
+1,Confirm validation scope,Validation,In progress,2026-06-01,2026-06-10,Priya Sharma,Important
+2,Run dry migration,Data Migration,Not started,2026-06-11,2026-06-20,Migration Agent,Medium
+3,Approve cutover checklist,Cutover,Not started,2026-06-21,2026-06-24,Vineet Pathak,Urgent`;
 
 const TEMPLATE_IMPORT = `ID,Task Name,Workstream,Start,Finish,Resource Names,Priority,% Complete,Predecessors
 1,Confirm project charter and delivery model,Project Mgmt,2026-06-01,2026-06-05,Project Manager,Critical,0%,
@@ -67,6 +73,8 @@ const TEMPLATE_IMPORT = `ID,Task Name,Workstream,Start,Finish,Resource Names,Pri
 5,Configure core process workflow,Configuration,2026-06-21,2026-07-05,Config Agent,High,0%,3;4
 6,Prepare training and adoption plan,Training,2026-07-06,2026-07-20,Training Lead,Medium,0%,5
 7,Run readiness review,Readiness,2026-07-21,2026-07-31,Project Manager,Critical,0%,6`;
+
+const IMPORT_SAMPLE_BASE = "/pharmapm-command-center/v2/samples";
 
 const modeCards = [
   {
@@ -78,7 +86,7 @@ const modeCards = [
   {
     id: "import" as const,
     title: "Import existing plan",
-    description: "Bring in Microsoft Project, Planner, Excel, or CSV.",
+    description: "Upload an export, map the columns, and validate before creating records.",
     icon: FileSpreadsheet,
   },
   {
@@ -91,7 +99,7 @@ const modeCards = [
 
 export default function GuidedSetupPage() {
   const router = useRouter();
-  const { createProject, setActiveProjectId } = useProject();
+  const { projects, createProject, setActiveProjectId } = useProject();
   const addCharter = useEntityStore((s) => s.addCharter);
   const addMilestone = useEntityStore((s) => s.addMilestone);
   const addTask = useEntityStore((s) => s.addTask);
@@ -107,11 +115,14 @@ export default function GuidedSetupPage() {
   const selectedTemplate = getProjectTemplate(templateId);
   const [name, setName] = useState(selectedTemplate.recommendedName);
   const [client, setClient] = useState("AivelloStudio Demo Corp");
+  const [projectCode, setProjectCode] = useState(() => buildProjectCode(selectedTemplate.recommendedName, "AivelloStudio Demo Corp", "2026-06-01"));
+  const [projectCodeTouched, setProjectCodeTouched] = useState(false);
   const [phase, setPhase] = useState(selectedTemplate.recommendedPhase);
   const [startDate, setStartDate] = useState("2026-06-01");
   const [goLiveDate, setGoLiveDate] = useState("2026-09-30");
   const [methodology, setMethodology] = useState(selectedTemplate.recommendedMethodology);
   const [intake, setIntake] = useState<SetupIntake>(() => intakeFromTemplate("veeva-rim"));
+  const [importSource, setImportSource] = useState<ImportSource>("project");
   const [importText, setImportText] = useState(SAMPLE_IMPORT);
   const [importError, setImportError] = useState<string | null>(null);
   const [isReadingFile, setIsReadingFile] = useState(false);
@@ -156,6 +167,10 @@ export default function GuidedSetupPage() {
     const template = getProjectTemplate(nextTemplateId);
     setTemplateId(nextTemplateId);
     setName((current) => current.trim() && current !== previousTemplate.recommendedName ? current : template.recommendedName);
+    setProjectCode((current) => {
+      const previousCode = buildProjectCode(previousTemplate.recommendedName, client, startDate);
+      return projectCodeTouched || current !== previousCode ? current : buildProjectCode(template.recommendedName, client, startDate);
+    });
     setPhase((current) => current.trim() && current !== previousTemplate.recommendedPhase ? current : template.recommendedPhase);
     setMethodology(template.recommendedMethodology);
   }
@@ -229,13 +244,25 @@ export default function GuidedSetupPage() {
         const sheet = workbook.Sheets[sheetName];
         const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", raw: false });
         const records = recordsFromMatrix(matrix as string[][]);
+        if (records.length === 0) {
+          setImportText("");
+          setImportError("The file opened, but no task table was found. Export Microsoft Project or Planner to Excel, or use columns like Task Name, Start, Finish/Due Date, Resource Names/Assignments, and Predecessors.");
+          return;
+        }
         const headers = Object.keys(records[0] ?? {});
         const body = records
           .map((record) => headers.map((header) => csvEscape(String(record[header] ?? ""))).join(","))
           .join("\n");
         setImportText([headers.join(","), body].filter(Boolean).join("\n"));
       } else {
-        setImportText(await file.text());
+        const text = await file.text();
+        const records = parseDelimitedTable(text);
+        if (records.length === 0) {
+          setImportText(text);
+          setImportError("No recognizable task table was found. Use the sample format or include Task Name plus Start/Finish or Due Date columns.");
+          return;
+        }
+        setImportText(text);
       }
       setMode("import");
     } catch {
@@ -248,6 +275,10 @@ export default function GuidedSetupPage() {
   function validateProject(): string | null {
     if (!name.trim()) return "Add a project name before creating the setup.";
     if (!client.trim()) return "Add the client or business area before creating the setup.";
+    if (!projectCode.trim()) return "Add a project code before creating the setup.";
+    if (projects.some((project) => normalizeProjectCode(project.code ?? project.id) === normalizeProjectCode(projectCode))) {
+      return "This project code is already used. Change it before creating the setup.";
+    }
     if (!startDate || !isIsoDate(startDate)) return "Add a valid project start date.";
     if (!goLiveDate || !isIsoDate(goLiveDate)) return "Add a valid target go-live date.";
     if (startDate >= goLiveDate) return "Target go-live must be after the project start date.";
@@ -260,6 +291,9 @@ export default function GuidedSetupPage() {
     if (mode !== "blank" && (!preview || preview.tasks.length === 0)) {
       return "No tasks are ready to import. Paste a task table or choose the guided template.";
     }
+    if (mode === "import" && preview && preview.stats.unresolvedDependencies > 0) {
+      return "Some dependency links could not be matched. Fix the import table or remove the unresolved links before creating it.";
+    }
     return null;
   }
 
@@ -271,6 +305,7 @@ export default function GuidedSetupPage() {
     }
 
     const created = createProject({
+      code: normalizeProjectCode(projectCode),
       name: name.trim(),
       client: client.trim(),
       phase: phase.trim() || "Mobilise",
@@ -336,11 +371,38 @@ export default function GuidedSetupPage() {
         <div className="rounded-2xl border border-border/50 bg-card/40 p-8 shadow-xl backdrop-blur-xl">
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <Field label="Project Name" required>
-              <input value={name} onChange={(event) => setName(event.target.value)} className={cn(inputCls, "bg-background/50")} />
+              <input
+                value={name}
+                onChange={(event) => {
+                  const nextName = event.target.value;
+                  setName(nextName);
+                  if (!projectCodeTouched) setProjectCode(buildProjectCode(nextName, client, startDate));
+                }}
+                className={cn(inputCls, "bg-background/50")}
+              />
             </Field>
             <Field label="Client or business area" required>
-              <input value={client} onChange={(event) => setClient(event.target.value)} className={cn(inputCls, "bg-background/50")} />
+              <input
+                value={client}
+                onChange={(event) => {
+                  const nextClient = event.target.value;
+                  setClient(nextClient);
+                  if (!projectCodeTouched) setProjectCode(buildProjectCode(name, nextClient, startDate));
+                }}
+                className={cn(inputCls, "bg-background/50")}
+              />
             </Field>
+            <Field label="Project Code" required>
+              <input
+                value={projectCode}
+                onChange={(event) => {
+                  setProjectCodeTouched(true);
+                  setProjectCode(event.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "-").replace(/--+/g, "-"));
+                }}
+                className={cn(inputCls, "bg-background/50 font-mono")}
+              />
+            </Field>
+            <div className="hidden md:block"></div>
             <SelectField
               label="Industry"
               value={intake.industry}
@@ -371,9 +433,17 @@ export default function GuidedSetupPage() {
               options={REGION_OPTIONS}
               onChange={(value) => updateIntake("region", value)}
             />
-            <div className="hidden md:block"></div>
             <Field label="Start Date" required>
-              <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className={cn(inputCls, "bg-background/50")} />
+              <input
+                type="date"
+                value={startDate}
+                onChange={(event) => {
+                  const nextStartDate = event.target.value;
+                  setStartDate(nextStartDate);
+                  if (!projectCodeTouched) setProjectCode(buildProjectCode(name, client, nextStartDate));
+                }}
+                className={cn(inputCls, "bg-background/50")}
+              />
             </Field>
             <Field label="Target Go-live" required>
               <input type="date" value={goLiveDate} onChange={(event) => setGoLiveDate(event.target.value)} className={cn(inputCls, "bg-background/50")} />
@@ -471,10 +541,10 @@ export default function GuidedSetupPage() {
       <div className="mx-auto max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="mb-8 text-center">
           <h2 className="text-3xl font-bold tracking-tight text-foreground">
-            {mode === "template" ? "Template Recommendation" : "Import Plan"}
+            {mode === "template" ? "Template Recommendation" : "Import & Map Existing Plan"}
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            {mode === "template" ? "Discovery selects the first recommendation. You can change it before review." : "Bring your existing data into the command center."}
+            {mode === "template" ? "Discovery selects the first recommendation. You can change it before review." : "Convert an existing plan into command-center tasks, owners, workstreams, and links."}
           </p>
         </div>
 
@@ -561,11 +631,71 @@ export default function GuidedSetupPage() {
 
           {mode === "import" && (
             <div className="space-y-6">
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Migration approach</p>
+                    <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                      This does not copy Microsoft Project or Planner one-to-one. It imports the useful delivery records, maps them into the command-center structure, then asks you to review gaps before anything is created.
+                    </p>
+                  </div>
+                  <FileSpreadsheet className="h-5 w-5 text-primary" />
+                </div>
+                <div className="mt-4 grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
+                  <div className="rounded-lg border border-border/60 bg-background/70 p-3">
+                    <p className="font-semibold text-foreground">1. Source</p>
+                    <p className="mt-1 text-muted-foreground">Choose where the plan came from.</p>
+                  </div>
+                  <div className="rounded-lg border border-border/60 bg-background/70 p-3">
+                    <p className="font-semibold text-foreground">2. Mapping</p>
+                    <p className="mt-1 text-muted-foreground">Task, owner, dates, status, and dependencies are normalized.</p>
+                  </div>
+                  <div className="rounded-lg border border-border/60 bg-background/70 p-3">
+                    <p className="font-semibold text-foreground">3. Validation</p>
+                    <p className="mt-1 text-muted-foreground">Unmatched links or missing owners are shown before create.</p>
+                  </div>
+                </div>
+              </div>
+
+              <Field label="Import source">
+                <select value={importSource} onChange={(event) => setImportSource(event.target.value as ImportSource)} className={cn(inputCls, "bg-background/50")}>
+                  <option value="project">Microsoft Project export to Excel</option>
+                  <option value="planner">Microsoft Planner export to Excel</option>
+                  <option value="excel">Team Excel or CSV tracker</option>
+                  <option value="manual">Paste table manually</option>
+                </select>
+              </Field>
+
+              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/50 bg-background/50 p-4">
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Samples</span>
+                <button type="button" onClick={() => { setImportError(null); setImportText(SAMPLE_IMPORT); }} className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted">
+                  Use Project sample
+                </button>
+                <button type="button" onClick={() => { setImportError(null); setImportText(PLANNER_SAMPLE_IMPORT); }} className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted">
+                  Use Planner sample
+                </button>
+                <a href={`${IMPORT_SAMPLE_BASE}/microsoft-project-export-sample.csv`} download className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted">
+                  Download Project CSV
+                </a>
+                <a href={`${IMPORT_SAMPLE_BASE}/microsoft-planner-export-sample.csv`} download className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted">
+                  Download Planner CSV
+                </a>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <MappingCard source="Task title / Task Name" target="Task record" />
+                <MappingCard source="Bucket / Workstream / Phase" target="Workstream" />
+                <MappingCard source="Assignments / Resource Names" target="Owner and team member" />
+                <MappingCard source="Start, Due Date, Finish" target="Schedule fields" />
+                <MappingCard source="Status, Priority, % Complete" target="Progress and pressure" />
+                <MappingCard source="Predecessors / Depends on" target="Task dependencies" />
+              </div>
+
               <label className="flex w-full cursor-pointer flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-border/50 bg-background/30 px-6 py-12 transition-all hover:bg-muted/50">
                 {isReadingFile ? <Loader2 className="h-8 w-8 animate-spin text-primary" /> : <Upload className="h-8 w-8 text-muted-foreground" />}
                 <div className="text-center">
-                  <p className="text-sm font-semibold text-foreground">Click to upload CSV or Excel</p>
-                  <p className="mt-1 text-xs text-muted-foreground">or drag and drop your file here</p>
+                  <p className="text-sm font-semibold text-foreground">Upload Excel or CSV export</p>
+                  <p className="mt-1 text-xs text-muted-foreground">For .mpp files, export from Microsoft Project to Excel first.</p>
                 </div>
                 <input
                   type="file"
@@ -586,6 +716,51 @@ export default function GuidedSetupPage() {
                 <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-500">
                   <AlertTriangle className="h-4 w-4" />
                   <p>{importError}</p>
+                </div>
+              )}
+
+              {preview && (
+                <div className="rounded-xl border border-border/50 bg-background/50 p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Import preview</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Detected {preview.sourceKind.replace("-", " ")} format. Review this before creating the command center.
+                      </p>
+                    </div>
+                    <span className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
+                      {preview.stats.totalRows} source rows
+                    </span>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+                    <Metric label="Tasks" value={preview.stats.importedTasks} />
+                    <Metric label="Owners" value={preview.owners.length} />
+                    <Metric label="Workstreams" value={preview.workstreams.length} />
+                    <Metric label="Links" value={preview.stats.linkedDependencies} />
+                  </div>
+                  {preview.stats.importedTasks === 0 && (
+                    <div className="mt-4 rounded-lg border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-700 dark:text-rose-300">
+                      <div className="flex items-center gap-2 font-semibold">
+                        <AlertTriangle className="h-4 w-4" />
+                        Cannot import this file yet
+                      </div>
+                      <p className="mt-2">
+                        Add or map a task-name column and at least one schedule column. Accepted headers include Task Name, Task Title, Name, Start, Finish, Due Date, Resource Names, Assignments, and Predecessors.
+                      </p>
+                    </div>
+                  )}
+                  {(preview.warnings.length > 0 || preview.stats.unresolvedDependencies > 0) && (
+                    <div className="mt-4 rounded-lg border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300">
+                      <div className="flex items-center gap-2 font-semibold">
+                        <AlertTriangle className="h-4 w-4" />
+                        Needs review before create
+                      </div>
+                      <ul className="mt-2 space-y-1">
+                        {preview.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+                        {preview.stats.unresolvedDependencies > 0 && <li>{preview.stats.unresolvedDependencies} dependency link(s) could not be matched.</li>}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -631,6 +806,10 @@ export default function GuidedSetupPage() {
                 <p className="font-medium text-foreground">{client}</p>
               </div>
               <div>
+                <p className="text-muted-foreground">Project Code</p>
+                <p className="font-mono font-medium text-foreground">{normalizeProjectCode(projectCode)}</p>
+              </div>
+              <div>
                 <p className="text-muted-foreground">Timeline</p>
                 <p className="font-medium text-foreground">{startDate} to {goLiveDate}</p>
               </div>
@@ -641,7 +820,7 @@ export default function GuidedSetupPage() {
             </div>
           </div>
 
-          {mode === "template" && <FeasibilityCard feasibility={feasibility} />}
+          {mode === "template" && <FeasibilityCard feasibility={feasibility} onRevisitTimeline={() => setStep(1)} />}
 
           <div className="rounded-2xl border border-border/50 bg-card/40 p-6 shadow-xl backdrop-blur-xl">
             <h3 className="text-lg font-semibold text-foreground">Generation Summary</h3>
@@ -768,7 +947,7 @@ function ChipGroup<T extends string>({
   );
 }
 
-function FeasibilityCard({ feasibility }: { feasibility: SetupFeasibility }) {
+function FeasibilityCard({ feasibility, onRevisitTimeline }: { feasibility: SetupFeasibility; onRevisitTimeline: () => void }) {
   const tone = {
     credible: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
     compressed: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400",
@@ -790,6 +969,15 @@ function FeasibilityCard({ feasibility }: { feasibility: SetupFeasibility }) {
               <li key={suggestion} className="flex items-center gap-2"><div className="h-1.5 w-1.5 rounded-full bg-current opacity-70" /> {suggestion}</li>
             ))}
           </ul>
+          {feasibility.status !== "credible" && (
+            <button
+              type="button"
+              onClick={onRevisitTimeline}
+              className="mt-5 rounded-md border border-current/30 bg-background/70 px-3 py-1.5 text-xs font-semibold text-current shadow-sm hover:bg-background"
+            >
+              Revisit timeline
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -805,7 +993,44 @@ function Metric({ label, value }: { label: string; value: number }) {
   );
 }
 
+function MappingCard({ source, target }: { source: string; target: string }) {
+  return (
+    <div className="rounded-xl border border-border/50 bg-background/50 p-4">
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Map</p>
+      <p className="mt-1 text-sm font-medium text-foreground">{source}</p>
+      <p className="mt-2 text-xs text-muted-foreground">to</p>
+      <p className="mt-1 text-sm font-semibold text-primary">{target}</p>
+    </div>
+  );
+}
+
 function csvEscape(value: string): string {
   if (!/[",\n\r]/.test(value)) return value;
   return `"${value.replace(/"/g, '""')}"`;
+}
+
+function buildProjectCode(name: string, client: string, startDate: string): string {
+  const clientPrefix = acronym(client) || "PRJ";
+  const projectPrefix = acronym(name) || slugPart(name) || "NEW";
+  const year = /^\d{4}/.test(startDate) ? startDate.slice(0, 4) : "YYYY";
+  return normalizeProjectCode(`${clientPrefix}-${projectPrefix}-${year}`);
+}
+
+function acronym(value: string): string {
+  return value
+    .replace(/&/g, " ")
+    .split(/[^A-Za-z0-9]+/)
+    .filter(Boolean)
+    .slice(0, 4)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
+
+function slugPart(value: string): string {
+  return value.toUpperCase().replace(/[^A-Z0-9]+/g, "").slice(0, 8);
+}
+
+function normalizeProjectCode(value: string): string {
+  return value.toUpperCase().replace(/[^A-Z0-9-]/g, "-").replace(/--+/g, "-").replace(/^-|-$/g, "").slice(0, 32);
 }

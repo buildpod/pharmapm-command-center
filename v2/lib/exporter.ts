@@ -187,6 +187,7 @@ function buildSummary(
     [{ v: `${project.client} · ${project.phase}`, t: "s", s: { font: { sz: 11, color: { rgb: COLORS.bandHeaderFg } } } }, null, null, null],
     [],
     [{ v: "PROJECT METADATA", t: "s", s: sectionStyle }, null, null, null],
+    [{ v: "Project code",    t: "s", s: labelStyle }, { v: project.code ?? project.id, t: "s", s: cellStyleBase }, null, null],
     [{ v: "Start date",      t: "s", s: labelStyle }, { v: project.startDate,   t: "s", s: cellStyleBase }, null, null],
     [{ v: "Go-live target",  t: "s", s: labelStyle }, { v: project.goLiveDate,  t: "s", s: cellStyleBase }, null, null],
     [{ v: "Methodology",     t: "s", s: labelStyle }, { v: project.methodology, t: "s", s: cellStyleBase }, null, null],
@@ -773,5 +774,5 @@ export async function exportProjectWorkbook(args: {
   XLSX.utils.book_append_sheet(wb, buildCosts      (XLSX, args.costLines),                                                                                 "Costs");
   XLSX.utils.book_append_sheet(wb, buildResources  (XLSX, args.teamMembers, args.meetings, args.absences),                                                 "Resources & Meetings");
 
-  XLSX.writeFile(wb, `${slug(args.project.name)}_${todayIso()}.xlsx`);
+  XLSX.writeFile(wb, `${slug(args.project.code ?? args.project.name)}_${todayIso()}.xlsx`);
 }

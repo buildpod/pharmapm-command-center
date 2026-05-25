@@ -1,0 +1,5 @@
+ID,Task Name,Workstream,Start,Finish,Resource Names,Priority,% Complete,Predecessors
+1,Confirm project charter,Project Mgmt,2026-06-01,2026-06-03,Vineet Pathak,High,50%,
+2,Prepare validation approach,Validation,2026-06-04,2026-06-12,QA Agent,High,0%,1
+3,Map source data,Data Migration,2026-06-04,2026-06-14,Data Migration Lead,Critical,0%,1
+4,Configure first workflow,Configuration,2026-06-15,2026-06-26,Config Agent,High,0%,2;3

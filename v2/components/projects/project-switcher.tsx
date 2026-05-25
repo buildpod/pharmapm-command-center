@@ -32,7 +32,7 @@ export function ProjectSwitcher() {
       >
         <div className="min-w-0">
           <p className="truncate text-xs font-medium text-foreground">{activeProject.name}</p>
-          <p className="truncate text-xs text-muted-foreground">{activeProject.phase}</p>
+          <p className="truncate text-xs text-muted-foreground">{activeProject.code ?? activeProject.phase}</p>
         </div>
         <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       </button>
@@ -54,7 +54,7 @@ export function ProjectSwitcher() {
                     <div className="min-w-0">
                       <p className="truncate font-medium text-foreground">{p.name}</p>
                       <p className="truncate text-[10px] text-muted-foreground">
-                        {p.client} · go-live {p.goLiveDate}
+                        {(p.code ?? p.id).toUpperCase()} · {p.client} · go-live {p.goLiveDate}
                       </p>
                     </div>
                     {active && <Check className="h-3.5 w-3.5 shrink-0 text-primary" />}

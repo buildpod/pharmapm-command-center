@@ -1,0 +1,3 @@
+Invoice Number,Vendor,Amount,Approval State
+INV-1001,Example Vendor,12000,Approved
+INV-1002,Another Vendor,3500,Pending

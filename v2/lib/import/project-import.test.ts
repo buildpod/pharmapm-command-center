@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import {
   buildImportPreview,
   parseDelimitedTable,
@@ -8,6 +9,32 @@ import {
 } from "./project-import";
 
 describe("project import parser", () => {
+  it("keeps bundled Microsoft Project sample importable", () => {
+    const sample = readFileSync(new URL("../../public/samples/microsoft-project-export-sample.csv", import.meta.url), "utf8");
+    const preview = buildImportPreview(parseDelimitedTable(sample));
+
+    expect(preview.sourceKind).toBe("microsoft-project");
+    expect(preview.stats.importedTasks).toBe(4);
+    expect(preview.stats.unresolvedDependencies).toBe(0);
+  });
+
+  it("keeps bundled Microsoft Planner sample importable", () => {
+    const sample = readFileSync(new URL("../../public/samples/microsoft-planner-export-sample.csv", import.meta.url), "utf8");
+    const preview = buildImportPreview(parseDelimitedTable(sample));
+
+    expect(preview.sourceKind).toBe("microsoft-planner");
+    expect(preview.stats.importedTasks).toBe(3);
+    expect(preview.owners.map((owner) => owner.initials)).toContain("PS");
+  });
+
+  it("explains unsupported spreadsheet layouts instead of importing garbage", () => {
+    const sample = readFileSync(new URL("../../public/samples/unsupported-random-excel-layout.csv", import.meta.url), "utf8");
+    const preview = buildImportPreview(parseDelimitedTable(sample));
+
+    expect(preview.stats.importedTasks).toBe(0);
+    expect(preview.warnings.join(" ")).toContain("No recognizable task table");
+  });
+
   it("maps Microsoft Planner CSV exports into guided preview tasks", () => {
     const records = parseDelimitedTable(`Task ID,Task title,Bucket Name,Status,Start Date,Due Date,Assignments,Priority
 1,Confirm validation scope,Validation,In progress,2026-06-01,2026-06-10,Priya Sharma,Important
