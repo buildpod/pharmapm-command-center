@@ -13,26 +13,24 @@ import { cn } from "@/lib/utils";
 
 export default function ProjectsPage() {
   const { projects, activeProjectId, setActiveProjectId, createProject, deleteProject } = useProject();
-  const entityStore = useEntityStore((s) => ({
-    milestones: s.milestones,
-    tasks: s.tasks,
-    risks: s.risks,
-    documents: s.documents,
-    costLines: s.costLines,
-    teamMembers: s.teamMembers,
-    meetings: s.meetings,
-    absences: s.absences,
-    charters: s.charters,
-    replaceAllMilestones: s.replaceAllMilestones,
-    replaceAllTasks: s.replaceAllTasks,
-    replaceAllRisks: s.replaceAllRisks,
-    replaceAllDocuments: s.replaceAllDocuments,
-    replaceAllCostLines: s.replaceAllCostLines,
-    replaceAllTeamMembers: s.replaceAllTeamMembers,
-    replaceAllMeetings: s.replaceAllMeetings,
-    replaceAllAbsences: s.replaceAllAbsences,
-    replaceAllCharters: s.replaceAllCharters,
-  }));
+  const milestones = useEntityStore((s) => s.milestones);
+  const tasks = useEntityStore((s) => s.tasks);
+  const risks = useEntityStore((s) => s.risks);
+  const documents = useEntityStore((s) => s.documents);
+  const costLines = useEntityStore((s) => s.costLines);
+  const teamMembers = useEntityStore((s) => s.teamMembers);
+  const meetings = useEntityStore((s) => s.meetings);
+  const absences = useEntityStore((s) => s.absences);
+  const charters = useEntityStore((s) => s.charters);
+  const replaceAllMilestones = useEntityStore((s) => s.replaceAllMilestones);
+  const replaceAllTasks = useEntityStore((s) => s.replaceAllTasks);
+  const replaceAllRisks = useEntityStore((s) => s.replaceAllRisks);
+  const replaceAllDocuments = useEntityStore((s) => s.replaceAllDocuments);
+  const replaceAllCostLines = useEntityStore((s) => s.replaceAllCostLines);
+  const replaceAllTeamMembers = useEntityStore((s) => s.replaceAllTeamMembers);
+  const replaceAllMeetings = useEntityStore((s) => s.replaceAllMeetings);
+  const replaceAllAbsences = useEntityStore((s) => s.replaceAllAbsences);
+  const replaceAllCharters = useEntityStore((s) => s.replaceAllCharters);
   const [showForm, setShowForm] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
@@ -77,15 +75,16 @@ export default function ProjectsPage() {
 
   function handleDelete(id: string) {
     const target = projects.find((p) => p.id === id);
-    entityStore.replaceAllMilestones(entityStore.milestones.filter((item) => item.projectId !== id), { source: "user-edit", note: `Deleted project ${target?.name ?? id}` });
-    entityStore.replaceAllTasks(entityStore.tasks.filter((item) => item.projectId !== id), { source: "user-edit", note: `Deleted project ${target?.name ?? id}` });
-    entityStore.replaceAllRisks(entityStore.risks.filter((item) => item.projectId !== id), { source: "user-edit", note: `Deleted project ${target?.name ?? id}` });
-    entityStore.replaceAllDocuments(entityStore.documents.filter((item) => item.projectId !== id), { source: "user-edit", note: `Deleted project ${target?.name ?? id}` });
-    entityStore.replaceAllCostLines(entityStore.costLines.filter((item) => item.projectId !== id), { source: "user-edit", note: `Deleted project ${target?.name ?? id}` });
-    entityStore.replaceAllTeamMembers(entityStore.teamMembers.filter((item) => item.projectId !== id), { source: "user-edit", note: `Deleted project ${target?.name ?? id}` });
-    entityStore.replaceAllMeetings(entityStore.meetings.filter((item) => item.projectId !== id), { source: "user-edit", note: `Deleted project ${target?.name ?? id}` });
-    entityStore.replaceAllAbsences(entityStore.absences.filter((item) => item.projectId !== id), { source: "user-edit", note: `Deleted project ${target?.name ?? id}` });
-    entityStore.replaceAllCharters(entityStore.charters.filter((item) => item.projectId !== id), { source: "user-edit", note: `Deleted project ${target?.name ?? id}` });
+    const auditNote = `Deleted project ${target?.name ?? id}`;
+    replaceAllMilestones(milestones.filter((item) => item.projectId !== id), { source: "user-edit", note: auditNote });
+    replaceAllTasks(tasks.filter((item) => item.projectId !== id), { source: "user-edit", note: auditNote });
+    replaceAllRisks(risks.filter((item) => item.projectId !== id), { source: "user-edit", note: auditNote });
+    replaceAllDocuments(documents.filter((item) => item.projectId !== id), { source: "user-edit", note: auditNote });
+    replaceAllCostLines(costLines.filter((item) => item.projectId !== id), { source: "user-edit", note: auditNote });
+    replaceAllTeamMembers(teamMembers.filter((item) => item.projectId !== id), { source: "user-edit", note: auditNote });
+    replaceAllMeetings(meetings.filter((item) => item.projectId !== id), { source: "user-edit", note: auditNote });
+    replaceAllAbsences(absences.filter((item) => item.projectId !== id), { source: "user-edit", note: auditNote });
+    replaceAllCharters(charters.filter((item) => item.projectId !== id), { source: "user-edit", note: auditNote });
     deleteProject(id);
     toast.success("Project deleted", { description: target?.name });
     setConfirmDeleteId(null);
