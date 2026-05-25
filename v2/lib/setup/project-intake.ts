@@ -205,6 +205,92 @@ export function intakeFromTemplate(templateId: ProjectTemplateId): SetupIntake {
       deliveryMethod: "gamp-csv",
     };
   }
+  if (templateId === "veeva-qualitydocs" || templateId === "veeva-clinical-ops" || templateId === "veeva-promomats") {
+    return {
+      industry: "pharma-biotech",
+      projectType: templateId === "veeva-clinical-ops" ? "rollout" : "implementation",
+      systemFamily: "veeva",
+      controlModel: templateId === "veeva-promomats" ? "csa" : "gxp-csv",
+      region: "global",
+      scopeElements: ["migration", "integrations", "validation", "uat", "training", "cutover", "hypercare", "reporting"],
+      ownershipModel: "hybrid",
+      reportingModels: ["workstream", "steerco", "audit-ready"],
+      timelineCriticality: "target",
+      deliveryMethod: "gamp-csv",
+    };
+  }
+  if (templateId === "sap-s4hana") {
+    return {
+      industry: "pharma-biotech",
+      projectType: "implementation",
+      systemFamily: "sap",
+      controlModel: "gxp-csv",
+      region: "global",
+      scopeElements: ["migration", "integrations", "validation", "uat", "training", "cutover", "hypercare", "board-governance"],
+      ownershipModel: "hybrid",
+      reportingModels: ["workstream", "steerco", "audit-ready"],
+      timelineCriticality: "fixed",
+      deliveryMethod: "sap-activate",
+    };
+  }
+  if (templateId === "sap-master-data" || templateId === "sap-ewm") {
+    return {
+      industry: templateId === "sap-ewm" ? "manufacturing" : "pharma-biotech",
+      projectType: templateId === "sap-master-data" ? "migration" : "rollout",
+      systemFamily: "sap",
+      controlModel: templateId === "sap-master-data" ? "internal-controls" : "iso",
+      region: "global",
+      scopeElements: templateId === "sap-master-data"
+        ? ["migration", "data-quality", "uat", "cutover", "reporting"]
+        : ["integrations", "uat", "training", "cutover", "hypercare", "data-quality"],
+      ownershipModel: "hybrid",
+      reportingModels: ["workstream", "steerco"],
+      timelineCriticality: "target",
+      deliveryMethod: "sap-activate",
+    };
+  }
+  if (templateId === "lims-qc-lab") {
+    return {
+      industry: "pharma-biotech",
+      projectType: "implementation",
+      systemFamily: "lims",
+      controlModel: "gxp-csv",
+      region: "global",
+      scopeElements: ["migration", "integrations", "validation", "uat", "training", "cutover", "hypercare", "data-quality"],
+      ownershipModel: "hybrid",
+      reportingModels: ["workstream", "steerco", "audit-ready"],
+      timelineCriticality: "target",
+      deliveryMethod: "gamp-csv",
+    };
+  }
+  if (templateId === "eqms-capa") {
+    return {
+      industry: "pharma-biotech",
+      projectType: "rollout",
+      systemFamily: "eqms",
+      controlModel: "gxp-csv",
+      region: "global",
+      scopeElements: ["integrations", "validation", "uat", "training", "cutover", "hypercare", "reporting"],
+      ownershipModel: "human-led",
+      reportingModels: ["workstream", "steerco", "audit-ready"],
+      timelineCriticality: "target",
+      deliveryMethod: "gamp-csv",
+    };
+  }
+  if (templateId === "mes-ebmr") {
+    return {
+      industry: "manufacturing",
+      projectType: "implementation",
+      systemFamily: "mes",
+      controlModel: "gxp-csv",
+      region: "global",
+      scopeElements: ["migration", "integrations", "validation", "uat", "training", "cutover", "hypercare", "data-quality"],
+      ownershipModel: "hybrid",
+      reportingModels: ["workstream", "steerco", "audit-ready"],
+      timelineCriticality: "target",
+      deliveryMethod: "gamp-csv",
+    };
+  }
   if (templateId === "data-migration") {
     return {
       industry: "pharma-biotech",

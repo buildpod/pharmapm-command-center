@@ -114,10 +114,10 @@ export default function DeliveryTruthPage() {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Gauge className="h-5 w-5 text-primary" />
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Delivery Truth</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Delivery Signals</h1>
           </div>
           <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-            The project promise in one view: target date, forecast pressure, budget pressure, delivery blockers, and the next decision that needs leadership attention.
+            Delivery Signals is the evidence layer behind the SteerCo brief: it checks whether the project promise is credible by looking at schedule drift, budget pressure, blocked work, decision debt, readiness compression, and open risks.
           </p>
         </div>
         <Link
@@ -139,7 +139,7 @@ export default function DeliveryTruthPage() {
               </div>
               <p className="mt-3 max-w-xl text-sm leading-6 opacity-90">
                 {!truth.coverage.isReady
-                  ? "Delivery Truth needs a basic plan before it can judge the promise. Finish setup or import a plan first."
+                  ? "Delivery Signals needs a basic plan before it can judge the promise. Finish setup or import a plan first."
                   : topSignal
                   ? `${topSignal.title}. ${topSignal.nextAction}`
                   : "No major pressure signal is active. Keep the next status cycle focused on preserving the current path."}
@@ -239,7 +239,7 @@ export default function DeliveryTruthPage() {
           <div className="flex items-start gap-3 px-5 py-6">
             <Target className="mt-0.5 h-5 w-5 text-blue-600" />
             <div>
-              <p className="text-sm font-semibold text-foreground">Delivery Truth is not ready yet.</p>
+              <p className="text-sm font-semibold text-foreground">Delivery Signals is not ready yet.</p>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 Add enough project structure before trusting delivery confidence.
               </p>

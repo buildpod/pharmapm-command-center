@@ -15,12 +15,10 @@ import {
   Users,
   Inbox,
   Scroll,
-  ClipboardCheck,
   Gauge,
   GitBranch,
   Scale,
   Rocket,
-  Wand2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -30,13 +28,18 @@ import { ProjectSwitcher } from "@/components/projects/project-switcher";
 
 const navGroups = [
   {
+    label: "BRIEFING",
+    items: [
+      { label: "SteerCo Brief", href: "/", icon: LayoutDashboard },
+      { label: "Delivery Signals", href: "/truth", icon: Gauge },
+      { label: "Reports", href: "/reports", icon: BarChart2 },
+    ],
+  },
+  {
     label: "RUN",
     items: [
-      { label: "Command Center", href: "/", icon: LayoutDashboard },
-      { label: "Delivery Truth", href: "/truth", icon: Gauge },
-      { label: "Guided Setup",   href: "/setup", icon: Wand2 },
-      { label: "Worklist",       href: "/worklist", icon: Inbox },
-      { label: "Readiness",      href: "/readiness", icon: Rocket },
+      { label: "Worklist", href: "/worklist", icon: Inbox },
+      { label: "Readiness Gates", href: "/readiness", icon: Rocket },
     ],
   },
   {
@@ -44,11 +47,10 @@ const navGroups = [
     items: [
       { label: "Plan",       href: "/plan", icon: GitBranch },
       { label: "Governance", href: "/governance", icon: Scale },
-      { label: "Reports",    href: "/reports", icon: BarChart2 },
     ],
   },
   {
-    label: "REGISTERS",
+    label: "RECORDS",
     items: [
       { label: "Charter", href: "/charter", icon: Scroll },
       { label: "Milestones", href: "/milestones", icon: Milestone },
@@ -56,14 +58,13 @@ const navGroups = [
       { label: "Risks", href: "/risks", icon: AlertTriangle, badge: "3" },
       { label: "Documents", href: "/documents", icon: FileText, badge: "2" },
       { label: "Costs", href: "/costs", icon: DollarSign },
-      { label: "Resources", href: "/resources", icon: Users },
-      { label: "My Items", href: "/my-items", icon: ClipboardCheck },
+      { label: "People & Meetings", href: "/resources", icon: Users },
     ],
   },
   {
     label: "ADMIN",
     items: [
-      { label: "Project Rules", href: "/settings", icon: Settings },
+      { label: "Rules & Settings", href: "/settings", icon: Settings },
     ],
   },
 ];
@@ -83,7 +84,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         <FlaskConical className="h-5 w-5 text-primary" />
         <div className="flex flex-col leading-none">
           <span className="text-sm font-semibold text-foreground">AivelloStudio</span>
-          <span className="text-xs text-muted-foreground">RIM Cloud</span>
+          <span className="text-xs text-muted-foreground">Command Center</span>
         </div>
       </div>
 

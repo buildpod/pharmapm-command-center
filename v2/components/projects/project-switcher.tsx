@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { ChevronsUpDown, Check, Plus } from "lucide-react";
+import { ChevronsUpDown, Check, Plus, Wand2 } from "lucide-react";
 import { useProject } from "./project-provider";
 import { cn } from "@/lib/utils";
 
@@ -70,6 +70,14 @@ export function ProjectSwitcher() {
           >
             <Plus className="h-3 w-3" />
             Manage projects
+          </Link>
+          <Link
+            href="/setup"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 border-t border-border bg-background px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+          >
+            <Wand2 className="h-3 w-3" />
+            Create or import project
           </Link>
         </div>
       )}

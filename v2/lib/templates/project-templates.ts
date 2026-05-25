@@ -1,7 +1,20 @@
 import type { Charter, CostLine, Document, Milestone, Risk, Task, TeamMember } from "../mockData";
 import { addDays } from "../domain/dates";
 
-export type ProjectTemplateId = "veeva-rim" | "csv-validation" | "data-migration" | "generic-implementation";
+export type ProjectTemplateId =
+  | "veeva-rim"
+  | "veeva-qualitydocs"
+  | "veeva-clinical-ops"
+  | "veeva-promomats"
+  | "sap-s4hana"
+  | "sap-master-data"
+  | "sap-ewm"
+  | "lims-qc-lab"
+  | "eqms-capa"
+  | "mes-ebmr"
+  | "csv-validation"
+  | "data-migration"
+  | "generic-implementation";
 
 export type ProjectIntentKey = "regulated" | "validation" | "migration" | "integrations" | "uat" | "cutover" | "aiDelivery";
 
@@ -83,6 +96,240 @@ export const PROJECT_TEMPLATES: ProjectTemplateSummary[] = [
       documents: 12,
       risks: 7,
       costLines: 6,
+    },
+  },
+  {
+    id: "veeva-qualitydocs",
+    name: "Veeva QualityDocs rollout",
+    category: "Veeva Quality",
+    description: "Controlled document management rollout for policies, SOPs, training impact, migration, approval workflows, validation, and go-live.",
+    recommendedName: "Veeva QualityDocs Implementation",
+    recommendedPhase: "Phase 1 - Mobilise",
+    recommendedMethodology: "GAMP 5 / CSV",
+    intentDefaults: {
+      regulated: true,
+      validation: true,
+      migration: true,
+      integrations: false,
+      uat: true,
+      cutover: true,
+      aiDelivery: true,
+    },
+    coverage: {
+      workstreams: ["Governance", "Document Taxonomy", "Lifecycle Design", "Migration", "Validation", "Training", "Cutover"],
+      milestones: 7,
+      tasks: 18,
+      documents: 8,
+      risks: 5,
+      costLines: 4,
+    },
+  },
+  {
+    id: "veeva-clinical-ops",
+    name: "Veeva Clinical operations rollout",
+    category: "Veeva Clinical",
+    description: "Clinical Vault rollout for study startup, site documents, TMF readiness, integrations, migration, UAT, and operational adoption.",
+    recommendedName: "Veeva Clinical Operations Rollout",
+    recommendedPhase: "Phase 1 - Discovery",
+    recommendedMethodology: "GAMP 5 / CSV",
+    intentDefaults: {
+      regulated: true,
+      validation: true,
+      migration: true,
+      integrations: true,
+      uat: true,
+      cutover: true,
+      aiDelivery: true,
+    },
+    coverage: {
+      workstreams: ["Clinical Governance", "Study Startup", "eTMF", "Integrations", "Migration", "Validation", "Site Adoption", "Cutover"],
+      milestones: 8,
+      tasks: 20,
+      documents: 8,
+      risks: 5,
+      costLines: 5,
+    },
+  },
+  {
+    id: "veeva-promomats",
+    name: "Veeva PromoMats implementation",
+    category: "Veeva Commercial",
+    description: "Commercial content and MLR implementation covering claims, review workflows, digital asset controls, training, validation, and launch readiness.",
+    recommendedName: "Veeva PromoMats Implementation",
+    recommendedPhase: "Phase 1 - Mobilise",
+    recommendedMethodology: "Hybrid",
+    intentDefaults: {
+      regulated: true,
+      validation: true,
+      migration: true,
+      integrations: true,
+      uat: true,
+      cutover: true,
+      aiDelivery: true,
+    },
+    coverage: {
+      workstreams: ["Governance", "MLR Process", "Content Migration", "Claims", "Integrations", "Validation", "Training", "Launch"],
+      milestones: 8,
+      tasks: 19,
+      documents: 7,
+      risks: 5,
+      costLines: 4,
+    },
+  },
+  {
+    id: "sap-s4hana",
+    name: "SAP S/4HANA implementation",
+    category: "SAP ERP",
+    description: "ERP implementation structure for fit-to-standard, process design, data migration, integrations, testing, cutover, controls, and hypercare.",
+    recommendedName: "SAP S/4HANA Implementation",
+    recommendedPhase: "Discover / Prepare",
+    recommendedMethodology: "SAP Activate",
+    intentDefaults: {
+      regulated: true,
+      validation: true,
+      migration: true,
+      integrations: true,
+      uat: true,
+      cutover: true,
+      aiDelivery: true,
+    },
+    coverage: {
+      workstreams: ["Program Governance", "Fit-to-Standard", "Finance", "Supply Chain", "Data Migration", "Integrations", "Testing", "Controls", "Cutover"],
+      milestones: 9,
+      tasks: 24,
+      documents: 9,
+      risks: 6,
+      costLines: 6,
+    },
+  },
+  {
+    id: "sap-master-data",
+    name: "SAP master data migration",
+    category: "SAP Data",
+    description: "Master data program for inventory, ownership, mapping, cleanse, mock loads, reconciliation, governance, and production cutover.",
+    recommendedName: "SAP Master Data Migration",
+    recommendedPhase: "Phase 1 - Discovery",
+    recommendedMethodology: "SAP Activate / data migration",
+    intentDefaults: {
+      regulated: false,
+      validation: false,
+      migration: true,
+      integrations: true,
+      uat: true,
+      cutover: true,
+      aiDelivery: true,
+    },
+    coverage: {
+      workstreams: ["Data Governance", "Material Master", "Vendor Master", "Customer Master", "Data Quality", "Mock Loads", "Reconciliation", "Cutover"],
+      milestones: 8,
+      tasks: 19,
+      documents: 6,
+      risks: 5,
+      costLines: 4,
+    },
+  },
+  {
+    id: "sap-ewm",
+    name: "SAP EWM warehouse rollout",
+    category: "SAP Supply Chain",
+    description: "Warehouse rollout covering process design, devices, integration touchpoints, master data, testing, cutover rehearsal, and site readiness.",
+    recommendedName: "SAP EWM Warehouse Rollout",
+    recommendedPhase: "Phase 1 - Mobilise",
+    recommendedMethodology: "SAP Activate",
+    intentDefaults: {
+      regulated: false,
+      validation: false,
+      migration: true,
+      integrations: true,
+      uat: true,
+      cutover: true,
+      aiDelivery: true,
+    },
+    coverage: {
+      workstreams: ["Warehouse Process", "Devices", "Interfaces", "Master Data", "Testing", "Training", "Cutover", "Site Readiness"],
+      milestones: 8,
+      tasks: 18,
+      documents: 6,
+      risks: 5,
+      costLines: 5,
+    },
+  },
+  {
+    id: "lims-qc-lab",
+    name: "LIMS QC laboratory rollout",
+    category: "Laboratory",
+    description: "LIMS delivery model for QC lab workflows, instruments, methods, sample lifecycle, validation, migration, training, and go-live readiness.",
+    recommendedName: "QC Laboratory LIMS Rollout",
+    recommendedPhase: "Phase 1 - Mobilise",
+    recommendedMethodology: "GAMP 5 / CSV",
+    intentDefaults: {
+      regulated: true,
+      validation: true,
+      migration: true,
+      integrations: true,
+      uat: true,
+      cutover: true,
+      aiDelivery: true,
+    },
+    coverage: {
+      workstreams: ["Lab Governance", "Sample Lifecycle", "Methods", "Instrument Interfaces", "Data Migration", "Validation", "Training", "Cutover"],
+      milestones: 8,
+      tasks: 20,
+      documents: 9,
+      risks: 6,
+      costLines: 5,
+    },
+  },
+  {
+    id: "eqms-capa",
+    name: "eQMS CAPA and deviation rollout",
+    category: "Quality",
+    description: "Quality process rollout for deviations, CAPA, change control, workflows, validation, training, inspection readiness, and hypercare.",
+    recommendedName: "eQMS CAPA and Deviation Rollout",
+    recommendedPhase: "Phase 1 - Process Design",
+    recommendedMethodology: "GAMP 5 / CSV",
+    intentDefaults: {
+      regulated: true,
+      validation: true,
+      migration: false,
+      integrations: true,
+      uat: true,
+      cutover: true,
+      aiDelivery: true,
+    },
+    coverage: {
+      workstreams: ["Quality Governance", "Deviation Process", "CAPA Process", "Change Control", "Validation", "Training", "Audit Readiness"],
+      milestones: 7,
+      tasks: 17,
+      documents: 8,
+      risks: 5,
+      costLines: 4,
+    },
+  },
+  {
+    id: "mes-ebmr",
+    name: "MES electronic batch record rollout",
+    category: "Manufacturing",
+    description: "MES/eBR rollout for master batch records, equipment interfaces, recipe design, validation, training, cutover, and shop-floor readiness.",
+    recommendedName: "MES Electronic Batch Record Rollout",
+    recommendedPhase: "Phase 1 - Mobilise",
+    recommendedMethodology: "GAMP 5 / CSV",
+    intentDefaults: {
+      regulated: true,
+      validation: true,
+      migration: true,
+      integrations: true,
+      uat: true,
+      cutover: true,
+      aiDelivery: true,
+    },
+    coverage: {
+      workstreams: ["Manufacturing Governance", "Recipe Design", "Equipment Interfaces", "Master Data", "Validation", "Operator Training", "Cutover"],
+      milestones: 7,
+      tasks: 19,
+      documents: 8,
+      risks: 6,
+      costLines: 5,
     },
   },
   {
@@ -171,15 +418,23 @@ export function getProjectTemplate(id: ProjectTemplateId): ProjectTemplateSummar
 
 export function buildTemplateOperatingModel(input: TemplateBuildInput): TemplateOperatingModel {
   switch (input.templateId) {
-    case "csv-validation":
-      return buildFocusedTemplate(input, getProjectTemplate("csv-validation"));
-    case "data-migration":
-      return buildFocusedTemplate(input, getProjectTemplate("data-migration"));
-    case "generic-implementation":
-      return buildFocusedTemplate(input, getProjectTemplate("generic-implementation"));
     case "veeva-rim":
-    default:
       return buildVeevaRimTemplate(input);
+    case "veeva-qualitydocs":
+    case "veeva-clinical-ops":
+    case "veeva-promomats":
+    case "sap-s4hana":
+    case "sap-master-data":
+    case "sap-ewm":
+    case "lims-qc-lab":
+    case "eqms-capa":
+    case "mes-ebmr":
+    case "csv-validation":
+    case "data-migration":
+    case "generic-implementation":
+      return buildFocusedTemplate(input, getProjectTemplate(input.templateId));
+    default:
+      return buildFocusedTemplate(input, getProjectTemplate(input.templateId));
   }
 }
 

@@ -13,23 +13,23 @@ import { searchEntities, type SearchHit } from "@/lib/searchIndex";
 import { cn } from "@/lib/utils";
 
 const PAGES = [
-  { label: "Command Center", href: "/",           icon: LayoutDashboard },
-  { label: "Delivery Truth", href: "/truth",      icon: Gauge },
-  { label: "Guided Setup",   href: "/setup",      icon: Wand2 },
+  { label: "SteerCo Brief", href: "/",            icon: LayoutDashboard },
+  { label: "Delivery Signals", href: "/truth",    icon: Gauge },
+  { label: "Project Setup", href: "/setup",       icon: Wand2 },
   { label: "Worklist",       href: "/worklist",   icon: Inbox },
   { label: "Plan",           href: "/plan",       icon: GitBranch },
   { label: "Governance",     href: "/governance", icon: Scale },
-  { label: "Readiness",      href: "/readiness",  icon: Rocket },
+  { label: "Readiness Gates", href: "/readiness", icon: Rocket },
   { label: "My Items",    href: "/my-items",   icon: Inbox },
   { label: "Projects",    href: "/projects",   icon: FolderKanban },
   { label: "Milestones",  href: "/milestones", icon: Milestone },
   { label: "Tasks",       href: "/tasks",      icon: CheckSquare },
   { label: "Risks",       href: "/risks",      icon: AlertTriangle },
   { label: "Costs",       href: "/costs",      icon: DollarSign },
-  { label: "Resources",   href: "/resources",  icon: Users },
+  { label: "People & Meetings", href: "/resources", icon: Users },
   { label: "Documents",   href: "/documents",  icon: FileText },
   { label: "Reports",     href: "/reports",    icon: BarChart2 },
-  { label: "Project Rules", href: "/settings", icon: Settings },
+  { label: "Rules & Settings", href: "/settings", icon: Settings },
 ];
 
 // Per-entity-kind icon for search hits.

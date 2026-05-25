@@ -1,19 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
+  ArrowLeft,
   ArrowRight,
-  Bot,
   CheckCircle2,
   ClipboardList,
   FileSpreadsheet,
   Loader2,
-  ShieldCheck,
   Sparkles,
   Upload,
-  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useProject } from "@/components/projects/project-provider";
@@ -35,16 +33,13 @@ import {
   type ProjectTemplateId,
 } from "@/lib/templates/project-templates";
 import {
-  DELIVERY_METHOD_OPTIONS,
   INDUSTRY_OPTIONS,
   OWNERSHIP_OPTIONS,
   PROJECT_TYPE_OPTIONS,
   REGION_OPTIONS,
   REPORTING_OPTIONS,
   SCOPE_OPTIONS,
-  TIMELINE_OPTIONS,
   controlOptionsForIndustry,
-  deliveryMethodLabel,
   evaluateSetupFeasibility,
   intakeFromTemplate,
   systemOptionsForIndustry,
@@ -73,28 +68,23 @@ const TEMPLATE_IMPORT = `ID,Task Name,Workstream,Start,Finish,Resource Names,Pri
 6,Prepare training and adoption plan,Training,2026-07-06,2026-07-20,Training Lead,Medium,0%,5
 7,Run readiness review,Readiness,2026-07-21,2026-07-31,Project Manager,Critical,0%,6`;
 
-const modeCards: Array<{
-  id: SetupMode;
-  title: string;
-  description: string;
-  icon: typeof Sparkles;
-}> = [
+const modeCards = [
   {
-    id: "template",
-    title: "Start from guided template",
-    description: "Use a pharma delivery structure with human and agent-led workstreams already shaped.",
+    id: "template" as const,
+    title: "Build with template",
+    description: "Use the closest predefined setup for this project type.",
     icon: Sparkles,
   },
   {
-    id: "import",
-    title: "Import Microsoft plan",
-    description: "Bring tasks from Project, Planner, Excel, CSV, or a pasted table, then review before save.",
+    id: "import" as const,
+    title: "Import existing plan",
+    description: "Bring in Microsoft Project, Planner, Excel, or CSV.",
     icon: FileSpreadsheet,
   },
   {
-    id: "blank",
-    title: "Start blank",
-    description: "Create the project shell first and add workstreams when you are ready.",
+    id: "blank" as const,
+    title: "Start base skeleton",
+    description: "Create only the command center shell.",
     icon: ClipboardList,
   },
 ];
@@ -110,6 +100,8 @@ export default function GuidedSetupPage() {
   const addCostLine = useEntityStore((s) => s.addCostLine);
   const addTeamMember = useEntityStore((s) => s.addTeamMember);
 
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+
   const [mode, setMode] = useState<SetupMode>("template");
   const [templateId, setTemplateId] = useState<ProjectTemplateId>("veeva-rim");
   const selectedTemplate = getProjectTemplate(templateId);
@@ -123,7 +115,6 @@ export default function GuidedSetupPage() {
   const [importText, setImportText] = useState(SAMPLE_IMPORT);
   const [importError, setImportError] = useState<string | null>(null);
   const [isReadingFile, setIsReadingFile] = useState(false);
-  const [readyToCreate, setReadyToCreate] = useState(false);
 
   const preview = useMemo<ImportPreview | null>(() => {
     if (mode === "blank") return null;
@@ -160,18 +151,32 @@ export default function GuidedSetupPage() {
   const systemOptions = useMemo(() => systemOptionsForIndustry(intake.industry), [intake.industry]);
   const controlOptions = useMemo(() => controlOptionsForIndustry(intake.industry), [intake.industry]);
 
-  useEffect(() => {
-    setReadyToCreate(false);
-  }, [client, goLiveDate, importText, intake, methodology, mode, name, phase, startDate, templateId]);
-
   function selectTemplate(nextTemplateId: ProjectTemplateId) {
+    const previousTemplate = selectedTemplate;
     const template = getProjectTemplate(nextTemplateId);
     setTemplateId(nextTemplateId);
-    setName(template.recommendedName);
-    setPhase(template.recommendedPhase);
-    const nextIntake = intakeFromTemplate(nextTemplateId);
-    setIntake(nextIntake);
-    setMethodology(deliveryMethodLabel(nextIntake.deliveryMethod));
+    setName((current) => current.trim() && current !== previousTemplate.recommendedName ? current : template.recommendedName);
+    setPhase((current) => current.trim() && current !== previousTemplate.recommendedPhase ? current : template.recommendedPhase);
+    setMethodology(template.recommendedMethodology);
+  }
+
+  function recommendTemplateId(input: SetupIntake): ProjectTemplateId {
+    if (input.systemFamily === "sap") {
+      if (input.projectType === "migration") return "sap-master-data";
+      if (input.projectType === "rollout") return "sap-ewm";
+      return "sap-s4hana";
+    }
+    if (input.systemFamily === "lims") return "lims-qc-lab";
+    if (input.systemFamily === "eqms") return "eqms-capa";
+    if (input.systemFamily === "mes") return "mes-ebmr";
+    if (input.systemFamily === "veeva") {
+      if (input.projectType === "rollout") return "veeva-clinical-ops";
+      if (input.projectType === "validation") return "csv-validation";
+      return "veeva-rim";
+    }
+    if (input.projectType === "migration") return "data-migration";
+    if (input.projectType === "validation") return "csv-validation";
+    return "generic-implementation";
   }
 
   function updateIntake<K extends keyof SetupIntake>(key: K, value: SetupIntake[K]) {
@@ -190,11 +195,6 @@ export default function GuidedSetupPage() {
         : nextControls[0].id;
       return { ...current, industry, systemFamily, controlModel };
     });
-  }
-
-  function updateDeliveryMethod(deliveryMethod: SetupIntake["deliveryMethod"]) {
-    updateIntake("deliveryMethod", deliveryMethod);
-    setMethodology(deliveryMethodLabel(deliveryMethod));
   }
 
   function toggleScope(scope: ScopeElementId) {
@@ -263,18 +263,10 @@ export default function GuidedSetupPage() {
     return null;
   }
 
-  function handleReviewOrCreate() {
+  function handleCreate() {
     const error = validateProject();
     if (error) {
       toast.error("Setup needs one fix", { description: error });
-      return;
-    }
-
-    if (!readyToCreate) {
-      setReadyToCreate(true);
-      toast.info("Review the setup first", {
-        description: "Check shape, timeline credibility, owners, gates, and first tasks before creating.",
-      });
       return;
     }
 
@@ -331,435 +323,389 @@ export default function GuidedSetupPage() {
     router.push("/");
   }
 
-  const selectedMode = modeCards.find((card) => card.id === mode) ?? modeCards[0];
-  const SelectedModeIcon = selectedMode.icon;
+  // ==== RENDER STEPS ====
 
-  return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="max-w-3xl space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-primary">Guided setup</p>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Set up a project that humans and agents can run</h1>
-          <p className="text-sm text-muted-foreground">
-            Start from a template, import Microsoft Project or Planner work, and review the structure before it becomes the active command center.
+  function renderStep1() {
+    return (
+      <div className="mx-auto max-w-3xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="mb-8 text-center">
+          <h2 className="text-3xl font-bold tracking-tight text-foreground">Project Discovery</h2>
+          <p className="mt-2 text-sm text-muted-foreground">Capture only the facts needed to recommend the right command-center setup.</p>
+        </div>
+
+        <div className="rounded-2xl border border-border/50 bg-card/40 p-8 shadow-xl backdrop-blur-xl">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <Field label="Project Name" required>
+              <input value={name} onChange={(event) => setName(event.target.value)} className={cn(inputCls, "bg-background/50")} />
+            </Field>
+            <Field label="Client or business area" required>
+              <input value={client} onChange={(event) => setClient(event.target.value)} className={cn(inputCls, "bg-background/50")} />
+            </Field>
+            <SelectField
+              label="Industry"
+              value={intake.industry}
+              options={INDUSTRY_OPTIONS}
+              onChange={updateIndustry}
+            />
+            <SelectField
+              label="System Family"
+              value={intake.systemFamily}
+              options={systemOptions}
+              onChange={(value) => updateIntake("systemFamily", value)}
+            />
+            <SelectField
+              label="Project Type"
+              value={intake.projectType}
+              options={PROJECT_TYPE_OPTIONS}
+              onChange={(value) => updateIntake("projectType", value)}
+            />
+            <SelectField
+              label="Control Model"
+              value={intake.controlModel}
+              options={controlOptions}
+              onChange={(value) => updateIntake("controlModel", value)}
+            />
+            <SelectField
+              label="Region"
+              value={intake.region}
+              options={REGION_OPTIONS}
+              onChange={(value) => updateIntake("region", value)}
+            />
+            <div className="hidden md:block"></div>
+            <Field label="Start Date" required>
+              <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className={cn(inputCls, "bg-background/50")} />
+            </Field>
+            <Field label="Target Go-live" required>
+              <input type="date" value={goLiveDate} onChange={(event) => setGoLiveDate(event.target.value)} className={cn(inputCls, "bg-background/50")} />
+            </Field>
+          </div>
+        </div>
+
+        <div className="mt-8 flex justify-end">
+          <button
+            onClick={() => {
+              if (!name.trim() || !client.trim() || !startDate || !goLiveDate) {
+                toast.error("Please fill in all required fields.");
+                return;
+              }
+              if (startDate >= goLiveDate) {
+                toast.error("Target go-live must be after the start date.");
+                return;
+              }
+              setStep(2);
+            }}
+            className="group flex items-center gap-2 rounded-full bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground shadow-lg transition-all hover:scale-105 hover:bg-primary/90 hover:shadow-primary/25"
+          >
+            Continue <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  function renderStep2() {
+    return (
+      <div className="mx-auto max-w-3xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="mb-8 text-center">
+          <h2 className="text-3xl font-bold tracking-tight text-foreground">Build Method</h2>
+          <p className="mt-2 text-sm text-muted-foreground">How would you like to initialize the command center?</p>
+        </div>
+
+        <div className="space-y-4">
+          {modeCards.map((card) => {
+            const Icon = card.icon;
+            const active = mode === card.id;
+            return (
+              <button
+                key={card.id}
+                onClick={() => setMode(card.id)}
+                className={cn(
+                  "flex w-full items-center gap-6 rounded-2xl border bg-card/40 p-6 text-left shadow-lg backdrop-blur-xl transition-all duration-200",
+                  active ? "border-primary ring-2 ring-primary/20 shadow-primary/10" : "border-border/50 hover:border-primary/50 hover:bg-card/60"
+                )}
+              >
+                <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-xl", active ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground")}>
+                  <Icon className="h-6 w-6" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-foreground">{card.title}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">{card.description}</p>
+                </div>
+                <div className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2", active ? "border-primary bg-primary" : "border-muted-foreground/30")}>
+                  {active && <div className="h-2.5 w-2.5 rounded-full bg-background" />}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-8 flex justify-between">
+          <button
+            onClick={() => setStep(1)}
+            className="flex items-center gap-2 rounded-full border border-border/50 bg-background/50 px-6 py-3 text-sm font-semibold text-foreground transition-all hover:bg-muted"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back
+          </button>
+          <button
+            onClick={() => {
+              if (mode === "blank") {
+                setStep(4);
+              } else {
+                if (mode === "template") {
+                  selectTemplate(recommendTemplateId(intake));
+                }
+                setStep(3);
+              }
+            }}
+            className="group flex items-center gap-2 rounded-full bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground shadow-lg transition-all hover:scale-105 hover:bg-primary/90 hover:shadow-primary/25"
+          >
+            Continue <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  function renderStep3() {
+    return (
+      <div className="mx-auto max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="mb-8 text-center">
+          <h2 className="text-3xl font-bold tracking-tight text-foreground">
+            {mode === "template" ? "Template Recommendation" : "Import Plan"}
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {mode === "template" ? "Discovery selects the first recommendation. You can change it before review." : "Bring your existing data into the command center."}
           </p>
         </div>
-        <button
-          onClick={handleReviewOrCreate}
-          className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
-        >
-          {readyToCreate ? "Confirm and create" : "Review setup"} <ArrowRight className="h-4 w-4" />
-        </button>
-      </header>
 
-      <section className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-        {modeCards.map((card) => {
-          const Icon = card.icon;
-          const active = mode === card.id;
-          return (
-            <button
-              key={card.id}
-              onClick={() => setMode(card.id)}
-              className={cn(
-                "rounded-lg border bg-card p-4 text-left shadow-sm transition-all hover:shadow-md",
-                active ? "border-primary/60 ring-2 ring-primary/10" : "border-border",
-              )}
-            >
-              <div className="mb-3 flex items-center justify-between">
-                <span className={cn("rounded-md p-2", active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
-                  <Icon className="h-4 w-4" />
-                </span>
-                {active && <CheckCircle2 className="h-4 w-4 text-primary" />}
-              </div>
-              <p className="font-semibold text-foreground">{card.title}</p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">{card.description}</p>
-            </button>
-          );
-        })}
-      </section>
-
-      <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <div className="space-y-5">
-          <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
-            <div className="mb-4 flex items-start gap-3">
-              <span className="rounded-md bg-blue-50 p-2 text-blue-700 dark:bg-blue-950/30">
-                <ClipboardList className="h-4 w-4" />
-              </span>
-              <div>
-                <h2 className="text-base font-semibold text-foreground">Project basics</h2>
-                <p className="text-xs text-muted-foreground">These fields become the project shell and active command-center context.</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <Field label="Project name" required>
-                <input value={name} onChange={(event) => setName(event.target.value)} className={inputCls} />
-              </Field>
-              <Field label="Client or business area" required>
-                <input value={client} onChange={(event) => setClient(event.target.value)} className={inputCls} />
-              </Field>
-              <Field label="Current phase">
-                <input value={phase} onChange={(event) => setPhase(event.target.value)} className={inputCls} />
-              </Field>
-              <Field label="Delivery method">
-                <select value={intake.deliveryMethod} onChange={(event) => updateDeliveryMethod(event.target.value as SetupIntake["deliveryMethod"])} className={inputCls}>
-                  {DELIVERY_METHOD_OPTIONS.map((option) => (
-                    <option key={option.id} value={option.id}>{option.label}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Start date" required>
-                <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className={inputCls} />
-              </Field>
-              <Field label="Target go-live" required>
-                <input type="date" value={goLiveDate} onChange={(event) => setGoLiveDate(event.target.value)} className={inputCls} />
-              </Field>
-            </div>
-          </div>
-
-          {mode === "import" && (
-            <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
-              <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  <span className="rounded-md bg-emerald-50 p-2 text-emerald-700 dark:bg-emerald-950/30">
-                    <FileSpreadsheet className="h-4 w-4" />
-                  </span>
-                  <div>
-                    <h2 className="text-base font-semibold text-foreground">Import tasks</h2>
-                    <p className="text-xs text-muted-foreground">
-                      Use an Excel/CSV export from Microsoft Planner or Project. The import is reviewed before save.
-                    </p>
+        <div className="rounded-2xl border border-border/50 bg-card/40 p-8 shadow-xl backdrop-blur-xl">
+          {mode === "template" && (
+            <div className="space-y-8">
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-foreground">Recommended build template</h3>
+                <Field label="Template">
+                  <select value={templateId} onChange={(event) => selectTemplate(event.target.value as ProjectTemplateId)} className={cn(inputCls, "bg-background/50 text-base py-2")}>
+                    {PROJECT_TEMPLATES.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.category} - {template.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-primary">{selectedTemplate.category}</p>
+                      <p className="mt-1 text-lg font-bold text-foreground">{selectedTemplate.name}</p>
+                      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{selectedTemplate.description}</p>
+                    </div>
+                    <Sparkles className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">{selectedTemplate.coverage.workstreams.length} streams</span>
+                    <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">{selectedTemplate.coverage.tasks} tasks</span>
+                    <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">{selectedTemplate.coverage.documents} docs</span>
+                    <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">{selectedTemplate.coverage.risks} risks</span>
                   </div>
                 </div>
-                <label className="flex cursor-pointer items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted">
-                  {isReadingFile ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                  Upload file
-                  <input
-                    type="file"
-                    accept=".csv,.txt,.tsv,.xlsx,.xls"
-                    className="sr-only"
-                    onChange={(event) => handleFile(event.target.files?.[0])}
-                  />
-                </label>
               </div>
+
+              <details className="rounded-xl border border-border/50 bg-background/30 p-5">
+                <summary className="cursor-pointer text-sm font-semibold text-foreground">
+                  Advanced setup options
+                  <span className="ml-2 font-normal text-muted-foreground">scope, reporting, and ownership are prefilled from discovery</span>
+                </summary>
+                <div className="mt-6 grid grid-cols-1 gap-8 md:grid-cols-2">
+                  <div className="space-y-6">
+                    <ChipGroup
+                      label="Scope Elements"
+                      options={SCOPE_OPTIONS}
+                      selected={intake.scopeElements}
+                      onToggle={toggleScope}
+                    />
+                  </div>
+                  <div className="space-y-6">
+                    <ChipGroup
+                      label="Reporting Requirements"
+                      options={REPORTING_OPTIONS}
+                      selected={intake.reportingModels}
+                      onToggle={toggleReporting}
+                    />
+                    <div>
+                      <p className="mb-3 text-sm font-semibold text-foreground">Data Ownership</p>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        {OWNERSHIP_OPTIONS.map((option) => {
+                          const active = intake.ownershipModel === option.id;
+                          return (
+                            <button
+                              key={option.id}
+                              type="button"
+                              onClick={() => updateIntake("ownershipModel", option.id)}
+                              className={cn(
+                                "rounded-xl border p-3 text-left transition-all",
+                                active ? "border-primary bg-primary/10 text-primary shadow-sm" : "border-border/50 bg-background/50 text-muted-foreground hover:border-border hover:bg-background"
+                              )}
+                              title={option.example}
+                            >
+                              <span className="block text-sm font-semibold">{option.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </details>
+            </div>
+          )}
+
+          {mode === "import" && (
+            <div className="space-y-6">
+              <label className="flex w-full cursor-pointer flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-border/50 bg-background/30 px-6 py-12 transition-all hover:bg-muted/50">
+                {isReadingFile ? <Loader2 className="h-8 w-8 animate-spin text-primary" /> : <Upload className="h-8 w-8 text-muted-foreground" />}
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-foreground">Click to upload CSV or Excel</p>
+                  <p className="mt-1 text-xs text-muted-foreground">or drag and drop your file here</p>
+                </div>
+                <input
+                  type="file"
+                  accept=".csv,.txt,.tsv,.xlsx,.xls"
+                  className="sr-only"
+                  onChange={(event) => handleFile(event.target.files?.[0])}
+                />
+              </label>
+              
               <textarea
                 value={importText}
                 onChange={(event) => setImportText(event.target.value)}
-                className="min-h-64 w-full rounded-md border border-border bg-background p-3 font-mono text-xs leading-5 text-foreground outline-none focus:border-primary"
+                className="min-h-[240px] w-full rounded-xl border border-border/50 bg-background/50 p-4 font-mono text-sm leading-relaxed text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 spellCheck={false}
+                placeholder="Or paste your raw CSV data here..."
               />
               {importError && (
-                <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950/30">
-                  {importError}
-                </p>
+                <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-500">
+                  <AlertTriangle className="h-4 w-4" />
+                  <p>{importError}</p>
+                </div>
               )}
-            </div>
-          )}
-
-          {mode === "template" && (
-            <div className="space-y-5">
-              <div className="rounded-lg border border-primary/20 bg-primary/5 p-5">
-                <div className="flex items-start gap-3">
-                  <Sparkles className="mt-0.5 h-5 w-5 text-primary" />
-                  <div>
-                    <h2 className="text-base font-semibold text-foreground">Choose the operating template</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Templates create the project shell plus the first operating model: workstreams, owners, milestones, tasks, documents, risks, and budget lines.
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-                  {PROJECT_TEMPLATES.map((template) => {
-                    const active = template.id === templateId;
-                    return (
-                      <button
-                        key={template.id}
-                        onClick={() => selectTemplate(template.id)}
-                        className={cn(
-                          "rounded-lg border bg-card p-4 text-left shadow-sm transition-all hover:shadow-md",
-                          active ? "border-primary/60 ring-2 ring-primary/10" : "border-border",
-                        )}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">{template.category}</p>
-                            <p className="mt-1 text-sm font-semibold text-foreground">{template.name}</p>
-                          </div>
-                          {active && <CheckCircle2 className="h-4 w-4 text-primary" />}
-                        </div>
-                        <p className="mt-2 text-xs leading-5 text-muted-foreground">{template.description}</p>
-                        <div className="mt-3 flex flex-wrap gap-1.5">
-                          <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] text-foreground">{template.coverage.workstreams.length} streams</span>
-                          <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] text-foreground">{template.coverage.tasks} tasks</span>
-                          <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] text-foreground">{template.coverage.documents} docs</span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
-                <div className="mb-4 flex items-start gap-3">
-                  <ShieldCheck className="mt-0.5 h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <h2 className="text-base font-semibold text-foreground">Project shape</h2>
-                    <p className="text-xs text-muted-foreground">
-                      These answers change the setup recommendation. A two-day SAP implementation should become an assessment, not a fake green project.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <SelectField
-                    label="Industry"
-                    value={intake.industry}
-                    options={INDUSTRY_OPTIONS}
-                    onChange={updateIndustry}
-                  />
-                  <SelectField
-                    label="Project type"
-                    value={intake.projectType}
-                    options={PROJECT_TYPE_OPTIONS}
-                    onChange={(value) => updateIntake("projectType", value)}
-                  />
-                  <SelectField
-                    label="System family"
-                    value={intake.systemFamily}
-                    options={systemOptions}
-                    onChange={(value) => updateIntake("systemFamily", value)}
-                  />
-                  <SelectField
-                    label="Control model"
-                    value={intake.controlModel}
-                    options={controlOptions}
-                    onChange={(value) => updateIntake("controlModel", value)}
-                  />
-                  <SelectField
-                    label="Region"
-                    value={intake.region}
-                    options={REGION_OPTIONS}
-                    onChange={(value) => updateIntake("region", value)}
-                  />
-                  <SelectField
-                    label="Timeline rule"
-                    value={intake.timelineCriticality}
-                    options={TIMELINE_OPTIONS}
-                    onChange={(value) => updateIntake("timelineCriticality", value)}
-                  />
-                </div>
-
-                <div className="mt-5 space-y-5">
-                  <ChipGroup
-                    label="Scope included"
-                    options={SCOPE_OPTIONS}
-                    selected={intake.scopeElements}
-                    onToggle={toggleScope}
-                  />
-                  <ChipGroup
-                    label="Transparency needed"
-                    options={REPORTING_OPTIONS}
-                    selected={intake.reportingModels}
-                    onToggle={toggleReporting}
-                  />
-                  <div>
-                    <p className="mb-2 text-xs font-semibold text-foreground">Who maintains the data?</p>
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                      {OWNERSHIP_OPTIONS.map((option) => {
-                        const active = intake.ownershipModel === option.id;
-                        return (
-                          <button
-                            key={option.id}
-                            type="button"
-                            onClick={() => updateIntake("ownershipModel", option.id)}
-                            className={cn(
-                              "rounded-md border px-3 py-2 text-left transition-colors",
-                              active ? "border-primary/50 bg-primary/5 text-foreground" : "border-border bg-background text-muted-foreground",
-                            )}
-                          >
-                            <span className="block text-xs font-semibold">{option.label}</span>
-                            <span className="mt-1 block text-[11px] leading-4">{option.example}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {mode === "blank" && (
-            <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
-              <div className="flex items-start gap-3">
-                <ClipboardList className="mt-0.5 h-5 w-5 text-muted-foreground" />
-                <div>
-                  <h2 className="text-base font-semibold text-foreground">Blank project shell</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    This creates only the project context. Use it when you want to structure workstreams manually after the project exists.
-                  </p>
-                </div>
-              </div>
             </div>
           )}
         </div>
 
-        <aside className="space-y-4">
-          <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
-            <div className="mb-4 flex items-start gap-3">
-              <span className="rounded-md bg-primary/10 p-2 text-primary">
-                <SelectedModeIcon className="h-4 w-4" />
-              </span>
+        <div className="mt-8 flex justify-between">
+          <button
+            onClick={() => setStep(2)}
+            className="flex items-center gap-2 rounded-full border border-border/50 bg-background/50 px-6 py-3 text-sm font-semibold text-foreground transition-all hover:bg-muted"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back
+          </button>
+          <button
+            onClick={() => setStep(4)}
+            className="group flex items-center gap-2 rounded-full bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground shadow-lg transition-all hover:scale-105 hover:bg-primary/90 hover:shadow-primary/25"
+          >
+            Review <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  function renderStep4() {
+    return (
+      <div className="mx-auto max-w-3xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="mb-8 text-center">
+          <h2 className="text-3xl font-bold tracking-tight text-foreground">Review & Create</h2>
+          <p className="mt-2 text-sm text-muted-foreground">Verify the architecture before finalizing the command center.</p>
+        </div>
+
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-border/50 bg-card/40 p-6 shadow-xl backdrop-blur-xl">
+            <h3 className="text-lg font-semibold text-foreground">Project Identity</h3>
+            <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
               <div>
-                <h2 className="text-base font-semibold text-foreground">Review before create</h2>
-                <p className="text-xs text-muted-foreground">{selectedMode.title}</p>
+                <p className="text-muted-foreground">Name</p>
+                <p className="font-medium text-foreground">{name}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Client</p>
+                <p className="font-medium text-foreground">{client}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Timeline</p>
+                <p className="font-medium text-foreground">{startDate} to {goLiveDate}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Methodology</p>
+                <p className="font-medium text-foreground">{methodology}</p>
               </div>
             </div>
+          </div>
 
-            {mode === "template" && <FeasibilityCard feasibility={feasibility} />}
+          {mode === "template" && <FeasibilityCard feasibility={feasibility} />}
 
-            {templateModel ? (
-              <div className="mt-4 space-y-4">
-                <div className="grid grid-cols-2 gap-2">
-                  <Metric label="Milestones" value={templateModel.milestones.length} />
-                  <Metric label="Tasks" value={templateModel.tasks.length} />
-                  <Metric label="Documents" value={templateModel.documents.length} />
-                  <Metric label="Risks" value={templateModel.risks.length} />
-                  <Metric label="Owners" value={templateModel.teamMembers.length} />
-                  <Metric label="Cost lines" value={templateModel.costLines.length} />
-                </div>
+          <div className="rounded-2xl border border-border/50 bg-card/40 p-6 shadow-xl backdrop-blur-xl">
+            <h3 className="text-lg font-semibold text-foreground">Generation Summary</h3>
+            <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <Metric label="Tasks" value={templateModel ? templateModel.tasks.length : preview?.stats.importedTasks ?? 0} />
+              <Metric label="Milestones" value={templateModel ? templateModel.milestones.length : 0} />
+              <Metric label="Owners" value={templateModel ? templateModel.teamMembers.length : preview?.owners.length ?? 0} />
+              <Metric label="Risks" value={templateModel ? templateModel.risks.length : 0} />
+            </div>
+          </div>
+        </div>
 
-                <div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Operating coverage</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedTemplate.coverage.workstreams.map((workstream) => (
-                      <span key={workstream} className="rounded-full border border-border bg-muted px-2 py-1 text-[11px] text-foreground">
-                        {workstream}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+        <div className="mt-8 flex justify-between">
+          <button
+            onClick={() => setStep(mode === "blank" ? 2 : 3)}
+            className="flex items-center gap-2 rounded-full border border-border/50 bg-background/50 px-6 py-3 text-sm font-semibold text-foreground transition-all hover:bg-muted"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back
+          </button>
+          <button
+            onClick={handleCreate}
+            className="group flex items-center gap-2 rounded-full bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground shadow-lg transition-all hover:scale-105 hover:bg-primary/90 hover:shadow-primary/25"
+          >
+            <Sparkles className="h-4 w-4 text-primary-foreground/80" /> Create Command Center
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-                <div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">First gates</p>
-                  <div className="space-y-2">
-                    {templateModel.milestones.slice(0, 5).map((milestone) => (
-                      <div key={milestone.id} className="rounded-md border border-border bg-background p-2">
-                        <p className="line-clamp-1 text-xs font-medium text-foreground">{milestone.name}</p>
-                        <p className="mt-1 text-[11px] text-muted-foreground">
-                          {milestone.phase} · owner {milestone.owner} · {milestone.plannedDate}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-xs leading-5 text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100">
-                  <p className="font-semibold">Template limitation to remember</p>
-                  <ul className="mt-2 space-y-1">
-                    {templateModel.operatingNotes.map((note) => (
-                      <li key={note}>• {note}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            ) : preview ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-2">
-                  <Metric label="Tasks" value={preview.stats.importedTasks} />
-                  <Metric label="Workstreams" value={preview.workstreams.length} />
-                  <Metric label="Owners" value={preview.owners.length} />
-                  <Metric label="Waiting links" value={preview.stats.linkedDependencies} />
-                </div>
-
-                {preview.stats.unresolvedDependencies > 0 && (
-                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/30">
-                    <div className="flex gap-2">
-                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      <p>{preview.stats.unresolvedDependencies} waiting link could not be matched. You can still create the project and review links from Plan.</p>
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Workstream shape</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {preview.workstreams.map((workstream) => (
-                      <span key={workstream} className="rounded-full border border-border bg-muted px-2 py-1 text-[11px] text-foreground">
-                        {workstream}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Human and agent owners</p>
-                  <div className="space-y-2">
-                    {preview.owners.slice(0, 6).map((owner) => (
-                      <div key={owner.initials} className="flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5">
-                        {owner.name.toLowerCase().includes("agent") ? <Bot className="h-3.5 w-3.5 text-blue-600" /> : <Users className="h-3.5 w-3.5 text-muted-foreground" />}
-                        <span className="min-w-0 flex-1 truncate text-xs text-foreground">{owner.name}</span>
-                        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">{owner.initials}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">First tasks</p>
-                  <div className="space-y-2">
-                    {preview.tasks.slice(0, 5).map((task) => (
-                      <div key={task.sourceKey} className="rounded-md border border-border bg-background p-2">
-                        <p className="line-clamp-1 text-xs font-medium text-foreground">{task.name}</p>
-                        <p className="mt-1 text-[11px] text-muted-foreground">
-                          {task.workstream} · {task.ownerName} · due {task.dueDate}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-2">
-                  <Metric label="Tasks" value={0} />
-                  <Metric label="Workstreams" value={0} />
-                  <Metric label="Owners" value={0} />
-                  <Metric label="Waiting links" value={0} />
-                </div>
-                <p className="rounded-md border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800 dark:bg-blue-950/30">
-                  Blank setup creates only the project shell. Add workstreams from Plan or import tasks later.
-                </p>
-              </div>
+  return (
+    <div className="min-h-[80vh] px-4 py-8">
+      {/* Progress Stepper */}
+      <div className="mb-12 flex items-center justify-center gap-2">
+        {[1, 2, 3, 4].map((s) => (
+          <div key={s} className="flex items-center gap-2">
+            <div
+              className={cn(
+                "flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold transition-all duration-300",
+                step === s
+                  ? "bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.5)] ring-4 ring-primary/20"
+                  : step > s
+                  ? "bg-primary/80 text-primary-foreground"
+                  : "bg-muted text-muted-foreground"
+              )}
+            >
+              {step > s ? <CheckCircle2 className="h-5 w-5" /> : s}
+            </div>
+            {s < 4 && (
+              <div className={cn("h-1 w-12 rounded-full transition-all duration-300", step > s ? "bg-primary/80" : "bg-muted")} />
             )}
           </div>
+        ))}
+      </div>
 
-          {readyToCreate && (
-            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-900 shadow-sm dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100">
-              <div className="flex items-start gap-3">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-                <div>
-                  <p className="text-sm font-semibold">Ready to create?</p>
-                  <p className="mt-1 text-xs leading-5 opacity-85">
-                    This will create a new active project and add the reviewed tasks and owners. Use the button at the top to confirm.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
-            <h2 className="text-sm font-semibold text-foreground">What happens next</h2>
-            <ol className="mt-3 space-y-3 text-xs text-muted-foreground">
-              <li className="flex gap-2"><span className="font-semibold text-foreground">1.</span> Review the project shell, workstreams, owners, gates, documents, risks, and first tasks.</li>
-              <li className="flex gap-2"><span className="font-semibold text-foreground">2.</span> Confirm creation only after the preview looks right.</li>
-              <li className="flex gap-2"><span className="font-semibold text-foreground">3.</span> Open Command Center so the PM can run the next actions.</li>
-            </ol>
-          </div>
-        </aside>
-      </section>
+      {step === 1 && renderStep1()}
+      {step === 2 && renderStep2()}
+      {step === 3 && renderStep3()}
+      {step === 4 && renderStep4()}
     </div>
   );
 }
+
+// ==== SUBCOMPONENTS ====
 
 function SelectField<T extends string>({
   label,
@@ -776,14 +722,11 @@ function SelectField<T extends string>({
 
   return (
     <Field label={label}>
-      <select value={value} onChange={(event) => onChange(event.target.value as T)} className={inputCls}>
+      <select value={value} onChange={(event) => onChange(event.target.value as T)} className={cn(inputCls, "bg-background/50")} title={selected.example}>
         {options.map((option) => (
           <option key={option.id} value={option.id}>{option.label}</option>
         ))}
       </select>
-      <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
-        Example: {selected.example}
-      </p>
     </Field>
   );
 }
@@ -801,7 +744,7 @@ function ChipGroup<T extends string>({
 }) {
   return (
     <div>
-      <p className="mb-2 text-xs font-semibold text-foreground">{label}</p>
+      <p className="mb-3 text-sm font-semibold text-foreground">{label}</p>
       <div className="flex flex-wrap gap-2">
         {options.map((option) => {
           const active = selected.includes(option.id);
@@ -811,8 +754,8 @@ function ChipGroup<T extends string>({
               type="button"
               onClick={() => onToggle(option.id)}
               className={cn(
-                "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                active ? "border-primary/50 bg-primary/5 text-foreground" : "border-border bg-background text-muted-foreground",
+                "rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200",
+                active ? "border-primary bg-primary/10 text-primary shadow-sm" : "border-border/50 bg-background/50 text-muted-foreground hover:bg-muted"
               )}
               title={option.example}
             >
@@ -827,24 +770,24 @@ function ChipGroup<T extends string>({
 
 function FeasibilityCard({ feasibility }: { feasibility: SetupFeasibility }) {
   const tone = {
-    credible: "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100",
-    compressed: "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100",
-    impossible: "border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-100",
+    credible: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    compressed: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+    impossible: "border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400",
   }[feasibility.status];
 
   return (
-    <div className={cn("rounded-md border p-3 text-xs leading-5", tone)}>
-      <div className="flex items-start gap-2">
-        {feasibility.status === "credible" ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" /> : <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
+    <div className={cn("rounded-2xl border p-6 shadow-xl backdrop-blur-xl", tone)}>
+      <div className="flex items-start gap-4">
+        {feasibility.status === "credible" ? <CheckCircle2 className="mt-1 h-6 w-6 shrink-0" /> : <AlertTriangle className="mt-1 h-6 w-6 shrink-0" />}
         <div>
-          <p className="font-semibold">{feasibility.title}</p>
-          <p className="mt-1 opacity-90">{feasibility.summary}</p>
-          <p className="mt-2 font-medium">
-            {feasibility.plannedDays} planned days · {feasibility.minimumDays} recommended days
+          <p className="text-lg font-bold">{feasibility.title}</p>
+          <p className="mt-1 text-sm opacity-90">{feasibility.summary}</p>
+          <p className="mt-3 text-sm font-medium">
+            <span className="font-bold">{feasibility.plannedDays}</span> planned days · <span className="font-bold">{feasibility.minimumDays}</span> recommended minimum
           </p>
-          <ul className="mt-2 space-y-1 opacity-90">
-            {feasibility.suggestions.slice(0, 2).map((suggestion) => (
-              <li key={suggestion}>• {suggestion}</li>
+          <ul className="mt-3 space-y-2 text-sm opacity-90">
+            {feasibility.suggestions.map((suggestion) => (
+              <li key={suggestion} className="flex items-center gap-2"><div className="h-1.5 w-1.5 rounded-full bg-current opacity-70" /> {suggestion}</li>
             ))}
           </ul>
         </div>
@@ -855,9 +798,9 @@ function FeasibilityCard({ feasibility }: { feasibility: SetupFeasibility }) {
 
 function Metric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-md border border-border bg-background p-3">
-      <p className="text-xl font-bold tabular-nums text-foreground">{value}</p>
-      <p className="text-[11px] text-muted-foreground">{label}</p>
+    <div className="rounded-xl border border-border/50 bg-background/50 p-4 text-center transition-all hover:bg-background">
+      <p className="text-3xl font-black tabular-nums text-foreground">{value}</p>
+      <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
     </div>
   );
 }

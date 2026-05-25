@@ -138,6 +138,8 @@ Primary options:
 - Open readiness gates
 - Open plan
 
+Persistent navigation for this state should not include setup as a main item. Setup is an entry-state journey for no-project or not-run-ready projects. Once a project exists, create/import belongs under the project switcher or command palette, not beside daily execution.
+
 ### Entry State D: Run-Ready Project, Workstream Lead
 
 **First page:** My Workstream
@@ -648,4 +650,3 @@ Before implementation, ask Claude Design or another design reviewer:
 - Does the board transparency flow feel credible?
 - Which screens should be merged, hidden, or renamed?
 - Does the Command Center feel like a briefing or a dashboard dump?
-

@@ -13,23 +13,23 @@ import { useProject } from "@/components/projects/project-provider";
 import { useState } from "react";
 
 const routeLabels: Record<string, string> = {
-  "/":           "Command Center",
-  "/truth":      "Delivery Truth",
-  "/setup":      "Guided Setup",
+  "/":           "SteerCo Brief",
+  "/truth":      "Delivery Signals",
+  "/setup":      "Project Setup",
   "/worklist":   "Worklist",
   "/plan":       "Plan",
   "/governance": "Governance",
-  "/readiness":  "Readiness",
+  "/readiness":  "Readiness Gates",
   "/my-items":   "My Items",
   "/projects":   "Projects",
   "/milestones": "Milestones",
   "/tasks":      "Tasks",
   "/risks":      "Risks",
   "/costs":      "Costs",
-  "/resources":  "Resources",
+  "/resources":  "People & Meetings",
   "/documents":  "Documents",
   "/reports":    "Reports",
-  "/settings":   "Project Rules",
+  "/settings":   "Rules & Settings",
 };
 
 export function Topbar() {

@@ -53,6 +53,14 @@ After app changes, commits, pushes, or deploy-related work, always provide Vinee
 
 When a thread becomes long or product direction feels unclear, use `v2/docs/CONTEXT_RESET_PLAYBOOK.md`, `v2/docs/NEXT_CHAT_PROMPT.md`, and `v2/docs/PRODUCT_DECISION_CHECKLIST.md` before continuing. Prefer strategy mode before more implementation when the user questions usefulness or sellability.
 
+### ADR-8: Sidebar Is For Run-Ready Navigation
+
+The persistent left navigation is for running an existing project, not for every possible setup state. Do not keep `Project Setup` / create/import actions as primary sidebar items once a project exists. Put create/import under the project switcher and command palette, while the main nav leads with `SteerCo Brief`, `Delivery Signals`, work execution, control, and records.
+
+### ADR-9: Read Local Server Registry Before Preview Work
+
+Before starting/stopping local servers or giving Vineet a test link, read `v2/docs/LOCAL_SERVER_REGISTRY.md`. Use port `3000` as the canonical local preview for this repo unless that file is updated. Do not hand off `3001` unless it has been freshly verified, because stale Next dev servers on `3001` have previously served raw/unstyled HTML or broken assets.
+
 ## 4. Current Module And Next Module
 
 ### Current Module: M6.4 - SteerCo Readiness Brief

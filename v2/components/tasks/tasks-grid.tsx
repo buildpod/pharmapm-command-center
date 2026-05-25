@@ -144,7 +144,11 @@ function ProgressBar({ value, status }: { value: number; status: TaskStatus }) {
 // ─── Task row ─────────────────────────────────────────────────────────────────
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+  const date = new Date(iso);
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const d = date.getDate().toString().padStart(2, "0");
+  const m = months[date.getMonth()];
+  return `${d} ${m}`;
 }
 
 function TaskRow({
