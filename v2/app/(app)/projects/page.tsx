@@ -3,11 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Plus, Check, ExternalLink, Trash2 } from "lucide-react";
+import { Plus, Check, ExternalLink, Trash2, Save } from "lucide-react";
 import { useProject } from "@/components/projects/project-provider";
 import { ExportButton } from "@/components/projects/export-button";
 import { Field, inputCls, ConfirmDelete } from "@/components/ui/entity-drawer";
 import { useEntityStore } from "@/lib/stores/entity-store";
+import { buildCustomProjectTemplate, saveCustomProjectTemplate } from "@/lib/templates/custom-project-templates";
 import { isIsoDate, inProjectRange, PROJECT_DATE_MIN, PROJECT_DATE_MAX } from "@/lib/validation";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +34,9 @@ export default function ProjectsPage() {
   const replaceAllCharters = useEntityStore((s) => s.replaceAllCharters);
   const [showForm, setShowForm] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [templateSourceId, setTemplateSourceId] = useState<string | null>(null);
+  const [templateName, setTemplateName] = useState("");
+  const [templateDescription, setTemplateDescription] = useState("");
 
   // Form state
   const [name, setName]                 = useState("");
@@ -88,6 +92,38 @@ export default function ProjectsPage() {
     deleteProject(id);
     toast.success("Project deleted", { description: target?.name });
     setConfirmDeleteId(null);
+  }
+
+  function startTemplateSave(id: string) {
+    const target = projects.find((p) => p.id === id);
+    if (!target) return;
+    setTemplateSourceId(id);
+    setTemplateName(`${target.name} release template`);
+    setTemplateDescription(`Reusable workstream, governance, and control model from ${target.name}.`);
+  }
+
+  function handleSaveTemplate(id: string) {
+    const target = projects.find((p) => p.id === id);
+    if (!target) return;
+    const template = buildCustomProjectTemplate({
+      project: target,
+      templateName,
+      description: templateDescription,
+      milestones,
+      tasks,
+      documents,
+      risks,
+      costLines,
+      teamMembers,
+      charter: charters.find((item) => item.projectId === id),
+    });
+    saveCustomProjectTemplate(template);
+    toast.success("Template saved", {
+      description: `${template.coverage.tasks} tasks, ${template.coverage.milestones} milestones, and ${template.coverage.workstreams.length} workstreams are reusable in setup.`,
+    });
+    setTemplateSourceId(null);
+    setTemplateName("");
+    setTemplateDescription("");
   }
 
   return (
@@ -185,59 +221,92 @@ export default function ProjectsPage() {
                   onCancel={() => setConfirmDeleteId(null)}
                 />
               ) : (
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-base font-semibold text-foreground">{p.name}</h3>
-                      <span className="rounded-full border border-border bg-muted px-2 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground">
-                        {p.code ?? p.id}
-                      </span>
-                      {isActive && (
-                        <span className="flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                          <Check className="h-3 w-3" /> Active
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-base font-semibold text-foreground">{p.name}</h3>
+                        <span className="rounded-full border border-border bg-muted px-2 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground">
+                          {p.code ?? p.id}
                         </span>
-                      )}
+                        {isActive && (
+                          <span className="flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                            <Check className="h-3 w-3" /> Active
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {p.client} · {p.phase} · {p.methodology}
+                      </p>
+                      <p className="text-xs text-muted-foreground tabular-nums">
+                        Start <span className="font-medium text-foreground">{p.startDate}</span>
+                        <span className="mx-2">→</span>
+                        Go-live <span className="font-medium text-foreground">{p.goLiveDate}</span>
+                      </p>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {p.client} · {p.phase} · {p.methodology}
-                    </p>
-                    <p className="text-xs text-muted-foreground tabular-nums">
-                      Start <span className="font-medium text-foreground">{p.startDate}</span>
-                      <span className="mx-2">→</span>
-                      Go-live <span className="font-medium text-foreground">{p.goLiveDate}</span>
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 gap-2">
-                    <ExportButton project={p} variant="compact" />
-                    {!isActive && (
+                    <div className="flex shrink-0 flex-wrap gap-2">
+                      <ExportButton project={p} variant="compact" />
                       <button
-                        onClick={() => {
-                          setActiveProjectId(p.id);
-                          toast.success("Switched project", { description: p.name });
-                        }}
+                        onClick={() => startTemplateSave(p.id)}
                         className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
                       >
-                        Switch to
+                        <Save className="mr-1 inline h-3 w-3" />
+                        Save as template
                       </button>
-                    )}
-                    <Link
-                      href="/"
-                      onClick={() => setActiveProjectId(p.id)}
-                      className="flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
-                    >
-                      Open <ExternalLink className="h-3 w-3" />
-                    </Link>
-                    {projects.length > 1 && (
-                      <button
-                        onClick={() => setConfirmDeleteId(p.id)}
-                        className="flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/30"
-                        title="Delete project"
+                      {!isActive && (
+                        <button
+                          onClick={() => {
+                            setActiveProjectId(p.id);
+                            toast.success("Switched project", { description: p.name });
+                          }}
+                          className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
+                        >
+                          Switch to
+                        </button>
+                      )}
+                      <Link
+                        href="/"
+                        onClick={() => setActiveProjectId(p.id)}
+                        className="flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        Delete
-                      </button>
-                    )}
+                        Open <ExternalLink className="h-3 w-3" />
+                      </Link>
+                      {projects.length > 1 && (
+                        <button
+                          onClick={() => setConfirmDeleteId(p.id)}
+                          className="flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/30"
+                          title="Delete project"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Delete
+                        </button>
+                      )}
+                    </div>
                   </div>
+                  {templateSourceId === p.id && (
+                    <div className="rounded-lg border border-primary/25 bg-primary/5 p-4">
+                      <p className="text-sm font-semibold text-foreground">Save reusable project template</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Reuse this project&apos;s workstreams, milestones, tasks, risks, documents, costs, and team roles for future releases or rollouts.
+                      </p>
+                      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <Field label="Template name" required>
+                          <input value={templateName} onChange={(event) => setTemplateName(event.target.value)} className={inputCls} />
+                        </Field>
+                        <Field label="Description">
+                          <input value={templateDescription} onChange={(event) => setTemplateDescription(event.target.value)} className={inputCls} />
+                        </Field>
+                      </div>
+                      <div className="mt-4 flex justify-end gap-2">
+                        <button onClick={() => setTemplateSourceId(null)} className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted">
+                          Cancel
+                        </button>
+                        <button onClick={() => handleSaveTemplate(p.id)} className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90">
+                          Save template
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

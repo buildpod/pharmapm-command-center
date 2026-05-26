@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -9,6 +10,7 @@ import {
   CheckCircle2,
   ClipboardList,
   FileSpreadsheet,
+  Library,
   Loader2,
   Sparkles,
   Upload,
@@ -33,6 +35,12 @@ import {
   type ProjectTemplateId,
 } from "@/lib/templates/project-templates";
 import {
+  loadCustomProjectTemplates,
+  instantiateCustomProjectTemplate,
+  type CustomProjectTemplate,
+  type CustomTemplateOperatingModel,
+} from "@/lib/templates/custom-project-templates";
+import {
   INDUSTRY_OPTIONS,
   OWNERSHIP_OPTIONS,
   PROJECT_TYPE_OPTIONS,
@@ -51,7 +59,7 @@ import {
 } from "@/lib/setup/project-intake";
 import { isIsoDate } from "@/lib/validation";
 
-type SetupMode = "template" | "import" | "blank";
+type SetupMode = "template" | "import" | "saved" | "blank";
 type ImportSource = "planner" | "project" | "excel" | "manual";
 
 const SAMPLE_IMPORT = `ID,Task Name,Workstream,Start,Finish,Resource Names,Priority,% Complete,Predecessors
@@ -90,6 +98,12 @@ const modeCards = [
     icon: FileSpreadsheet,
   },
   {
+    id: "saved" as const,
+    title: "Build from saved template",
+    description: "Reuse a proven project model for a release, rollout, or repeat delivery.",
+    icon: Library,
+  },
+  {
     id: "blank" as const,
     title: "Start base skeleton",
     description: "Create only the command center shell.",
@@ -113,6 +127,9 @@ export default function GuidedSetupPage() {
   const [mode, setMode] = useState<SetupMode>("template");
   const [templateId, setTemplateId] = useState<ProjectTemplateId>("veeva-rim");
   const selectedTemplate = getProjectTemplate(templateId);
+  const [customTemplates, setCustomTemplates] = useState<CustomProjectTemplate[]>([]);
+  const [customTemplateId, setCustomTemplateId] = useState("");
+  const selectedCustomTemplate = customTemplates.find((template) => template.id === customTemplateId) ?? null;
   const [name, setName] = useState(selectedTemplate.recommendedName);
   const [client, setClient] = useState("AivelloStudio Demo Corp");
   const [projectCode, setProjectCode] = useState(() => buildProjectCode(selectedTemplate.recommendedName, "AivelloStudio Demo Corp", "2026-06-01"));
@@ -127,8 +144,14 @@ export default function GuidedSetupPage() {
   const [importError, setImportError] = useState<string | null>(null);
   const [isReadingFile, setIsReadingFile] = useState(false);
 
+  useEffect(() => {
+    const templates = loadCustomProjectTemplates();
+    setCustomTemplates(templates);
+    setCustomTemplateId((current) => current || templates[0]?.id || "");
+  }, []);
+
   const preview = useMemo<ImportPreview | null>(() => {
-    if (mode === "blank") return null;
+    if (mode === "blank" || mode === "saved") return null;
     try {
       const records = parseDelimitedTable(mode === "template" ? TEMPLATE_IMPORT : importText);
       return buildImportPreview(records, {
@@ -153,6 +176,20 @@ export default function GuidedSetupPage() {
         })
       : null
   ), [client, goLiveDate, methodology, mode, name, startDate, templateId]);
+
+  const customTemplateModel = useMemo<CustomTemplateOperatingModel | null>(() => (
+    mode === "saved" && selectedCustomTemplate
+      ? instantiateCustomProjectTemplate({
+          template: selectedCustomTemplate,
+          projectId: "preview-project",
+          projectName: name,
+          client,
+          startDate,
+          goLiveDate,
+          methodology,
+        })
+      : null
+  ), [client, goLiveDate, methodology, mode, name, selectedCustomTemplate, startDate]);
 
   const feasibility = useMemo(
     () => evaluateSetupFeasibility(intake, startDate, goLiveDate),
@@ -288,7 +325,10 @@ export default function GuidedSetupPage() {
     if (mode === "template" && feasibility.status === "impossible") {
       return "Timeline is not credible for this setup. Change project type, scope, or dates before creating it.";
     }
-    if (mode !== "blank" && (!preview || preview.tasks.length === 0)) {
+    if (mode === "saved" && !selectedCustomTemplate) {
+      return "Choose a saved project template before creating the setup.";
+    }
+    if (mode === "import" && (!preview || preview.tasks.length === 0)) {
       return "No tasks are ready to import. Paste a task table or choose the guided template.";
     }
     if (mode === "import" && preview && preview.stats.unresolvedDependencies > 0) {
@@ -333,6 +373,26 @@ export default function GuidedSetupPage() {
       model.costLines.forEach((line) => addCostLine(line, { source: "import", note: `${model.template.name} setup` }));
       toast.success("Project operating model created", {
         description: `${model.tasks.length} tasks, ${model.milestones.length} milestones, ${model.documents.length} documents, and ${model.risks.length} risks prepared.`,
+      });
+    } else if (mode === "saved" && selectedCustomTemplate) {
+      const model = instantiateCustomProjectTemplate({
+        template: selectedCustomTemplate,
+        projectId: created.id,
+        projectName: created.name,
+        client: created.client,
+        startDate: created.startDate,
+        goLiveDate: created.goLiveDate,
+        methodology: created.methodology,
+      });
+      if (model.charter) addCharter(model.charter, { source: "import", note: `${model.template.name} saved template` });
+      model.milestones.forEach((milestone) => addMilestone(milestone, { source: "import", note: `${model.template.name} saved template` }));
+      model.teamMembers.forEach((member) => addTeamMember(member, { source: "import", note: `${model.template.name} saved template` }));
+      model.tasks.forEach((task) => addTask(task, { source: "import", note: `${model.template.name} saved template` }));
+      model.documents.forEach((document) => addDocument(document, { source: "import", note: `${model.template.name} saved template` }));
+      model.risks.forEach((risk) => addRisk(risk, { source: "import", note: `${model.template.name} saved template` }));
+      model.costLines.forEach((line) => addCostLine(line, { source: "import", note: `${model.template.name} saved template` }));
+      toast.success("Project created from saved template", {
+        description: `${model.tasks.length} tasks, ${model.milestones.length} milestones, and ${model.teamMembers.length} roles reused.`,
       });
     } else if (preview && preview.tasks.length > 0) {
       const teamMembers = previewOwnersToTeamMembers(created.id, preview);
@@ -524,6 +584,14 @@ export default function GuidedSetupPage() {
                 if (mode === "template") {
                   selectTemplate(recommendTemplateId(intake));
                 }
+                if (mode === "saved" && customTemplates.length === 0) {
+                  toast.error("No saved templates yet", { description: "Save an existing project as a template from Manage Projects first." });
+                  return;
+                }
+                if (mode === "saved" && selectedCustomTemplate) {
+                  setPhase(selectedCustomTemplate.recommendedPhase);
+                  setMethodology(selectedCustomTemplate.recommendedMethodology);
+                }
                 setStep(3);
               }
             }}
@@ -541,10 +609,14 @@ export default function GuidedSetupPage() {
       <div className="mx-auto max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="mb-8 text-center">
           <h2 className="text-3xl font-bold tracking-tight text-foreground">
-            {mode === "template" ? "Template Recommendation" : "Import & Map Existing Plan"}
+            {mode === "template" ? "Template Recommendation" : mode === "saved" ? "Saved Project Template" : "Import & Map Existing Plan"}
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            {mode === "template" ? "Discovery selects the first recommendation. You can change it before review." : "Convert an existing plan into command-center tasks, owners, workstreams, and links."}
+            {mode === "template"
+              ? "Discovery selects the first recommendation. You can change it before review."
+              : mode === "saved"
+              ? "Reuse a project model your team already trusts, with fresh dates and reset progress."
+              : "Convert an existing plan into command-center tasks, owners, workstreams, and links."}
           </p>
         </div>
 
@@ -626,6 +698,104 @@ export default function GuidedSetupPage() {
                   </div>
                 </div>
               </details>
+            </div>
+          )}
+
+          {mode === "saved" && (
+            <div className="space-y-6">
+              {customTemplates.length === 0 ? (
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-5">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">No saved templates yet</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Open Manage Projects, choose a finished or trusted project, then save its operating model as a reusable template.
+                      </p>
+                      <Link href="/projects" className="mt-4 inline-flex rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted">
+                        Manage Projects
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <Field label="Saved template">
+                    <select
+                      value={customTemplateId}
+                      onChange={(event) => {
+                        const nextId = event.target.value;
+                        const nextTemplate = customTemplates.find((template) => template.id === nextId);
+                        setCustomTemplateId(nextId);
+                        if (nextTemplate) {
+                          setPhase(nextTemplate.recommendedPhase);
+                          setMethodology(nextTemplate.recommendedMethodology);
+                        }
+                      }}
+                      className={cn(inputCls, "bg-background/50 text-base py-2")}
+                    >
+                      {customTemplates.map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  {selectedCustomTemplate && (
+                    <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wider text-primary">Saved from {selectedCustomTemplate.sourceProjectName}</p>
+                          <p className="mt-1 text-lg font-bold text-foreground">{selectedCustomTemplate.name}</p>
+                          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{selectedCustomTemplate.description}</p>
+                        </div>
+                        <Library className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">{selectedCustomTemplate.coverage.workstreams.length} streams</span>
+                        <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">{selectedCustomTemplate.coverage.tasks} tasks</span>
+                        <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">{selectedCustomTemplate.coverage.milestones} milestones</span>
+                        <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">{selectedCustomTemplate.coverage.documents} docs</span>
+                        <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">{selectedCustomTemplate.coverage.risks} risks</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="rounded-xl border border-border/50 bg-background/40 p-5">
+                    <p className="text-sm font-semibold text-foreground">Release reuse behavior</p>
+                    <div className="mt-3 grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
+                      <div className="rounded-lg border border-border/60 bg-card p-3">
+                        <p className="font-semibold text-foreground">Dates shift</p>
+                        <p className="mt-1 text-muted-foreground">Milestones, tasks, and documents move from the saved baseline to your new start date.</p>
+                      </div>
+                      <div className="rounded-lg border border-border/60 bg-card p-3">
+                        <p className="font-semibold text-foreground">Work resets</p>
+                        <p className="mt-1 text-muted-foreground">Task progress returns to 0%, documents return to draft, and risks reopen.</p>
+                      </div>
+                      <div className="rounded-lg border border-border/60 bg-card p-3">
+                        <p className="font-semibold text-foreground">Structure stays</p>
+                        <p className="mt-1 text-muted-foreground">Workstreams, owners, dependencies, costs, and governance model are reused.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {customTemplateModel && (
+                    <div className="rounded-xl border border-border/50 bg-background/50 p-5">
+                      <p className="text-sm font-semibold text-foreground">Template preview for this project</p>
+                      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+                        <Metric label="Tasks" value={customTemplateModel.tasks.length} />
+                        <Metric label="Owners" value={customTemplateModel.teamMembers.length} />
+                        <Metric label="Docs" value={customTemplateModel.documents.length} />
+                        <Metric label="Risks" value={customTemplateModel.risks.length} />
+                      </div>
+                      <p className="mt-4 text-xs text-muted-foreground">
+                        Source baseline starts {selectedCustomTemplate?.sourceStartDate}; this project starts {startDate}. Dates will be shifted automatically.
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 
@@ -786,6 +956,11 @@ export default function GuidedSetupPage() {
   }
 
   function renderStep4() {
+    const summaryTasks = templateModel?.tasks.length ?? customTemplateModel?.tasks.length ?? preview?.stats.importedTasks ?? 0;
+    const summaryMilestones = templateModel?.milestones.length ?? customTemplateModel?.milestones.length ?? 0;
+    const summaryOwners = templateModel?.teamMembers.length ?? customTemplateModel?.teamMembers.length ?? preview?.owners.length ?? 0;
+    const summaryRisks = templateModel?.risks.length ?? customTemplateModel?.risks.length ?? 0;
+
     return (
       <div className="mx-auto max-w-3xl animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="mb-8 text-center">
@@ -822,13 +997,22 @@ export default function GuidedSetupPage() {
 
           {mode === "template" && <FeasibilityCard feasibility={feasibility} onRevisitTimeline={() => setStep(1)} />}
 
+          {mode === "saved" && selectedCustomTemplate && (
+            <div className="rounded-2xl border border-border/50 bg-card/40 p-6 shadow-xl backdrop-blur-xl">
+              <h3 className="text-lg font-semibold text-foreground">Saved Template Reuse</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {selectedCustomTemplate.name} will be reused from {selectedCustomTemplate.sourceProjectName}. Work status resets, dependency links are rebuilt, and dates shift from {selectedCustomTemplate.sourceStartDate} to {startDate}.
+              </p>
+            </div>
+          )}
+
           <div className="rounded-2xl border border-border/50 bg-card/40 p-6 shadow-xl backdrop-blur-xl">
             <h3 className="text-lg font-semibold text-foreground">Generation Summary</h3>
             <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <Metric label="Tasks" value={templateModel ? templateModel.tasks.length : preview?.stats.importedTasks ?? 0} />
-              <Metric label="Milestones" value={templateModel ? templateModel.milestones.length : 0} />
-              <Metric label="Owners" value={templateModel ? templateModel.teamMembers.length : preview?.owners.length ?? 0} />
-              <Metric label="Risks" value={templateModel ? templateModel.risks.length : 0} />
+              <Metric label="Tasks" value={summaryTasks} />
+              <Metric label="Milestones" value={summaryMilestones} />
+              <Metric label="Owners" value={summaryOwners} />
+              <Metric label="Risks" value={summaryRisks} />
             </div>
           </div>
         </div>

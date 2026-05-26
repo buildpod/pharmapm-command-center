@@ -32,7 +32,7 @@ http://localhost:3000/pharmapm-command-center/v2/setup/
 | App shell, sidebar, topbar | `v2/app/(app)/layout.tsx`, `v2/components/sidebar.tsx`, `v2/components/topbar.tsx` |
 | Project switcher/provider | `v2/components/projects/project-provider.tsx`, `v2/components/projects/project-switcher.tsx` |
 | Project setup wizard | `v2/app/(app)/setup/page.tsx` |
-| Project templates | `v2/lib/templates/project-templates.ts` |
+| Project templates | `v2/lib/templates/project-templates.ts`, `v2/lib/templates/custom-project-templates.ts` |
 | Discovery and feasibility logic | `v2/lib/setup/project-intake.ts` |
 | Import parser and migration preview | `v2/lib/import/project-import.ts`, `v2/lib/import/project-import.test.ts` |
 | Project management page | `v2/app/(app)/projects/page.tsx` |
@@ -54,11 +54,21 @@ http://localhost:3000/pharmapm-command-center/v2/setup/
 
 Important state:
 
-- `mode`: `template`, `import`, or `blank`
+- `mode`: `template`, `import`, `saved`, or `blank`
 - `templateId`: selected template
+- `customTemplateId`: saved project template selected for release/reuse creation
 - `projectCode`: user-visible identifier; internal `Project.id` still links records
 - `intake`: discovery answers used for template recommendation and feasibility
 - `preview`: import preview built from CSV/Excel records
+
+## Saved Project Templates
+
+`v2/lib/templates/custom-project-templates.ts` stores reusable project templates in browser localStorage under `aivello_custom_project_templates_v1`.
+
+- Manage Projects can save an existing project as a reusable template.
+- Setup can build from a saved template for operational releases, rollouts, or repeat delivery.
+- Instantiation resets task progress, document approvals, risk status, and actual costs while preserving workstreams, dependencies, milestones, owners, documents, risks, and cost structure.
+- Unit tests live in `v2/lib/templates/custom-project-templates.test.ts`.
 
 ## Import Rules
 

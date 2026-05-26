@@ -81,10 +81,10 @@ For this repo, do not run `next build` and keep using an already-running dev ser
 
 ## Current Known State
 
-Last checked: 2026-05-24 (Next.js build cache cleared).
+Last checked: 2026-05-26 (Next.js build cache cleared, fresh dev server running on port 3000).
 
-- `3000` is the intended local test port for this project.
+- `3000` is the intended local test port for this project. Current verified listener during this session: `node` PID `40082`.
 - `3001` should be considered stale unless freshly started and verified.
 - The GitHub Pages base path is `/pharmapm-command-center/v2`.
 - Do not use `/setup/` or `/tasks/` without the base path for this app.
-- Next.js build cache was successfully cleared today to resolve stale rendering.
+- Next.js build cache was successfully cleared today before browser verification.
