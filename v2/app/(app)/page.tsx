@@ -16,24 +16,16 @@ import { Sparkline } from "@/components/dashboard/sparkline";
 import { ProjectHealth } from "@/components/dashboard/project-health";
 import { CharterCard } from "@/components/dashboard/charter-card";
 import { useProject } from "@/components/projects/project-provider";
+import { StatusPill } from "@/components/ui/status-pill";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { cn } from "@/lib/utils";
+import { avatarColor } from "@/lib/ui/avatar-color";
 import { buildSteerCoBrief, type SteerCoTone } from "@/lib/domain/steerco-brief";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-// Per-person avatar color (Linear/Notion pattern)
-const AVATAR_COLORS = [
-  "bg-rose-500", "bg-orange-500", "bg-amber-500", "bg-emerald-500", "bg-teal-500",
-  "bg-cyan-500", "bg-blue-500", "bg-indigo-500", "bg-violet-500", "bg-fuchsia-500", "bg-pink-500",
-];
-function avatarColor(initials: string) {
-  const hash = initials.split("").reduce((s, c) => s + c.charCodeAt(0), 0);
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
 }
 
 const statusIcon = {
@@ -362,14 +354,6 @@ const briefTone: Record<SteerCoTone, string> = {
   slate: "border-border bg-muted/30 text-muted-foreground",
 };
 
-const briefPill: Record<SteerCoTone, string> = {
-  rose: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/25 dark:text-rose-100",
-  amber: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-100",
-  blue: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/25 dark:text-blue-100",
-  emerald: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/25 dark:text-emerald-100",
-  slate: "border-border bg-muted/30 text-muted-foreground",
-};
-
 function BriefMetric({
   label,
   value,
@@ -466,9 +450,7 @@ export default function DashboardPage() {
             {brief.decisions.map((decision) => (
               <Link key={decision.id} href={decision.href} className="group block px-4 py-3 transition-colors hover:bg-muted/30">
                 <div className="flex items-start gap-3">
-                  <span className={cn("mt-0.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold", briefPill[decision.tone])}>
-                    {decision.owner}
-                  </span>
+                  <span className="mt-0.5"><StatusPill tone={decision.tone}>{decision.owner}</StatusPill></span>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold leading-5 text-foreground group-hover:text-primary">{decision.title}</p>
                     <p className="mt-1 text-xs leading-5 text-muted-foreground">{decision.summary}</p>
@@ -503,9 +485,7 @@ export default function DashboardPage() {
               <Link key={action.id} href={action.href} className="group grid gap-2 px-4 py-3 transition-colors hover:bg-muted/30 sm:grid-cols-[1fr_auto]">
                 <div>
                   <div className="flex items-start gap-2">
-                    <span className={cn("mt-0.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold", briefPill[action.tone])}>
-                      {action.owner}
-                    </span>
+                    <span className="mt-0.5"><StatusPill tone={action.tone}>{action.owner}</StatusPill></span>
                     <p className="text-sm font-semibold leading-5 text-foreground group-hover:text-primary">{action.title}</p>
                   </div>
                   <p className="mt-1 text-xs leading-5 text-muted-foreground">{action.detail}</p>
@@ -532,9 +512,7 @@ export default function DashboardPage() {
               <Link key={item.id} href={item.href} className="group grid gap-2 px-4 py-3 transition-colors hover:bg-muted/30 sm:grid-cols-[1fr_auto]">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase", briefPill[item.tone])}>
-                      {item.sourceType}
-                    </span>
+                    <StatusPill tone={item.tone}>{item.sourceType}</StatusPill>
                     <p className="text-sm font-semibold leading-5 text-foreground group-hover:text-primary">{item.label}</p>
                   </div>
                   <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.reason}</p>
@@ -590,9 +568,9 @@ export default function DashboardPage() {
                   <td className="px-4 py-3 tabular-nums text-muted-foreground">{workstream.criticalOpen}</td>
                   <td className="px-4 py-3 text-muted-foreground">{workstream.nextDueDate ? formatDate(workstream.nextDueDate) : "No open work"}</td>
                   <td className="px-4 py-3">
-                    <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold", briefPill[workstream.tone])}>
+                    <StatusPill tone={workstream.tone}>
                       {workstream.tone === "rose" ? "Blocked" : workstream.tone === "amber" ? "Pressure" : workstream.tone === "emerald" ? "Stable" : "Active"}
-                    </span>
+                    </StatusPill>
                   </td>
                 </tr>
               ))}

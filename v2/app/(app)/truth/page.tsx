@@ -16,42 +16,13 @@ import {
 import { useMemo } from "react";
 import { useProject } from "@/components/projects/project-provider";
 import { Badge } from "@/components/ui/badge";
+import { StatusPill, statusToneClasses } from "@/components/ui/status-pill";
 import { calculateDeliveryTruth, type DeliveryTruthSignal, type DeliveryTruthTone } from "@/lib/domain/delivery-truth";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { cn } from "@/lib/utils";
 
 function formatDate(iso: string) {
   return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-function toneClasses(tone: DeliveryTruthTone) {
-  return {
-    rose: "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200",
-    amber: "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200",
-    blue: "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-200",
-    emerald: "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200",
-    slate: "border-border bg-card text-foreground",
-  }[tone];
-}
-
-function panelToneClasses(tone: DeliveryTruthTone) {
-  return {
-    rose: "border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-900/60 dark:bg-rose-950/25 dark:text-rose-100",
-    amber: "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-100",
-    blue: "border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/25 dark:text-blue-100",
-    emerald: "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/25 dark:text-emerald-100",
-    slate: "border-border bg-card text-foreground",
-  }[tone];
-}
-
-function metricBoxClasses(tone: DeliveryTruthTone) {
-  return {
-    rose: "border-rose-200 bg-white/70 dark:border-rose-800/70 dark:bg-rose-950/40",
-    amber: "border-amber-200 bg-white/70 dark:border-amber-800/70 dark:bg-amber-950/40",
-    blue: "border-blue-200 bg-white/70 dark:border-blue-800/70 dark:bg-blue-950/40",
-    emerald: "border-emerald-200 bg-white/70 dark:border-emerald-800/70 dark:bg-emerald-950/40",
-    slate: "border-border bg-background",
-  }[tone];
 }
 
 function bandTone(score: number, ready: boolean): DeliveryTruthTone {
@@ -129,7 +100,7 @@ export default function DeliveryTruthPage() {
       </header>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-        <div className={cn("rounded-xl border p-5 shadow-sm", panelToneClasses(confidenceTone))}>
+        <div className={cn("rounded-xl border p-5 shadow-sm", statusToneClasses[confidenceTone].panel)}>
           <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider opacity-75">Is the promise still credible?</p>
@@ -156,21 +127,21 @@ export default function DeliveryTruthPage() {
               )}
             </div>
             <div className="grid grid-cols-2 gap-3 text-sm md:w-80">
-              <div className={cn("rounded-lg border p-3", metricBoxClasses(confidenceTone))}>
+              <div className={cn("rounded-lg border p-3", statusToneClasses[confidenceTone].metric)}>
                 <p className="text-[11px] font-semibold uppercase tracking-wide opacity-70">Target</p>
                 <p className="mt-1 font-semibold">{formatDate(truth.targetDate)}</p>
               </div>
-              <div className={cn("rounded-lg border p-3", metricBoxClasses(confidenceTone))}>
+              <div className={cn("rounded-lg border p-3", statusToneClasses[confidenceTone].metric)}>
                 <p className="text-[11px] font-semibold uppercase tracking-wide opacity-70">Forecast</p>
                 <p className="mt-1 font-semibold">{truth.coverage.isReady ? formatDate(truth.forecastDate) : "Needs plan"}</p>
               </div>
-              <div className={cn("rounded-lg border p-3", metricBoxClasses(confidenceTone))}>
+              <div className={cn("rounded-lg border p-3", statusToneClasses[confidenceTone].metric)}>
                 <p className="text-[11px] font-semibold uppercase tracking-wide opacity-70">Schedule delta</p>
                 <p className="mt-1 font-semibold">
                   {!truth.coverage.isReady ? "Needs milestones" : truth.scheduleDeltaDays > 0 ? `+${truth.scheduleDeltaDays} days` : truth.scheduleDeltaDays === 0 ? "On target" : `${truth.scheduleDeltaDays} days`}
                 </p>
               </div>
-              <div className={cn("rounded-lg border p-3", metricBoxClasses(confidenceTone))}>
+              <div className={cn("rounded-lg border p-3", statusToneClasses[confidenceTone].metric)}>
                 <p className="text-[11px] font-semibold uppercase tracking-wide opacity-70">Budget used</p>
                 <p className="mt-1 font-semibold">{truth.coverage.isReady ? `${truth.budget.burnPct}%` : "Needs budget"}</p>
               </div>
@@ -185,7 +156,7 @@ export default function DeliveryTruthPage() {
           </div>
           <div className="mt-4 space-y-3">
             {truth.decisionOptions.map((option) => (
-              <div key={option.id} className={cn("rounded-lg border p-3", toneClasses(option.tone))}>
+              <div key={option.id} className={cn("rounded-lg border p-3", statusToneClasses[option.tone].pill)}>
                 <div className="flex items-start justify-between gap-3">
                   <p className="text-sm font-semibold">{option.title}</p>
                   <Badge variant="outline" className="shrink-0 border-current/25 bg-background/70 text-[10px]">
@@ -268,13 +239,13 @@ export default function DeliveryTruthPage() {
                 <article key={signal.id} className="px-5 py-4">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="flex gap-3">
-                      <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border", toneClasses(signal.tone))}>
+                      <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border", statusToneClasses[signal.tone].pill)}>
                         <Icon className="h-4 w-4" />
                       </div>
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <h2 className="text-sm font-semibold text-foreground">{signal.title}</h2>
-                          <Badge variant="outline" className="text-[10px] capitalize">{signal.severity}</Badge>
+                          <StatusPill tone={signal.tone}>{signal.severity}</StatusPill>
                           {signal.metric && (
                             <Badge variant="secondary" className="text-[10px]">
                               {signal.metric.label}: {signal.metric.value}

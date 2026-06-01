@@ -6,8 +6,10 @@ import { AlertTriangle, Shield, CheckCircle2, ArrowUpRight, Plus } from "lucide-
 import { type Risk, type RiskStatus } from "@/lib/mockData";
 import { RiskFormDrawer } from "./risk-form";
 import { useProject } from "@/components/projects/project-provider";
+import { StatusPill, statusToneClasses, type StatusTone } from "@/components/ui/status-pill";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { cn } from "@/lib/utils";
+import { avatarColor } from "@/lib/ui/avatar-color";
 
 // ─── Score bands (from v1 config/rules.js) ───────────────────────────────────
 
@@ -19,16 +21,22 @@ function scoreBand(score: number): Band {
   return "low";
 }
 
-const bandStyles: Record<Band, { pill: string; dot: string; ring: string; label: string }> = {
-  high:   { pill: "bg-rose-50 text-rose-700 border-rose-200",        dot: "bg-rose-500",    ring: "ring-rose-300",    label: "High"   },
-  medium: { pill: "bg-amber-50 text-amber-700 border-amber-200",     dot: "bg-amber-500",   ring: "ring-amber-300",   label: "Medium" },
-  low:    { pill: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500", ring: "ring-emerald-300", label: "Low"   },
+const bandTone: Record<Band, StatusTone> = {
+  high: "rose",
+  medium: "amber",
+  low: "emerald",
 };
 
-const statusBadge: Record<RiskStatus, string> = {
-  open:      "bg-rose-50 text-rose-700 border-rose-200",
-  mitigated: "bg-blue-50 text-blue-700 border-blue-200",
-  closed:    "bg-slate-100 text-slate-600 border-slate-200",
+const bandLabel: Record<Band, string> = {
+  high: "High",
+  medium: "Medium",
+  low: "Low",
+};
+
+const statusTone: Record<RiskStatus, StatusTone> = {
+  open: "rose",
+  mitigated: "blue",
+  closed: "slate",
 };
 
 const statusIcon: Record<RiskStatus, typeof AlertTriangle> = {
@@ -88,8 +96,8 @@ function RiskMatrix({
       {/* Band summary */}
       <div className="mb-5 grid grid-cols-3 gap-2">
         {(["high", "medium", "low"] as const).map((b) => (
-          <div key={b} className={cn("rounded-lg border px-3 py-2", bandStyles[b].pill)}>
-            <p className="text-[10px] font-semibold uppercase tracking-wider opacity-80">{bandStyles[b].label}</p>
+          <div key={b} className={cn("rounded-lg border px-3 py-2", statusToneClasses[bandTone[b]].pill)}>
+            <p className="text-[10px] font-semibold uppercase tracking-wider opacity-80">{bandLabel[b]}</p>
             <p className="text-xl font-bold tabular-nums leading-tight">{bandCounts[b]}</p>
           </div>
         ))}
@@ -138,8 +146,8 @@ function RiskMatrix({
                             title={r.title}
                             className={cn(
                               "flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-black text-white shadow-sm transition-transform hover:scale-125 focus:outline-none",
-                              bandStyles[band].dot,
-                              sel && cn("scale-125 ring-2 ring-offset-1", bandStyles[band].ring),
+                              statusToneClasses[bandTone[band]].dot,
+                              sel && cn("scale-125 ring-2 ring-offset-1", statusToneClasses[bandTone[band]].ring),
                             )}
                           >
                             {r.id.replace("r", "")}
@@ -171,9 +179,9 @@ function RiskMatrix({
       <div className="mt-5 space-y-1.5 border-t border-border pt-4">
         {(["high", "medium", "low"] as const).map((b) => (
           <div key={b} className="flex items-center gap-2 text-xs">
-            <span className={cn("h-2.5 w-2.5 rounded-full", bandStyles[b].dot)} />
+            <span className={cn("h-2.5 w-2.5 rounded-full", statusToneClasses[bandTone[b]].dot)} />
             <span className="text-muted-foreground">
-              <span className="font-semibold text-foreground">{bandStyles[b].label}</span>
+              <span className="font-semibold text-foreground">{bandLabel[b]}</span>
               {b === "high" ? " — score ≥ 15"
                 : b === "medium" ? " — score 8–14"
                 : " — score < 8"}
@@ -210,7 +218,7 @@ function RiskCard({
       className={cn(
         "group cursor-pointer rounded-xl border bg-card p-4 shadow-sm transition-all hover:shadow-md",
         selected
-          ? cn("ring-2 ring-offset-2", bandStyles[band].ring, "border-transparent")
+          ? cn("ring-2 ring-offset-2", statusToneClasses[bandTone[band]].ring, "border-transparent")
           : "border-border",
       )}
     >
@@ -218,11 +226,11 @@ function RiskCard({
         {/* Score block */}
         <div className={cn(
           "flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-lg border",
-          bandStyles[band].pill,
+          statusToneClasses[bandTone[band]].pill,
         )}>
           <span className="text-xl font-bold leading-none tabular-nums">{risk.score}</span>
           <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider opacity-70">
-            {bandStyles[band].label}
+            {bandLabel[band]}
           </span>
         </div>
 
@@ -239,13 +247,12 @@ function RiskCard({
             <button
               onClick={(e) => { e.stopPropagation(); onStatusToggle(); }}
               title={`Click to mark ${nextStatus[risk.status]}`}
-              className={cn(
-                "flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold transition-opacity hover:opacity-80",
-                statusBadge[risk.status],
-              )}
+              className="flex shrink-0 transition-opacity hover:opacity-80"
             >
-              <StatusIcon className="h-3 w-3" />
-              {risk.status.charAt(0).toUpperCase() + risk.status.slice(1)}
+              <StatusPill tone={statusTone[risk.status]}>
+                <StatusIcon className="mr-1 h-3 w-3" />
+                {risk.status.charAt(0).toUpperCase() + risk.status.slice(1)}
+              </StatusPill>
             </button>
           </div>
 
@@ -258,7 +265,15 @@ function RiskCard({
             <span className="text-border">·</span>
             <span>{risk.category}</span>
             <span className="text-border">·</span>
-            <span>Owner <span className="font-medium text-foreground">{risk.owner}</span></span>
+            <span className="inline-flex items-center gap-1.5">
+              Owner
+              <span className={cn(
+                "inline-flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold text-white",
+                avatarColor(risk.owner),
+              )}>
+                {risk.owner}
+              </span>
+            </span>
           </div>
 
           <div className="rounded-md border-l-2 border-blue-300 bg-blue-50/40 dark:bg-blue-950/20 px-3 py-2">

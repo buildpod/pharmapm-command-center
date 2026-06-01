@@ -10,6 +10,7 @@ import {
 import { TeamMemberFormDrawer } from "./team-member-form";
 import { MeetingFormDrawer } from "./meeting-form";
 import { useProject } from "@/components/projects/project-provider";
+import { avatarColor } from "@/lib/ui/avatar-color";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { cn } from "@/lib/utils";
 
@@ -301,7 +302,10 @@ function TeamAvailabilityTab({ onEditMember }: { onEditMember: (m: TeamMember) =
                     className="flex items-center gap-2 text-left hover:text-primary"
                     title="Click to edit member"
                   >
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+                    <span className={cn(
+                      "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white",
+                      avatarColor(member.initials),
+                    )}>
                       {member.initials}
                     </span>
                     <div>
@@ -372,7 +376,10 @@ function TeamAvailabilityTab({ onEditMember }: { onEditMember: (m: TeamMember) =
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+                    <span className={cn(
+                      "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white",
+                      avatarColor(member.initials),
+                    )}>
                       {member.initials}
                     </span>
                     <div>
@@ -739,7 +746,10 @@ function SteerCoPreBriefTab() {
               const impact = getImpactCount(member, ab.startDate, ab.endDate);
               return (
                 <div key={ab.id} className="flex flex-wrap items-center gap-2 text-xs">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[9px] font-bold text-primary">
+                  <span className={cn(
+                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white",
+                    avatarColor(member.initials),
+                  )}>
                     {member.initials}
                   </span>
                   <span className="font-medium text-foreground">{member.name}</span>
@@ -765,7 +775,10 @@ function SteerCoPreBriefTab() {
             return (
               <div key={member.id} className="rounded-lg border border-border bg-card p-3 space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+                  <span className={cn(
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white",
+                    avatarColor(member.initials),
+                  )}>
                     {member.initials}
                   </span>
                   <div>
@@ -876,7 +889,10 @@ function WorkstreamPreBriefTab() {
       {/* Lead header */}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-muted/30 px-4 py-3">
         <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-black text-primary">
+          <span className={cn(
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black text-white",
+            avatarColor(lead?.initials ?? ws),
+          )}>
             {lead?.initials ?? "–"}
           </span>
           <div>

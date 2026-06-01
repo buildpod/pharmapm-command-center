@@ -15,6 +15,7 @@ import {
 } from "@/lib/mockData";
 import { DocumentFormDrawer } from "./document-form";
 import { useProject } from "@/components/projects/project-provider";
+import { avatarColor } from "@/lib/ui/avatar-color";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { cn } from "@/lib/utils";
 
@@ -66,17 +67,6 @@ const docStatusLabel: Record<DocumentStatus, string> = {
   approved:    "Approved",
   rejected:    "Rejected",
 };
-
-// Per-person color hash — same person always gets same color, more visual variety than monochrome.
-const AVATAR_COLORS = [
-  "bg-rose-500",  "bg-orange-500", "bg-amber-500",  "bg-emerald-500",
-  "bg-teal-500",  "bg-cyan-500",   "bg-blue-500",   "bg-indigo-500",
-  "bg-violet-500", "bg-fuchsia-500", "bg-pink-500",
-];
-function avatarColor(initials: string) {
-  const hash = initials.split("").reduce((s, c) => s + c.charCodeAt(0), 0);
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
-}
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });

@@ -21,6 +21,9 @@ import {
   type TaskScheduleEntry, type ScheduleMilestone,
 } from "@/lib/domain/scheduling";
 import { workingDaysBetween } from "@/lib/domain/dates";
+import { ProgressBar } from "@/components/ui/progress-bar";
+import { StatusPill, statusToneClasses, type StatusTone } from "@/components/ui/status-pill";
+import { avatarColor } from "@/lib/ui/avatar-color";
 
 // Local helpers — match the conversion used in milestones-grid so a task linked
 // to "m6" resolves to the milestone whose id is 6 in the engine.
@@ -31,11 +34,11 @@ import { cn } from "@/lib/utils";
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const priorityStyles: Record<TaskPriority, { pill: string; dot: string; label: string }> = {
-  Critical: { pill: "bg-rose-50 text-rose-700 border-rose-200",       dot: "bg-rose-500",   label: "Critical" },
-  High:     { pill: "bg-amber-50 text-amber-700 border-amber-200",    dot: "bg-amber-500",  label: "High"     },
-  Medium:   { pill: "bg-yellow-50 text-yellow-700 border-yellow-200", dot: "bg-yellow-400", label: "Medium"   },
-  Low:      { pill: "bg-slate-100 text-slate-600 border-slate-200",   dot: "bg-slate-300",  label: "Low"      },
+const priorityTone: Record<TaskPriority, StatusTone> = {
+  Critical: "rose",
+  High: "amber",
+  Medium: "amber",
+  Low: "slate",
 };
 
 const statusStyles: Record<TaskStatus, string> = {
@@ -45,16 +48,6 @@ const statusStyles: Record<TaskStatus, string> = {
   "Blocked":     "bg-rose-50 text-rose-700 border-rose-200",
   "On Hold":     "bg-violet-50 text-violet-700 border-violet-200",
 };
-
-// Per-person avatar color hash
-const AVATAR_COLORS = [
-  "bg-rose-500", "bg-orange-500", "bg-amber-500", "bg-emerald-500", "bg-teal-500",
-  "bg-cyan-500", "bg-blue-500", "bg-indigo-500", "bg-violet-500", "bg-fuchsia-500", "bg-pink-500",
-];
-function avatarColor(initials: string) {
-  const hash = initials.split("").reduce((s, c) => s + c.charCodeAt(0), 0);
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
-}
 
 const nextStatus: Record<TaskStatus, TaskStatus> = {
   "Not Started": "In Progress",
@@ -105,8 +98,8 @@ function DependencyTags({ dependsOn, allTasks }: { dependsOn?: string[]; allTask
             title={`Depends on: ${dep.name}`}
             className={cn(
               "inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-medium",
-              done    ? "bg-green-50 text-green-600" :
-              blocked ? "bg-red-50 text-red-600" :
+              done    ? "bg-emerald-50 text-emerald-700" :
+              blocked ? "bg-rose-50 text-rose-700" :
                         "bg-muted text-muted-foreground"
             )}
           >
@@ -116,27 +109,6 @@ function DependencyTags({ dependsOn, allTasks }: { dependsOn?: string[]; allTask
           </span>
         );
       })}
-    </div>
-  );
-}
-
-// ─── Progress bar ─────────────────────────────────────────────────────────────
-
-function ProgressBar({ value, status }: { value: number; status: TaskStatus }) {
-  const color =
-    status === "Complete"    ? "bg-emerald-500" :
-    status === "Blocked"     ? "bg-rose-500" :
-    status === "In Progress" ? "bg-blue-500" :
-    "bg-slate-300";
-
-  return (
-    <div className="flex min-w-[100px] items-center gap-2">
-      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-        <div className={cn("h-full rounded-full transition-all", color)} style={{ width: `${value}%` }} />
-      </div>
-      <span className="w-8 shrink-0 text-right text-[11px] font-semibold tabular-nums text-muted-foreground">
-        {value}%
-      </span>
     </div>
   );
 }
@@ -165,7 +137,7 @@ function TaskRow({
   onEdit: (task: Task) => void;
 }) {
   const [editingProgress, setEditingProgress] = useState(false);
-  const p = priorityStyles[task.priority];
+  const priority = priorityTone[task.priority];
   const isOverdue = new Date(task.dueDate) < new Date("2026-05-11") && task.status !== "Complete";
 
   return (
@@ -173,7 +145,7 @@ function TaskRow({
       {/* Priority dot */}
       <td className="px-4 py-2.5 w-8">
         <span
-          className={cn("block h-2 w-2 rounded-full", p.dot)}
+          className={cn("block h-2 w-2 rounded-full", statusToneClasses[priority].dot)}
           title={task.priority}
         />
       </td>
@@ -195,9 +167,7 @@ function TaskRow({
 
       {/* Priority badge */}
       <td className="hidden px-2 py-3 lg:table-cell">
-        <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold", p.pill)}>
-          {task.priority}
-        </span>
+        <StatusPill tone={priority}>{task.priority}</StatusPill>
       </td>
 
       {/* Owner avatar */}
@@ -249,7 +219,7 @@ function TaskRow({
             title="Click to edit progress"
             className="w-full text-left"
           >
-            <ProgressBar value={task.progress} status={task.status} />
+            <ProgressBar value={task.progress} />
           </button>
         )}
       </td>
@@ -601,7 +571,7 @@ export function TasksGrid() {
       <div className="flex flex-wrap items-center gap-3 px-1 text-[11px] text-muted-foreground">
         {allPriorities.map((p) => (
           <span key={p} className="flex items-center gap-1.5">
-            <span className={cn("h-2 w-2 rounded-full", priorityStyles[p].dot)} />
+            <span className={cn("h-2 w-2 rounded-full", statusToneClasses[priorityTone[p]].dot)} />
             {p}
           </span>
         ))}
