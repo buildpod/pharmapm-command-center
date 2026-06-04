@@ -27,7 +27,7 @@ const navGroups = [
   {
     label: "Briefing",
     items: [
-      { label: "SteerCo Brief", href: "/", icon: LayoutDashboard },
+      { label: "Dashboard", href: "/", icon: LayoutDashboard },
       { label: "Delivery Signals", href: "/truth", icon: Gauge },
       { label: "Reports", href: "/reports", icon: BarChart2 },
     ],

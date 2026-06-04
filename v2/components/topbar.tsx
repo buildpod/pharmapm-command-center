@@ -13,7 +13,7 @@ import { useProject } from "@/components/projects/project-provider";
 import { useState } from "react";
 
 const routeLabels: Record<string, string> = {
-  "/":           "SteerCo Brief",
+  "/":           "Dashboard",
   "/truth":      "Delivery Signals",
   "/setup":      "Project Setup",
   "/worklist":   "Worklist",
