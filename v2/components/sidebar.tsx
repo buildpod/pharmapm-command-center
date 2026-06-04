@@ -8,6 +8,7 @@ import {
   CheckSquare,
   DollarSign,
   FileText,
+  FolderKanban,
   Gauge,
   GitBranch,
   Inbox,
@@ -17,6 +18,7 @@ import {
   Scale,
   Scroll,
   Settings,
+  Sparkles,
   Users,
 } from "lucide-react";
 import { useProject } from "@/components/projects/project-provider";
@@ -33,7 +35,9 @@ const navGroups = [
   {
     label: "Run",
     items: [
+      { label: "Project Setup", href: "/setup", icon: Sparkles },
       { label: "Worklist", href: "/worklist", icon: Inbox },
+      { label: "My Items", href: "/my-items", icon: CheckSquare },
       { label: "Readiness Gates", href: "/readiness", icon: Rocket },
     ],
   },
@@ -59,6 +63,7 @@ const navGroups = [
   {
     label: "Admin",
     items: [
+      { label: "Manage Projects", href: "/projects", icon: FolderKanban },
       { label: "Rules & Settings", href: "/settings", icon: Settings },
     ],
   },
