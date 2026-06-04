@@ -35,7 +35,7 @@ const navGroups = [
   {
     label: "Run",
     items: [
-      { label: "Project Setup", href: "/setup", icon: Sparkles },
+      { label: "New Project", href: "/setup", icon: Sparkles },
       { label: "Worklist", href: "/worklist", icon: Inbox },
       { label: "My Items", href: "/my-items", icon: CheckSquare },
       { label: "Readiness Gates", href: "/readiness", icon: Rocket },
