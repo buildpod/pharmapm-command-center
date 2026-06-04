@@ -200,11 +200,11 @@ export function CommandPaletteTrigger() {
       aria-label="Open search"
       title="Open search"
       onClick={() => document.dispatchEvent(new Event("aivello-open-command-palette"))}
-      className="hidden sm:flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted transition-colors"
+      className="topbar-search"
     >
-      <Search className="h-3.5 w-3.5" />
+      <Search style={{ width: 14, height: 14 }} />
       <span>Search…</span>
-      <kbd className="ml-1 rounded border border-border px-1 py-0.5 font-mono text-[9px]">⌘K</kbd>
+      <kbd>⌘K</kbd>
     </button>
   );
 }

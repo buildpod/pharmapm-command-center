@@ -19,6 +19,24 @@ Read this file before starting, stopping, or sharing local test URLs for this re
 
 ## Required Checks Before Sharing A Local Link
 
+Use the automated check first:
+
+```bash
+cd v2
+pnpm preview:check
+```
+
+If no verified server is running, start one with:
+
+```bash
+cd v2
+pnpm dev:verified
+```
+
+`pnpm dev:verified` moves stale `.next` cache aside, starts Next on port `3000`, waits for the page/CSS/JS checks to pass, and prints the canonical test link.
+
+Manual fallback:
+
 Run these checks from the repo root or `v2` directory:
 
 ```bash

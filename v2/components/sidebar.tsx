@@ -3,32 +3,27 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
-  Milestone,
-  CheckSquare,
   AlertTriangle,
+  BarChart2,
+  CheckSquare,
   DollarSign,
   FileText,
-  BarChart2,
-  FlaskConical,
-  Settings,
-  Users,
-  Inbox,
-  Scroll,
   Gauge,
   GitBranch,
-  Scale,
+  Inbox,
+  LayoutDashboard,
+  Milestone,
   Rocket,
+  Scale,
+  Scroll,
+  Settings,
+  Users,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { ProjectSwitcher } from "@/components/projects/project-switcher";
+import { useProject } from "@/components/projects/project-provider";
 
 const navGroups = [
   {
-    label: "BRIEFING",
+    label: "Briefing",
     items: [
       { label: "SteerCo Brief", href: "/", icon: LayoutDashboard },
       { label: "Delivery Signals", href: "/truth", icon: Gauge },
@@ -36,33 +31,33 @@ const navGroups = [
     ],
   },
   {
-    label: "RUN",
+    label: "Run",
     items: [
       { label: "Worklist", href: "/worklist", icon: Inbox },
       { label: "Readiness Gates", href: "/readiness", icon: Rocket },
     ],
   },
   {
-    label: "CONTROL",
+    label: "Control",
     items: [
-      { label: "Plan",       href: "/plan", icon: GitBranch },
+      { label: "Plan", href: "/plan", icon: GitBranch },
       { label: "Governance", href: "/governance", icon: Scale },
     ],
   },
   {
-    label: "RECORDS",
+    label: "Records",
     items: [
       { label: "Charter", href: "/charter", icon: Scroll },
       { label: "Milestones", href: "/milestones", icon: Milestone },
       { label: "Tasks", href: "/tasks", icon: CheckSquare },
-      { label: "Risks", href: "/risks", icon: AlertTriangle, badge: "3" },
-      { label: "Documents", href: "/documents", icon: FileText, badge: "2" },
+      { label: "Risks", href: "/risks", icon: AlertTriangle, count: "3" },
+      { label: "Documents", href: "/documents", icon: FileText, count: "2", countTone: "info" as const },
       { label: "Costs", href: "/costs", icon: DollarSign },
       { label: "People & Meetings", href: "/resources", icon: Users },
     ],
   },
   {
-    label: "ADMIN",
+    label: "Admin",
     items: [
       { label: "Rules & Settings", href: "/settings", icon: Settings },
     ],
@@ -71,6 +66,7 @@ const navGroups = [
 
 export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const { activeProject } = useProject();
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
@@ -78,75 +74,60 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   };
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Logo */}
-      <div className="flex h-14 items-center gap-2.5 border-b border-border px-4">
-        <FlaskConical className="h-5 w-5 text-primary" />
-        <div className="flex flex-col leading-none">
-          <span className="text-sm font-semibold text-foreground">AivelloStudio</span>
-          <span className="text-xs text-muted-foreground">Command Center</span>
-        </div>
+    <>
+      <div className="nav-brand">
+        <div className="nav-brand__mark">A</div>
+        <div className="nav-brand__name">AivelloStudio<span> RIM</span></div>
       </div>
 
-      {/* Project switcher */}
-      <div className="px-4 py-3">
-        <ProjectSwitcher />
+      <div className="nav-project">
+        <div className="nav-project__name">{activeProject.name}</div>
+        <div className="nav-project__phase">{activeProject.phase}</div>
       </div>
 
-      <Separator />
-
-      {/* Nav groups */}
-      <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
+      <nav style={{ flex: 1, overflowY: "auto", paddingBottom: "var(--space-3)" }}>
         {navGroups.map((group) => (
-          <div key={group.label}>
-            <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-              {group.label}
-            </p>
-            <div className="space-y-0.5">
-              {group.items.map((item) => {
-                const Icon = item.icon;
-                const active = isActive(item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={onNavigate}
-                    className={cn(
-                      "flex items-center gap-3 rounded-md px-2 py-1.5 text-sm transition-colors",
-                      active
-                        ? "bg-primary/10 text-primary font-medium"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    <span className="flex-1">{item.label}</span>
-                    {"badge" in item && item.badge && (
-                      <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
-                        {item.badge}
-                      </Badge>
-                    )}
-                  </Link>
-                );
-              })}
-            </div>
+          <div key={group.label} className="nav-group">
+            <div className="nav-group__title">{group.label}</div>
+            {group.items.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={onNavigate}
+                  className={active ? "nav-item nav-item--active" : "nav-item"}
+                >
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "10px" }}>
+                    <Icon className="nav-item__icon" />
+                    {item.label}
+                  </span>
+                  {"count" in item && item.count && (
+                    <span
+                      className={
+                        "countTone" in item && item.countTone === "info"
+                          ? "nav-item__count nav-item__count--info"
+                          : "nav-item__count"
+                      }
+                    >
+                      {item.count}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
           </div>
         ))}
       </nav>
 
-      <Separator />
-
-      {/* User */}
-      <div className="flex items-center gap-3 px-4 py-3">
-        <Avatar className="h-7 w-7">
-          <AvatarFallback className="text-[10px] bg-primary text-primary-foreground">
-            VP
-          </AvatarFallback>
-        </Avatar>
-        <div className="flex flex-col leading-none">
-          <span className="text-xs font-medium text-foreground">Vineet Pathak</span>
-          <span className="text-[10px] text-muted-foreground">Project Manager</span>
+      <div className="nav-user">
+        <div className="nav-user__avatar">VP</div>
+        <div>
+          <div className="nav-user__name">Vineet Pathak</div>
+          <div className="nav-user__role">Project Manager</div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

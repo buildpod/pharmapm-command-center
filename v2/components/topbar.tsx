@@ -44,7 +44,7 @@ export function Topbar() {
     )?.[1] ?? "AivelloStudio RIM";
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background px-4">
+    <>
       {/* Mobile menu */}
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
@@ -59,31 +59,28 @@ export function Topbar() {
       </Sheet>
 
       {/* Breadcrumb — shows the active project as live context */}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-foreground truncate">{label}</p>
-        <p className="text-xs text-muted-foreground hidden sm:block truncate">
-          {activeProject.name} · {activeProject.phase}
-        </p>
+      <div className="crumbs">
+        <strong>{label}</strong>
+        <span>{activeProject.name}</span>
+        <span>{activeProject.phase}</span>
       </div>
+      <div className="topbar-spacer" />
 
       {/* Actions */}
-      <div className="flex items-center gap-1">
-        {/* ⌘K search trigger */}
-        <CommandPaletteTrigger />
+      <CommandPaletteTrigger />
 
-        {/* Dark mode toggle */}
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggle} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
-          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-        </Button>
+      {/* Dark mode toggle */}
+      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggle} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
+        {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      </Button>
 
-        {/* Alerts — live derived from project entities */}
-        <NotificationBell />
+      {/* Alerts — live derived from project entities */}
+      <NotificationBell />
 
-        {/* Export — wired in M19: produces the 8-sheet project workbook */}
-        <div className="hidden sm:flex">
-          <ExportButton project={activeProject} />
-        </div>
+      {/* Export — wired in M19: produces the 8-sheet project workbook */}
+      <div className="hidden sm:flex">
+        <ExportButton project={activeProject} />
       </div>
-    </header>
+    </>
   );
 }
