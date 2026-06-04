@@ -25,9 +25,14 @@ import { useProject } from "@/components/projects/project-provider";
 
 const navGroups = [
   {
-    label: "Briefing",
+    label: "Home",
     items: [
       { label: "Dashboard", href: "/", icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: "Briefing",
+    items: [
       { label: "Delivery Signals", href: "/truth", icon: Gauge },
       { label: "Reports", href: "/reports", icon: BarChart2 },
     ],
