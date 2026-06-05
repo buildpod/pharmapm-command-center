@@ -2,7 +2,6 @@
 
 import { usePathname } from "next/navigation";
 import { Menu, Sun, Moon } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { SidebarContent } from "@/components/sidebar";
 import { CommandPaletteTrigger } from "@/components/command-palette";
@@ -48,10 +47,10 @@ export function Topbar() {
       {/* Mobile menu */}
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" className="md:hidden h-8 w-8">
-            <Menu className="h-4 w-4" />
+          <button type="button" className="topbar-icon-button topbar-mobile-menu">
+            <Menu />
             <span className="sr-only">Open menu</span>
-          </Button>
+          </button>
         </SheetTrigger>
         <SheetContent side="left" className="w-64 p-0">
           <SidebarContent onNavigate={() => setOpen(false)} />
@@ -70,9 +69,15 @@ export function Topbar() {
       <CommandPaletteTrigger />
 
       {/* Dark mode toggle */}
-      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggle} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
-        {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-      </Button>
+      <button
+        type="button"
+        className="topbar-icon-button"
+        onClick={toggle}
+        title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      >
+        {theme === "dark" ? <Sun /> : <Moon />}
+      </button>
 
       {/* Alerts — live derived from project entities */}
       <NotificationBell />

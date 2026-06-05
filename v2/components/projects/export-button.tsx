@@ -104,11 +104,11 @@ export function ExportButton({
       aria-label={`Export ${project.name}`}
       title={`Export ${project.name} as Excel workbook (8 sheets)`}
       className={cn(
-        "flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50",
+        "topbar-export",
         className
       )}
     >
-      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+      {busy ? <Loader2 className="topbar-export__icon--spin" /> : <Download />}
       Export
     </button>
   );

@@ -6,7 +6,7 @@ export default function MilestonesPage() {
       <header className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Milestones</h1>
         <p className="text-sm text-muted-foreground">
-          Interactive schedule with dependency-aware cascade preview. Click a planned date to edit — downstream impact is shown before you commit.
+          Interactive schedule with dependency-aware impact review. Click a planned date to edit — downstream impact is shown before you commit.
         </p>
       </header>
       <MilestonesGrid />

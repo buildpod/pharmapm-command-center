@@ -110,7 +110,7 @@ export function MilestoneFormDrawer({
 
   const title    = isNew ? "Add milestone" : `Edit · ${initial?.name ?? ""}`;
   const subtitle = isNew
-    ? "Add a new milestone to the schedule. Predecessor + duration + lag drive the cascade engine."
+    ? "Add a new milestone to the schedule. Predecessor, duration, and lag drive schedule impact review."
     : `${initial?.id?.toUpperCase()} · ${initial?.phase}`;
 
   // Predecessors exclude self
@@ -270,7 +270,7 @@ export function MilestoneFormDrawer({
               </select>
             </Field>
 
-            <Field label="Locked" hint="blocks cascade edits">
+            <Field label="Locked" hint="prevents schedule impact edits">
               <label className="mt-1 flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"

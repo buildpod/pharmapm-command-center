@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   Bell, AlertTriangle, AlertCircle, FileText, CheckSquare, Milestone as MilestoneIcon,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useProject } from "@/components/projects/project-provider";
 import {
   milestones as allMilestones,
@@ -122,25 +121,24 @@ export function NotificationBell() {
 
   return (
     <div className="relative" ref={ref}>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="relative h-8 w-8"
+      <button
+        type="button"
+        className="topbar-icon-button"
         onClick={() => setOpen((v) => !v)}
         aria-label={alerts.length ? `Open alerts, ${alerts.length} active` : "Open alerts"}
         title={alerts.length ? `${alerts.length} alerts` : "Alerts"}
       >
-        <Bell className="h-4 w-4" />
+        <Bell />
         {alerts.length > 0 && (
           <span
-            className="absolute right-1 top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white"
+            className="topbar-icon-button__badge"
             aria-label={`${alerts.length} alerts`}
           >
             {alerts.length}
           </span>
         )}
         <span className="sr-only">{alerts.length ? `Alerts, ${alerts.length} active` : "Alerts"}</span>
-      </Button>
+      </button>
 
       {open && (
         <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-xl border border-border bg-card shadow-2xl">

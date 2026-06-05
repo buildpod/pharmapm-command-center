@@ -292,7 +292,7 @@ export function ImpactDrawer({
         className="fixed right-0 top-0 z-50 flex h-full w-full max-w-lg flex-col border-l border-border bg-card shadow-2xl"
         role="dialog"
         aria-modal="true"
-        aria-label="Cascade impact preview"
+        aria-label="Review schedule impact"
       >
         {/* Header */}
         <header className="border-b border-border bg-muted/30 px-5 py-4">
@@ -627,7 +627,7 @@ function renderShiftRow(row: ImpactRow, kind: "milestones" | "tasks", deps: Shif
           checked={!excluded}
           onChange={() => onToggle(row.id)}
           className="mt-1 h-3.5 w-3.5 shrink-0 rounded border-border accent-primary"
-          title={excluded ? "Include in cascade" : "Exclude — keep this row's date"}
+          title={excluded ? "Include in schedule update" : "Keep this row's date"}
         />
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-medium text-foreground">
