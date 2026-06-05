@@ -51,7 +51,16 @@ function PeopleList({
     <Field label={label} hint={`${people.length} ${label.toLowerCase()}`}>
       <div className="space-y-2 rounded-md border border-border bg-background p-2">
         {people.length === 0 ? (
-          <p className="px-1 py-1 text-xs italic text-muted-foreground">None yet.</p>
+          <div className="rounded-md border border-dashed border-border bg-muted/20 px-3 py-2">
+            <p className="text-[11px] font-medium text-foreground">
+              {label === "Approvers" ? "Recommended: add accountable sign-off owners." : "Recommended: add reviewers who protect quality."}
+            </p>
+            <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+              {label === "Approvers"
+                ? "Approvers make the final decision visible and audit-ready."
+                : "Reviewers catch issues before the document is sent for approval."}
+            </p>
+          </div>
         ) : (
           people.map((p, i) => (
             <div key={i} className="flex items-center gap-2 rounded bg-muted/40 px-2 py-1 text-xs">

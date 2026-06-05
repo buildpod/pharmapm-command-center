@@ -131,6 +131,9 @@ export function GanttView({
     return (
       <div className="rounded-xl border border-dashed border-border bg-muted/20 py-16 text-center">
         <p className="text-sm font-medium text-foreground">No milestones to plot.</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          The Gantt view shows whether the delivery story still fits the approved timeline.
+        </p>
         <p className="mt-1 text-xs text-muted-foreground">Add a milestone or clear filters to populate the Gantt.</p>
       </div>
     );

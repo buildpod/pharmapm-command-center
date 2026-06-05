@@ -425,6 +425,9 @@ export function RisksGrid() {
         {filtered.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-muted/20 py-16 text-center">
             <p className="text-sm font-medium text-foreground">No risks match the current filters.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              A clean risk view helps the PM focus leadership attention on the exceptions that matter.
+            </p>
             <p className="mt-1 text-xs text-muted-foreground">Try selecting &ldquo;All&rdquo; or a different category.</p>
           </div>
         ) : (

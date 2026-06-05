@@ -335,7 +335,7 @@ export function TaskFormDrawer({
             >
               {depCandidates.length === 0 ? (
                 <p className="px-1 py-2 text-xs text-muted-foreground italic">
-                  No other tasks to depend on yet.
+                  No other tasks to depend on yet. Add upstream work when this task should wait for another owner.
                 </p>
               ) : (
                 depCandidates.map((t) => {

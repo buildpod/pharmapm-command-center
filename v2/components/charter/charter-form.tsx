@@ -244,11 +244,15 @@ function ListField({
   function addOne() {
     onChange([...items, ""]);
   }
+  const recommendation = charterListRecommendation(label);
   return (
     <Field label={label} hint={hint}>
       <div className="space-y-1.5">
         {items.length === 0 && (
-          <p className="text-[11px] italic text-muted-foreground">Nothing added yet.</p>
+          <div className="rounded-md border border-dashed border-border bg-muted/20 px-3 py-2">
+            <p className="text-[11px] font-medium text-foreground">{recommendation.title}</p>
+            <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{recommendation.body}</p>
+          </div>
         )}
         {items.map((item, i) => (
           <div key={i} className="flex items-start gap-1.5">
@@ -276,9 +280,49 @@ function ListField({
           className="inline-flex items-center gap-1 rounded-md border border-dashed border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted/40 hover:text-foreground"
         >
           <Plus className="h-3 w-3" />
-          Add entry
+          Add {label.toLowerCase().replace(/s$/, "")}
         </button>
       </div>
     </Field>
   );
+}
+
+function charterListRecommendation(label: string) {
+  switch (label) {
+    case "Objectives":
+      return {
+        title: "Recommended: add 2-4 measurable outcomes.",
+        body: "Use numbers, dates, or acceptance criteria so SteerCo can see what success means.",
+      };
+    case "In scope":
+      return {
+        title: "Recommended: name the work the team is accountable for.",
+        body: "Include systems, workstreams, regions, integrations, data, validation, and go-live responsibilities.",
+      };
+    case "Out of scope":
+      return {
+        title: "Recommended: name what this project will not cover.",
+        body: "Clear exclusions prevent late surprises, sponsor confusion, and hidden delivery risk.",
+      };
+    case "Success criteria":
+      return {
+        title: "Recommended: define the proof of success.",
+        body: "Use test, migration, approval, adoption, and hypercare outcomes that can be evidenced later.",
+      };
+    case "Assumptions":
+      return {
+        title: "Recommended: record what must stay true.",
+        body: "Capture vendor availability, source-data quality, business SME time, and environment readiness.",
+      };
+    case "Constraints":
+      return {
+        title: "Recommended: record hard limits early.",
+        body: "Include fixed go-live dates, audit windows, budget caps, blackout periods, or resourcing limits.",
+      };
+    default:
+      return {
+        title: "Recommended: add the key entries before approval.",
+        body: "Short, concrete entries make the charter easier to govern and audit.",
+      };
+  }
 }

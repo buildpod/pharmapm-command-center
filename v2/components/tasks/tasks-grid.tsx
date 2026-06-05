@@ -603,6 +603,9 @@ export function TasksGrid() {
       {groups.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-muted/20 py-16 text-center">
           <p className="text-sm font-medium text-foreground">No tasks match the current filters.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Tasks show who owns the next move and what is blocking delivery.
+          </p>
           <p className="mt-1 text-xs text-muted-foreground">Try clearing the workstream, priority, or status filter.</p>
         </div>
       ) : (

@@ -167,7 +167,9 @@ export function MeetingFormDrawer({
           <Field label="Attendees" required hint={`${attendees.length} selected · click a member to toggle, click M/O to switch role`}>
             <div className="max-h-56 space-y-1 overflow-y-auto rounded-md border border-border bg-background p-2">
               {teamMembers.length === 0 ? (
-                <p className="px-1 py-2 text-xs italic text-muted-foreground">No team members defined yet.</p>
+                <p className="px-1 py-2 text-xs italic text-muted-foreground">
+                  No team members defined yet. Add the delivery team so meetings can show owners and decisions clearly.
+                </p>
               ) : teamMembers.map((m) => {
                 const att = attendees.find((a) => a.memberId === m.id);
                 const selected = !!att;

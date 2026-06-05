@@ -144,10 +144,12 @@ function DateCell({
   value,
   editable,
   onCommit,
+  coachmarkAnchor,
 }: {
   value: string;
   editable: boolean;
   onCommit: (newVal: string) => void;
+  coachmarkAnchor?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -166,6 +168,7 @@ function DateCell({
         onClick={() => setEditing(true)}
         className="group flex items-center gap-1 text-xs text-foreground hover:text-primary"
         title="Click to edit"
+        data-coachmark-anchor={coachmarkAnchor}
       >
         {formatDate(value)}
         <Calendar className="h-2.5 w-2.5 opacity-0 group-hover:opacity-60 shrink-0" />
@@ -179,6 +182,7 @@ function DateCell({
       type="date"
       defaultValue={value}
       className="w-28 rounded border border-primary px-1 py-0.5 text-xs text-foreground bg-card focus:outline-none focus:ring-1 focus:ring-primary"
+      data-coachmark-anchor={coachmarkAnchor}
       onBlur={(e) => {
         setEditing(false);
         if (e.target.value && e.target.value !== value) onCommit(e.target.value);
@@ -550,6 +554,9 @@ export function MilestonesGrid() {
         {filtered.length === 0 && (
           <div className="px-5 py-16 text-center">
             <p className="text-sm font-medium text-foreground">No milestones match the current filters.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Milestones turn the project promise into dates leadership can inspect and trust.
+            </p>
             <p className="mt-1 text-xs text-muted-foreground">Try clearing phase or status filters.</p>
           </div>
         )}
@@ -602,6 +609,7 @@ export function MilestonesGrid() {
                     value={m.plannedDate}
                     editable={canEdit && !m.locked}
                     onCommit={(v) => handlePlannedDateChange(m.id, v)}
+                    coachmarkAnchor="milestone-planned-date"
                   />
                   {variance !== 0 && (
                     <p className={cn(
@@ -619,6 +627,7 @@ export function MilestonesGrid() {
                     value={m.forecastDate}
                     editable={canEdit && !m.locked}
                     onCommit={(v) => handleForecastDateChange(m.id, v)}
+                    coachmarkAnchor="milestone-forecast-date"
                   />
                 </div>
 

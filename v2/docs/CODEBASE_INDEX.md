@@ -23,7 +23,8 @@ http://localhost:3000/pharmapm-command-center/v2/setup/
 1. `AIVELLO_OPERATING_DOC.md`
 2. `v2/docs/LOCAL_SERVER_REGISTRY.md`
 3. `v2/docs/CODEBASE_INDEX.md`
-4. The specific file for the task below
+4. `v2/docs/MASTER_UI_UX.md` for UI, UX, copy, route, and design-system work
+5. The specific file for the task below
 
 ## Main App Areas
 

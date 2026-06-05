@@ -283,7 +283,7 @@ export default function GuidedSetupPage() {
         const records = recordsFromMatrix(matrix as string[][]);
         if (records.length === 0) {
           setImportText("");
-          setImportError("The file opened, but no task table was found. Export Microsoft Project or Planner to Excel, or use columns like Task Name, Start, Finish/Due Date, Resource Names/Assignments, and Predecessors.");
+          setImportError("The file opened, but no task table was found. Exports need recognizable task columns so the command center can map owners, dates, and dependencies.");
           return;
         }
         const headers = Object.keys(records[0] ?? {});
@@ -296,7 +296,7 @@ export default function GuidedSetupPage() {
         const records = parseDelimitedTable(text);
         if (records.length === 0) {
           setImportText(text);
-          setImportError("No recognizable task table was found. Use the sample format or include Task Name plus Start/Finish or Due Date columns.");
+          setImportError("No recognizable task table was found. Use the sample format or include Task Name plus Start/Finish or Due Date columns so the plan can be mapped safely.");
           return;
         }
         setImportText(text);

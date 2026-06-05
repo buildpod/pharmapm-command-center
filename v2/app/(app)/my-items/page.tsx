@@ -128,7 +128,9 @@ export default function MyItemsPage() {
         <div className="rounded-xl border border-dashed border-border bg-muted/20 py-16 text-center">
           <Inbox className="mx-auto mb-2 h-8 w-8 text-muted-foreground/50" />
           <p className="text-sm font-medium text-foreground">Nothing assigned to you yet</p>
-          <p className="mt-1 text-xs text-muted-foreground">Items you own across this project will show up here.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            My Items gives each person a single action list across tasks, risks, milestones, and approvals.
+          </p>
         </div>
       )}
     </div>

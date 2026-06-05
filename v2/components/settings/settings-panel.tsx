@@ -238,7 +238,9 @@ export function SettingsPanel() {
             Current holidays ({settings.holidays.length})
           </p>
           {settings.holidays.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic">No holidays added yet.</p>
+            <p className="text-xs text-muted-foreground italic">
+              No holidays added yet. Holiday calendars keep schedule shifts realistic for each region.
+            </p>
           ) : (
             <div className="max-h-52 overflow-y-auto rounded-md border border-border divide-y divide-border">
               {settings.holidays.map((iso) => (

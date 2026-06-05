@@ -129,7 +129,7 @@ function HistoryPane({ doc }: { doc: Document }) {
     ...doc.approvers.map((d) => ({ ...d, decisionType: "Approval" as const })),
   ];
   if (rows.length === 0) {
-    return <p className="border-t border-border bg-muted/30 px-6 py-3 text-xs text-muted-foreground italic">No reviewers or approvers assigned yet.</p>;
+    return <p className="border-t border-border bg-muted/30 px-6 py-3 text-xs text-muted-foreground italic">No reviewers or approvers assigned yet. Add RACI owners so approval evidence is visible.</p>;
   }
   return (
     <div className="border-t border-border bg-muted/20 overflow-x-auto">
@@ -339,7 +339,7 @@ function DocumentCard({
             </div>
           ) : (
             <p className="mt-5 rounded-md border border-dashed border-border bg-muted/20 px-3 py-3 text-xs text-muted-foreground italic">
-              No reviewers or approvers assigned yet — document is in draft.
+              No reviewers or approvers assigned yet. Draft documents still need RACI owners before they become audit-ready.
             </p>
           )}
 
@@ -564,6 +564,9 @@ export function DocumentsList() {
       {filtered.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-muted/20 py-16 text-center">
           <p className="text-sm font-medium text-foreground">No documents match your filters.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Documents keep decisions, approvals, and audit evidence visible in one place.
+          </p>
           <p className="mt-1 text-xs text-muted-foreground">Try clearing the search or selecting &ldquo;All&rdquo;.</p>
         </div>
       ) : (

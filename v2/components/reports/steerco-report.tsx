@@ -350,7 +350,9 @@ export function SteerCoReport() {
           {/* Escalated risks */}
           <Section title="Risks Requiring SteerCo Awareness">
             {data.escalatedRisks.length === 0 ? (
-              <p className="text-xs text-muted-foreground italic">No high-score risks currently open.</p>
+              <p className="text-xs text-muted-foreground italic">
+                No high-score risks currently open. Leadership can focus on decisions instead of exception management.
+              </p>
             ) : (
               <div className="rounded-md border border-border overflow-x-auto">
                 <table className="w-full text-xs">
@@ -385,7 +387,9 @@ export function SteerCoReport() {
           {/* Decisions needed from SteerCo */}
           <Section title="Decisions Required from SteerCo">
             {data.steerCoDecisions.length === 0 ? (
-              <p className="text-xs text-muted-foreground italic">No approvals pending from steering committee.</p>
+              <p className="text-xs text-muted-foreground italic">
+                No approvals pending from steering committee. The project is not waiting on board-level sign-off.
+              </p>
             ) : (
               <div className="space-y-2">
                 {data.steerCoDecisions.map((d, i) => (

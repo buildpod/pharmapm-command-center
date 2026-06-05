@@ -260,7 +260,9 @@ export function WeeklyReport() {
           {/* This week */}
           <Section title="This Week (completed / due)">
             {data.thisWeekMs.length === 0 && data.thisWeekTasks.length === 0 ? (
-              <p className="text-xs text-muted-foreground italic">No milestones or tasks fell due this week.</p>
+              <p className="text-xs text-muted-foreground italic">
+                No milestones or tasks fell due this week. The weekly brief stays quiet when delivery has no new commitments to report.
+              </p>
             ) : (
               <div className="space-y-2">
                 {data.thisWeekMs.map((m) => (
@@ -294,7 +296,9 @@ export function WeeklyReport() {
           {/* Next 2 weeks */}
           <Section title="Next 2 Weeks (due by 25 May)">
             {data.upcomingMs.length === 0 && data.upcomingTasks.length === 0 ? (
-              <p className="text-xs text-muted-foreground italic">Nothing due in the next 14 days.</p>
+              <p className="text-xs text-muted-foreground italic">
+                Nothing due in the next 14 days. This gives the PM space to work ahead before the next delivery checkpoint.
+              </p>
             ) : (
               <div className="space-y-2">
                 {data.upcomingMs.map((m) => {
@@ -338,7 +342,9 @@ export function WeeklyReport() {
           {/* Top risks */}
           <Section title="Top Open Risks">
             {data.openRisks.length === 0 ? (
-              <p className="text-xs text-muted-foreground italic">No open risks.</p>
+              <p className="text-xs text-muted-foreground italic">
+                No open risks. The report can stay focused on progress and upcoming decisions.
+              </p>
             ) : (
               <div className="rounded-md border border-border overflow-x-auto">
                 <table className="w-full text-xs">
@@ -373,7 +379,9 @@ export function WeeklyReport() {
           {/* Decisions needed */}
           <Section title="Decisions Needed">
             {data.pendingDecisions.length === 0 ? (
-              <p className="text-xs text-muted-foreground italic">No pending decisions.</p>
+              <p className="text-xs text-muted-foreground italic">
+                No pending decisions. Governance is not waiting on approvals for this reporting cycle.
+              </p>
             ) : (
               <div className="rounded-md border border-border overflow-x-auto">
                 <table className="w-full text-xs">

@@ -686,7 +686,9 @@ function SteerCoPreBriefTab() {
       <div>
         <p className="mb-2 text-xs font-semibold text-foreground">Approvals Required This Meeting</p>
         {pendingApprovals.length === 0 ? (
-          <p className="text-xs text-muted-foreground italic">No pending approvals</p>
+          <p className="text-xs text-muted-foreground italic">
+            No pending approvals. This meeting can focus on progress, blockers, and upcoming decisions.
+          </p>
         ) : (
           <div className="rounded-lg border border-border bg-card overflow-x-auto">
             <table className="w-full text-xs">
@@ -717,7 +719,9 @@ function SteerCoPreBriefTab() {
       <div>
         <p className="mb-2 text-xs font-semibold text-foreground">Escalated Risks (Score ≥ 12)</p>
         {escalated.length === 0 ? (
-          <p className="text-xs text-muted-foreground italic">No escalated risks</p>
+          <p className="text-xs text-muted-foreground italic">
+            No escalated risks. The team can keep the conversation at workstream level.
+          </p>
         ) : (
           <div className="space-y-2">
             {escalated.map((r) => (
@@ -788,7 +792,7 @@ function SteerCoPreBriefTab() {
                 </div>
                 {actions.length === 0 ? (
                   <p className="text-[11px] text-muted-foreground italic">
-                    No pending actions — attend to receive project status update
+                    No pending actions. Attend to receive the project status update and confirm nothing needs escalation.
                   </p>
                 ) : (
                   <ul className="space-y-1.5">
@@ -1032,7 +1036,7 @@ function WorkstreamPreBriefTab() {
         </div>
       ) : (
         <p className="text-xs text-muted-foreground italic">
-          No urgent items in this workstream for the next 2 weeks.
+          No urgent items in this workstream for the next 2 weeks. Keep monitoring so capacity can move to the next bottleneck.
         </p>
       )}
     </div>
