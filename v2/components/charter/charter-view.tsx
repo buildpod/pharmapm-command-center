@@ -59,15 +59,24 @@ export function CharterView() {
           <Scroll className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
           <p className="text-base font-medium text-foreground">No charter for this project yet</p>
           <p className="mt-1 max-w-md mx-auto text-sm text-muted-foreground">
-            The charter is the project&apos;s authorising document. Create one to anchor scope, objectives, sponsor, and approval before further planning.
+            Charters keep your SteerCo aligned and auditor-ready.
           </p>
-          <button
-            onClick={() => setEditing(true)}
-            className="mt-5 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
-          >
-            <Scroll className="h-3.5 w-3.5" />
-            Create charter
-          </button>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+            <button
+              onClick={() => setEditing(true)}
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+            >
+              <Scroll className="h-3.5 w-3.5" />
+              Create charter
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-muted"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Load standard template
+            </button>
+          </div>
         </div>
 
         <CharterFormDrawer

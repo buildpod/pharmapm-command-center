@@ -182,8 +182,14 @@ function DocumentCard({
   onEdit: (doc: Document) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [raciExpanded, setRaciExpanded] = useState(false);
   const status = deriveStatus(doc);
-  const allDecisions = [...doc.reviewers, ...doc.approvers];
+  const reviewerRows = doc.reviewers.map((decision, index) => ({ decision, index, kind: "reviewers" as const }));
+  const approverRows = doc.approvers.map((decision, index) => ({ decision, index, kind: "approvers" as const }));
+  const allDecisionRows = [...reviewerRows, ...approverRows];
+  const allDecisions = allDecisionRows.map((row) => row.decision);
+  const pendingRows = allDecisionRows.filter((row) => row.decision.status === "pending");
+  const completedRows = allDecisionRows.filter((row) => row.decision.status !== "pending");
   const completed = allDecisions.filter((d) => d.status === "approved").length;
   const total = allDecisions.length;
   const progressPct = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -280,37 +286,52 @@ function DocumentCard({
 
           {/* Decision chips */}
           {total > 0 ? (
-            <div className="mt-5 space-y-4">
-              {doc.reviewers.length > 0 && (
-                <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Reviewers
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">
-                      {reviewersDone} of {doc.reviewers.length}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {doc.reviewers.map((d, i) => (
-                      <PersonChip key={`r${i}`} decision={d} onToggle={() => onDecisionToggle(doc.id, "reviewers", i)} />
-                    ))}
-                  </div>
+            <div className="mt-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Waiting for action
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  {pendingRows.length} pending
+                </span>
+              </div>
+              {pendingRows.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {pendingRows.map((row) => (
+                    <PersonChip
+                      key={`${row.kind}-${row.index}`}
+                      decision={row.decision}
+                      onToggle={() => onDecisionToggle(doc.id, row.kind, row.index)}
+                    />
+                  ))}
                 </div>
+              ) : (
+                <p className="rounded-md border border-dashed border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+                  No pending reviews or approvals.
+                </p>
               )}
-              {doc.approvers.length > 0 && (
-                <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Approvers
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">
-                      {approversDone} of {doc.approvers.length}
-                    </span>
+              {completedRows.length > 0 && (
+                <button
+                  onClick={() => setRaciExpanded((v) => !v)}
+                  className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {raciExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                  {raciExpanded ? "Hide completed reviewers" : `Expand details (${completedRows.length})`}
+                </button>
+              )}
+              {raciExpanded && completedRows.length > 0 && (
+                <div className="rounded-md border border-border bg-muted/20 p-3">
+                  <div className="mb-2 flex items-center justify-between text-[10px] text-muted-foreground">
+                    <span>{reviewersDone} of {doc.reviewers.length} reviewers</span>
+                    <span>{approversDone} of {doc.approvers.length} approvers</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {doc.approvers.map((d, i) => (
-                      <PersonChip key={`a${i}`} decision={d} onToggle={() => onDecisionToggle(doc.id, "approvers", i)} />
+                    {completedRows.map((row) => (
+                      <PersonChip
+                        key={`${row.kind}-${row.index}`}
+                        decision={row.decision}
+                        onToggle={() => onDecisionToggle(doc.id, row.kind, row.index)}
+                      />
                     ))}
                   </div>
                 </div>

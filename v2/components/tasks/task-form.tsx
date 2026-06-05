@@ -320,6 +320,7 @@ export function TaskFormDrawer({
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
                 className={inputCls}
+                data-coachmark-anchor="task-due-date"
               />
             </Field>
           </div>
@@ -328,7 +329,10 @@ export function TaskFormDrawer({
             label="Depends on"
             hint={`${dependsOn.length} upstream task${dependsOn.length === 1 ? "" : "s"} selected`}
           >
-            <div className="max-h-48 overflow-y-auto rounded-md border border-border bg-background p-2 space-y-0.5">
+            <div
+              className="max-h-48 overflow-y-auto rounded-md border border-border bg-background p-2 space-y-0.5"
+              data-coachmark-anchor="task-dependencies"
+            >
               {depCandidates.length === 0 ? (
                 <p className="px-1 py-2 text-xs text-muted-foreground italic">
                   No other tasks to depend on yet.

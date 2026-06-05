@@ -83,13 +83,22 @@ function MilestoneTag({ milestoneId }: { milestoneId?: string }) {
 }
 
 function DependencyTags({ dependsOn, allTasks }: { dependsOn?: string[]; allTasks: Task[] }) {
+  const [expanded, setExpanded] = useState(false);
   if (!dependsOn?.length) return null;
   const taskMap = Object.fromEntries(allTasks.map((t) => [t.id, t]));
+  const dependencyRows = dependsOn
+    .map((depId) => ({ depId, dep: taskMap[depId] ?? taskById[depId] }))
+    .filter((row): row is { depId: string; dep: Task } => !!row.dep);
+  if (dependencyRows.length === 0) return null;
+  const visibleRows = expanded ? dependencyRows : dependencyRows.slice(0, 2);
+  const hiddenCount = dependencyRows.length - visibleRows.length;
   return (
-    <div className="mt-0.5 flex flex-wrap gap-1">
-      {dependsOn.map((depId) => {
-        const dep = taskMap[depId] ?? taskById[depId];
-        if (!dep) return null;
+    <div
+      className="dependency-chips"
+      onMouseEnter={() => setExpanded(true)}
+      onMouseLeave={() => setExpanded(false)}
+    >
+      {visibleRows.map(({ depId, dep }) => {
         const done = dep.status === "Complete";
         const blocked = dep.status === "Blocked";
         return (
@@ -97,10 +106,10 @@ function DependencyTags({ dependsOn, allTasks }: { dependsOn?: string[]; allTask
             key={depId}
             title={`Depends on: ${dep.name}`}
             className={cn(
-              "inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-medium",
-              done    ? "bg-emerald-50 text-emerald-700" :
-              blocked ? "bg-rose-50 text-rose-700" :
-                        "bg-muted text-muted-foreground"
+              "dependency-chip",
+              done    ? "dependency-chip--done" :
+              blocked ? "dependency-chip--blocked" :
+                        "dependency-chip--idle"
             )}
           >
             <ArrowRight className="h-2 w-2 shrink-0" />
@@ -109,6 +118,17 @@ function DependencyTags({ dependsOn, allTasks }: { dependsOn?: string[]; allTask
           </span>
         );
       })}
+      {hiddenCount > 0 && (
+        <button
+          type="button"
+          className="dependency-chip dependency-chip--more"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          title="Show more waiting tasks"
+        >
+          +{hiddenCount}
+        </button>
+      )}
     </div>
   );
 }

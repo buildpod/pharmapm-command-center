@@ -95,6 +95,17 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      <section className="executive-verdict" aria-label="Executive verdict">
+        <div>
+          <div className="executive-verdict__label">Executive Verdict</div>
+          <div className="executive-verdict__title">Verdict placeholder</div>
+          <p className="executive-verdict__copy">
+            The project-level judgement will appear here once the health model is connected.
+          </p>
+        </div>
+        <span className="pill pill--neutral">Pending data</span>
+      </section>
+
       {/* KPI grid */}
       <div className="kpi-grid">
         <div className={`kpi ${scheduleKpiAccent}`}>
@@ -103,6 +114,7 @@ export default function DashboardPage() {
             <span className="t-kpi-value kpi__value">{scheduleOnTrack ? "On Track" : "At Risk"}</span>
           </div>
           <div className="kpi__sub">{scheduleVarianceLabel}</div>
+          <KpiSparkline />
         </div>
 
         <div className={`kpi ${riskKpiAccent}`}>
@@ -117,6 +129,7 @@ export default function DashboardPage() {
               <span className="pill pill--ok">All low</span>
             )}
           </div>
+          <KpiSparkline />
         </div>
 
         <div className={`kpi ${budgetKpiAccent}`}>
@@ -127,6 +140,7 @@ export default function DashboardPage() {
           <div className="kpi__sub">
             <strong>${(kpis.latestActualK / 1000).toFixed(2)}M</strong> of ${(kpis.totalBudgetK / 1000).toFixed(1)}M
           </div>
+          <KpiSparkline />
         </div>
 
         <div className="kpi kpi--info">
@@ -135,6 +149,7 @@ export default function DashboardPage() {
             <span className="t-kpi-value kpi__value">{kpis.daysToGoLive}</span>
           </div>
           <div className="kpi__sub">Target <strong>{formatDate(activeProject.goLiveDate)}</strong></div>
+          <KpiSparkline />
         </div>
       </div>
 
@@ -304,8 +319,10 @@ export default function DashboardPage() {
         </section>
       </div>
 
-      {/* Upcoming milestones + Decisions Needed */}
-      <div className="grid-2" style={{ gridTemplateColumns: "1fr 1fr" }}>
+      <details className="dashboard-details">
+        <summary>Expand details</summary>
+        {/* Upcoming milestones + Decisions Needed */}
+        <div className="grid-2" style={{ gridTemplateColumns: "1fr 1fr" }}>
         <section className="card">
           <div className="card__header">
             <div>
@@ -384,7 +401,18 @@ export default function DashboardPage() {
             );
           })}
         </section>
-      </div>
+        </div>
+      </details>
     </>
+  );
+}
+
+function KpiSparkline() {
+  return (
+    <div className="kpi-trend" aria-hidden="true">
+      <svg viewBox="0 0 120 28" preserveAspectRatio="none">
+        <path d="M2 22 C18 18 26 20 40 14 S66 8 82 12 104 10 118 4" />
+      </svg>
+    </div>
   );
 }

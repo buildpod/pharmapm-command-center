@@ -293,6 +293,7 @@ export function ImpactDrawer({
         role="dialog"
         aria-modal="true"
         aria-label="Review schedule impact"
+        data-coachmark-anchor="schedule-impact-drawer"
       >
         {/* Header */}
         <header className="border-b border-border bg-muted/30 px-5 py-4">
@@ -421,7 +422,7 @@ export function ImpactDrawer({
               onClick={onCancel}
               className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
             >
-              Cancel
+              Discard changes
             </button>
             <button
               onClick={() => onApply(excludeIds, overrides)}
