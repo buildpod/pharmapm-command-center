@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Trash2 } from "lucide-react";
 import type { Milestone, MilestoneStatus } from "@/lib/mockData";
-import { EntityDrawer, ConfirmDelete, Field, inputCls } from "@/components/ui/entity-drawer";
+import { EntityDrawer, ConfirmDelete, DrawerGuidance, Field, inputCls } from "@/components/ui/entity-drawer";
 import { isIsoDate, inProjectRange, addCalendarDays, PROJECT_DATE_MIN, PROJECT_DATE_MAX } from "@/lib/validation";
 
 const PHASES = ["Initiation", "Design", "Config", "Testing", "Training", "Go-Live"] as const;
@@ -162,6 +162,10 @@ export function MilestoneFormDrawer({
           className="space-y-4"
           onSubmit={(e) => { e.preventDefault(); handleSave(); }}
         >
+          <DrawerGuidance title="Use milestones for decision gates or delivery proof points, not every activity.">
+            Connect predecessors when timing depends on another milestone so schedule impact is visible before saving.
+          </DrawerGuidance>
+
           <Field label="Name" required>
             <input
               type="text"
@@ -180,7 +184,7 @@ export function MilestoneFormDrawer({
               </select>
             </Field>
 
-            <Field label="Owner" hint="initials, e.g. VP">
+            <Field label="Owner" hint="Recommended: assign the person accountable for the milestone evidence.">
               <input
                 type="text"
                 value={owner}
@@ -190,7 +194,7 @@ export function MilestoneFormDrawer({
             </Field>
           </div>
 
-          <Field label="Predecessor" hint="The milestone this one depends on (optional). Selecting one auto-suggests planned date.">
+          <Field label="Predecessor" hint="Recommended: choose a predecessor only when this milestone cannot be achieved before it.">
             <select
               value={predecessor}
               onChange={(e) => {
@@ -218,7 +222,7 @@ export function MilestoneFormDrawer({
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Duration" hint="working days">
+            <Field label="Duration" hint="Recommended: include review and sign-off time, not only execution time.">
               <input
                 type="number"
                 min={1}
@@ -228,7 +232,7 @@ export function MilestoneFormDrawer({
               />
             </Field>
 
-            <Field label="Lag" hint="extra working days after predecessor">
+            <Field label="Lag" hint="Recommended: add lag for waiting time, approvals, or handoffs after the predecessor.">
               <input
                 type="number"
                 min={0}
@@ -240,7 +244,7 @@ export function MilestoneFormDrawer({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Planned date" required hint="target completion">
+            <Field label="Planned date" required hint="Recommended: use the committed date the team can explain in governance.">
               <input
                 type="date"
                 value={plannedDate}
@@ -249,7 +253,7 @@ export function MilestoneFormDrawer({
               />
             </Field>
 
-            <Field label="Forecast date" hint="defaults to planned">
+            <Field label="Forecast date" hint="Recommended: update forecast when reality changes, not the original target.">
               <input
                 type="date"
                 value={forecastDate}
@@ -270,7 +274,7 @@ export function MilestoneFormDrawer({
               </select>
             </Field>
 
-            <Field label="Locked" hint="prevents schedule impact edits">
+            <Field label="Locked" hint="Recommended: lock only board-approved dates or external commitments.">
               <label className="mt-1 flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"

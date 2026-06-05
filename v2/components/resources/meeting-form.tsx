@@ -6,7 +6,7 @@ import { Trash2 } from "lucide-react";
 import type {
   RecurringMeeting, MeetingFrequency, AttendeeRole, MeetingAttendee, TeamMember,
 } from "@/lib/mockData";
-import { EntityDrawer, ConfirmDelete, Field, inputCls } from "@/components/ui/entity-drawer";
+import { EntityDrawer, ConfirmDelete, DrawerGuidance, Field, inputCls } from "@/components/ui/entity-drawer";
 import { SelectWithCustom } from "@/components/ui/select-with-custom";
 import { isIsoDate, inProjectRange, PROJECT_DATE_MIN, PROJECT_DATE_MAX } from "@/lib/validation";
 
@@ -125,6 +125,10 @@ export function MeetingFormDrawer({
         <ConfirmDelete label={`meeting "${initial.name}"`} onConfirm={() => onDelete(initial.id)} onCancel={() => setConfirming(false)} />
       ) : (
         <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+          <DrawerGuidance title="Create meetings that produce decisions, unblock work, or keep governance evidence current.">
+            Mark mandatory attendees only when their absence should be visible as a delivery risk.
+          </DrawerGuidance>
+
           <Field label="Name" required>
             <input type="text" value={name} onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Vendor Sync" className={inputCls} autoFocus />
@@ -164,11 +168,11 @@ export function MeetingFormDrawer({
             <input type="date" value={nextDate} onChange={(e) => setNextDate(e.target.value)} className={inputCls} />
           </Field>
 
-          <Field label="Attendees" required hint={`${attendees.length} selected · click a member to toggle, click M/O to switch role`}>
+          <Field label="Attendees" required hint={`Recommended: include accountable owners and decision makers. ${attendees.length} selected.`}>
             <div className="max-h-56 space-y-1 overflow-y-auto rounded-md border border-border bg-background p-2">
               {teamMembers.length === 0 ? (
                 <p className="px-1 py-2 text-xs italic text-muted-foreground">
-                  No team members defined yet. Add the delivery team so meetings can show owners and decisions clearly.
+                  Recommended: add the delivery team first so meetings can show owners and decisions clearly.
                 </p>
               ) : teamMembers.map((m) => {
                 const att = attendees.find((a) => a.memberId === m.id);

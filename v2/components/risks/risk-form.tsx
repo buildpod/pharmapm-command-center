@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Trash2 } from "lucide-react";
 import type { Risk, RiskStatus } from "@/lib/mockData";
-import { EntityDrawer, ConfirmDelete, Field, inputCls } from "@/components/ui/entity-drawer";
+import { EntityDrawer, ConfirmDelete, DrawerGuidance, Field, inputCls } from "@/components/ui/entity-drawer";
 import { SelectWithCustom } from "@/components/ui/select-with-custom";
 
 const STATUSES: RiskStatus[] = ["open", "mitigated", "closed"];
@@ -100,6 +100,10 @@ export function RiskFormDrawer({
         <ConfirmDelete label={`risk "${initial.title}"`} onConfirm={() => onDelete(initial.id)} onCancel={() => setConfirming(false)} />
       ) : (
         <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+          <DrawerGuidance title="State the uncertain event, the delivery impact, the owner, and the mitigation that can be checked later.">
+            A good risk entry should make the next governance action obvious.
+          </DrawerGuidance>
+
           <Field label="Title" required>
             <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Veeva Vault upgrade mid-project" className={inputCls} autoFocus />
@@ -109,7 +113,7 @@ export function RiskFormDrawer({
             <Field label="Category" required>
               <SelectWithCustom value={category} onChange={setCategory} options={knownCategories} />
             </Field>
-            <Field label="Owner" hint="initials">
+            <Field label="Owner" hint="Recommended: assign the person accountable for mitigation follow-through.">
               <input type="text" value={owner} onChange={(e) => setOwner(e.target.value.toUpperCase().slice(0, 4))} className={inputCls} />
             </Field>
           </div>
@@ -138,7 +142,7 @@ export function RiskFormDrawer({
             </select>
           </Field>
 
-          <Field label="Mitigation strategy" required hint="What you're doing about it">
+          <Field label="Mitigation strategy" required hint="Recommended: describe the next action, owner support, and when this will be reviewed.">
             <textarea value={mitigation} onChange={(e) => setMitigation(e.target.value)} rows={3}
               placeholder="e.g. Engage specialist vendor; add 2-week buffer" className={inputCls} />
           </Field>

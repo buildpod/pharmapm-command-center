@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import type { CostLine, ContractType } from "@/lib/mockData";
-import { EntityDrawer, ConfirmDelete, Field, inputCls } from "@/components/ui/entity-drawer";
+import { EntityDrawer, ConfirmDelete, DrawerGuidance, Field, inputCls } from "@/components/ui/entity-drawer";
 import { SelectWithCustom } from "@/components/ui/select-with-custom";
 
 const CONTRACTS: ContractType[] = ["T&M", "Fixed", "Internal"];
@@ -97,6 +97,10 @@ export function CostLineFormDrawer({
         <ConfirmDelete label={`cost line "${initial.description}"`} onConfirm={() => onDelete(initial.id)} onCancel={() => setConfirming(false)} />
       ) : (
         <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+          <DrawerGuidance title="Capture budget lines at the level leadership can control: vendor, internal team, or major work package.">
+            Keep actuals current so budget pressure is visible before it becomes a SteerCo surprise.
+          </DrawerGuidance>
+
           <Field label="Description" required>
             <input type="text" value={description} onChange={(e) => setDescription(e.target.value)}
               placeholder="e.g. Veeva Vault configuration & development" className={inputCls} autoFocus />
@@ -106,17 +110,17 @@ export function CostLineFormDrawer({
             <Field label="Category" required>
               <SelectWithCustom value={category} onChange={setCategory} options={knownCategories} />
             </Field>
-            <Field label="Owner" hint="initials">
+            <Field label="Owner" hint="Recommended: assign the budget owner who can explain variance.">
               <input type="text" value={owner} onChange={(e) => setOwner(e.target.value.toUpperCase().slice(0, 4))} className={inputCls} />
             </Field>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
-            <Field label="Budget ($k)" hint="thousands">
+            <Field label="Budget ($k)" hint="Recommended: enter the approved amount in thousands.">
               <input type="number" min={0} value={budgetK}
                 onChange={(e) => setBudgetK(Math.max(0, Number(e.target.value) || 0))} className={inputCls} />
             </Field>
-            <Field label="Actual ($k)" hint="spent to date">
+            <Field label="Actual ($k)" hint="Recommended: update with spend to date so burn is visible.">
               <input type="number" min={0} value={actualK}
                 onChange={(e) => setActualK(Math.max(0, Number(e.target.value) || 0))} className={inputCls} />
             </Field>

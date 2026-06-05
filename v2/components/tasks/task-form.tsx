@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import type { Task, TaskStatus, TaskPriority, Milestone } from "@/lib/mockData";
-import { EntityDrawer, ConfirmDelete, Field, inputCls } from "@/components/ui/entity-drawer";
+import { EntityDrawer, ConfirmDelete, DrawerGuidance, Field, inputCls } from "@/components/ui/entity-drawer";
 import { SelectWithCustom } from "@/components/ui/select-with-custom";
 import { isIsoDate, inProjectRange, PROJECT_DATE_MIN, PROJECT_DATE_MAX } from "@/lib/validation";
 import { topoSortTasks } from "@/lib/domain/scheduling";
@@ -238,6 +238,10 @@ export function TaskFormDrawer({
           className="space-y-4"
           onSubmit={(e) => { e.preventDefault(); handleSave(); }}
         >
+          <DrawerGuidance title="Add the smallest trackable delivery item: clear outcome, accountable owner, due date, and only true upstream blockers.">
+            Keep task names action-oriented so status meetings can scan the register without extra explanation.
+          </DrawerGuidance>
+
           <Field label="Name" required>
             <input
               type="text"
@@ -254,7 +258,7 @@ export function TaskFormDrawer({
               <SelectWithCustom value={workstream} onChange={setWorkstream} options={knownWorkstreams} />
             </Field>
 
-            <Field label="Owner" hint="initials">
+            <Field label="Owner" hint="Recommended: use the accountable owner initials, not a team name.">
               <input
                 type="text"
                 value={owner}
@@ -286,7 +290,7 @@ export function TaskFormDrawer({
             </Field>
           </div>
 
-          <Field label="Progress" hint={`${progress}% (status auto-advances at 100%)`}>
+          <Field label="Progress" hint={`Recommended: update only when evidence exists. Current progress is ${progress}%.`}>
             <input
               type="range"
               min={0}
@@ -299,7 +303,7 @@ export function TaskFormDrawer({
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Milestone" hint="links task to a milestone (optional)">
+            <Field label="Milestone" hint="Recommended: link key tasks to the milestone they prove or unblock.">
               <select
                 value={milestoneId}
                 onChange={(e) => setMilestoneId(e.target.value)}
@@ -327,7 +331,7 @@ export function TaskFormDrawer({
 
           <Field
             label="Depends on"
-            hint={`${dependsOn.length} upstream task${dependsOn.length === 1 ? "" : "s"} selected`}
+            hint={`Recommended: select only tasks that must finish before this task can move. ${dependsOn.length} upstream task${dependsOn.length === 1 ? "" : "s"} selected.`}
           >
             <div
               className="max-h-48 overflow-y-auto rounded-md border border-border bg-background p-2 space-y-0.5"
@@ -335,7 +339,7 @@ export function TaskFormDrawer({
             >
               {depCandidates.length === 0 ? (
                 <p className="px-1 py-2 text-xs text-muted-foreground italic">
-                  No other tasks to depend on yet. Add upstream work when this task should wait for another owner.
+                  Recommended: add upstream work when this task must wait for another owner, approval, or deliverable.
                 </p>
               ) : (
                 depCandidates.map((t) => {

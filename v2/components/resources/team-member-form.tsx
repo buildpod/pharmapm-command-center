@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import type { TeamMember, SteerCoRole } from "@/lib/mockData";
-import { EntityDrawer, ConfirmDelete, Field, inputCls } from "@/components/ui/entity-drawer";
+import { EntityDrawer, ConfirmDelete, DrawerGuidance, Field, inputCls } from "@/components/ui/entity-drawer";
 import { SelectWithCustom } from "@/components/ui/select-with-custom";
 
 function nextTmId(all: TeamMember[]): string {
@@ -101,13 +101,17 @@ export function TeamMemberFormDrawer({
         <ConfirmDelete label={`team member "${initial.name}"`} onConfirm={() => onDelete(initial.id)} onCancel={() => setConfirming(false)} />
       ) : (
         <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+          <DrawerGuidance title="Add people who own delivery, approvals, or governance decisions.">
+            Initials are used across tasks, risks, milestones, meetings, and availability.
+          </DrawerGuidance>
+
           <Field label="Full name" required>
             <input type="text" value={name} onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Maria Costa" className={inputCls} autoFocus />
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Initials" hint="auto from name if blank">
+            <Field label="Initials" hint="Recommended: keep initials unique so ownership is easy to scan.">
               <input type="text" value={initials}
                 onChange={(e) => setInitials(e.target.value.toUpperCase().slice(0, 4))}
                 placeholder={initialsFromName(name) || "—"} className={inputCls} />
@@ -126,7 +130,7 @@ export function TeamMemberFormDrawer({
                 options={Array.from(new Set([...knownWorkstreams, "Executive"]))}
               />
             </Field>
-            <Field label="SteerCo role">
+            <Field label="SteerCo role" hint="Recommended: mark only the people expected in leadership decisions.">
               <select value={steercoRole} onChange={(e) => setSteercoRole(e.target.value as SteerCoRole | "")} className={inputCls}>
                 <option value="">— not on SteerCo —</option>
                 <option value="mandatory">Mandatory</option>
