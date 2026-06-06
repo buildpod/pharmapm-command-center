@@ -160,139 +160,169 @@ export function MilestoneFormDrawer({
         />
       ) : (
         <form
-          className="grid gap-4 lg:grid-cols-2"
+          className="milestone-editor"
           onSubmit={(e) => { e.preventDefault(); handleSave(); }}
         >
-          <DrawerGuidance className="lg:col-span-2" title="Use milestones for decision gates or delivery proof points, not every activity.">
-            Connect predecessors when timing depends on another milestone so schedule impact is visible before saving.
-          </DrawerGuidance>
+          <aside className="milestone-editor__rail">
+            <DrawerGuidance title="Use milestones for decision gates or delivery proof points, not every activity.">
+              Connect predecessors only when timing truly depends on another milestone.
+            </DrawerGuidance>
+            <div className="milestone-summary">
+              <div className="milestone-summary__label">Schedule impact</div>
+              <div className="milestone-summary__value">{duration + lag} days</div>
+              <div className="milestone-summary__meta">
+                {predecessor ? "After selected predecessor" : "No predecessor selected"}
+              </div>
+            </div>
+            <div className="milestone-summary">
+              <div className="milestone-summary__label">Governance note</div>
+              <div className="milestone-summary__meta">
+                Lock only board-approved dates or external commitments.
+              </div>
+            </div>
+          </aside>
 
-          <Field label="Name" required className="lg:col-span-2">
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Vault Configuration — Sprint 3"
-              className={inputCls}
-              autoFocus
-            />
-          </Field>
+          <div className="milestone-editor__main">
+            <section className="form-section">
+              <div className="form-section__head">
+                <h3 className="form-section__title">Milestone identity</h3>
+                <span className="form-section__meta">Name the proof point and owner</span>
+              </div>
+              <div className="form-grid-2">
+                <Field label="Name" required className="form-span-all">
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. Vault Configuration — Sprint 3"
+                    className={inputCls}
+                    autoFocus
+                  />
+                </Field>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Phase" required>
-              <select value={phase} onChange={(e) => setPhase(e.target.value)} className={inputCls}>
-                {PHASES.map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </Field>
+                <Field label="Phase" required>
+                  <select value={phase} onChange={(e) => setPhase(e.target.value)} className={inputCls}>
+                    {PHASES.map((p) => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </Field>
 
-            <Field label="Owner" hint="Recommended: assign the person accountable for the milestone evidence.">
-              <input
-                type="text"
-                value={owner}
-                onChange={(e) => setOwner(e.target.value.toUpperCase().slice(0, 4))}
-                className={inputCls}
-              />
-            </Field>
+                <Field label="Owner" hint="Accountable initials">
+                  <input
+                    type="text"
+                    value={owner}
+                    onChange={(e) => setOwner(e.target.value.toUpperCase().slice(0, 4))}
+                    className={inputCls}
+                  />
+                </Field>
+              </div>
+            </section>
+
+            <section className="form-section">
+              <div className="form-section__head">
+                <h3 className="form-section__title">Schedule logic</h3>
+                <span className="form-section__meta">Dependency and effort assumptions</span>
+              </div>
+              <div className="form-grid-2">
+                <Field label="Predecessor" hint="Choose one only when this milestone cannot finish before it." className="form-span-all">
+                  <select
+                    value={predecessor}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setPredecessor(next);
+                      if (next && !plannedDate) {
+                        const pred = allMilestones.find((m) => m.id === next);
+                        if (pred?.plannedDate) {
+                          const suggest = addCalendarDays(pred.plannedDate, lag + 1);
+                          setPlannedDate(suggest);
+                        }
+                      }
+                    }}
+                    className={inputCls}
+                  >
+                    <option value="">— none —</option>
+                    {predOptions.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.id.toUpperCase()} · {m.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field label="Duration" hint="Working days to complete the milestone.">
+                  <input
+                    type="number"
+                    min={1}
+                    value={duration}
+                    onChange={(e) => setDuration(Math.max(1, Number(e.target.value) || 1))}
+                    className={inputCls}
+                  />
+                </Field>
+
+                <Field label="Lag" hint="Waiting time after the predecessor.">
+                  <input
+                    type="number"
+                    min={0}
+                    value={lag}
+                    onChange={(e) => setLag(Math.max(0, Number(e.target.value) || 0))}
+                    className={inputCls}
+                  />
+                </Field>
+              </div>
+            </section>
+
+            <section className="form-section">
+              <div className="form-section__head">
+                <h3 className="form-section__title">Dates and control</h3>
+                <span className="form-section__meta">Target, forecast, and governance state</span>
+              </div>
+              <div className="form-grid-4">
+                <Field label="Planned date" required hint="Committed target date.">
+                  <input
+                    type="date"
+                    value={plannedDate}
+                    onChange={(e) => setPlannedDate(e.target.value)}
+                    className={inputCls}
+                  />
+                </Field>
+
+                <Field label="Forecast date" hint="Update when reality changes.">
+                  <input
+                    type="date"
+                    value={forecastDate}
+                    onChange={(e) => setForecastDate(e.target.value)}
+                    className={inputCls}
+                  />
+                </Field>
+
+                <Field label="Status">
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value as MilestoneStatus)}
+                    className={inputCls}
+                  >
+                    {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </Field>
+
+                <Field label="Locked" hint="Protect approved dates.">
+                  <label className="milestone-lock">
+                    <input
+                      type="checkbox"
+                      checked={locked}
+                      onChange={(e) => setLocked(e.target.checked)}
+                    />
+                    <span>{locked ? "Locked" : "Unlocked"}</span>
+                  </label>
+                </Field>
+              </div>
+            </section>
+
+            {error && (
+              <p className="form-error">
+                {error}
+              </p>
+            )}
           </div>
-
-          <Field label="Predecessor" hint="Recommended: choose a predecessor only when this milestone cannot be achieved before it." className="lg:col-span-2">
-            <select
-              value={predecessor}
-              onChange={(e) => {
-                const next = e.target.value;
-                setPredecessor(next);
-                // Auto-suggest planned date based on predecessor + lag (only if planned not set yet)
-                if (next && !plannedDate) {
-                  const pred = allMilestones.find((m) => m.id === next);
-                  if (pred?.plannedDate) {
-                    // rough: predecessor end + (lag + 1) calendar days; user can refine
-                    const suggest = addCalendarDays(pred.plannedDate, lag + 1);
-                    setPlannedDate(suggest);
-                  }
-                }
-              }}
-              className={inputCls}
-            >
-              <option value="">— none —</option>
-              {predOptions.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.id.toUpperCase()} · {m.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Duration" hint="Recommended: include review and sign-off time, not only execution time.">
-              <input
-                type="number"
-                min={1}
-                value={duration}
-                onChange={(e) => setDuration(Math.max(1, Number(e.target.value) || 1))}
-                className={inputCls}
-              />
-            </Field>
-
-            <Field label="Lag" hint="Recommended: add lag for waiting time, approvals, or handoffs after the predecessor.">
-              <input
-                type="number"
-                min={0}
-                value={lag}
-                onChange={(e) => setLag(Math.max(0, Number(e.target.value) || 0))}
-                className={inputCls}
-              />
-            </Field>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Planned date" required hint="Recommended: use the committed date the team can explain in governance.">
-              <input
-                type="date"
-                value={plannedDate}
-                onChange={(e) => setPlannedDate(e.target.value)}
-                className={inputCls}
-              />
-            </Field>
-
-            <Field label="Forecast date" hint="Recommended: update forecast when reality changes, not the original target.">
-              <input
-                type="date"
-                value={forecastDate}
-                onChange={(e) => setForecastDate(e.target.value)}
-                className={inputCls}
-              />
-            </Field>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Status">
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as MilestoneStatus)}
-                className={inputCls}
-              >
-                {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </Field>
-
-            <Field label="Locked" hint="Recommended: lock only board-approved dates or external commitments.">
-              <label className="mt-1 flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={locked}
-                  onChange={(e) => setLocked(e.target.checked)}
-                  className="h-4 w-4 rounded border-border accent-primary"
-                />
-                <span className="text-foreground">{locked ? "Locked" : "Unlocked"}</span>
-              </label>
-            </Field>
-          </div>
-
-          {error && (
-            <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:bg-rose-950/30 lg:col-span-2">
-              {error}
-            </p>
-          )}
         </form>
       )}
     </EntityDrawer>
