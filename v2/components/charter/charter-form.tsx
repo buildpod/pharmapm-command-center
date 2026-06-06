@@ -102,6 +102,12 @@ export function CharterFormDrawer({
   const subtitle = isNew
     ? "The authorising document for this project. Required fields are marked."
     : `Last updated ${initial?.lastUpdated ?? "—"}`;
+  const readiness = [
+    { label: "Purpose", done: Boolean(purpose.trim()) },
+    { label: "Outcomes", done: objectives.some(Boolean) && successCriteria.some(Boolean) },
+    { label: "Scope", done: inScope.some(Boolean) || outOfScope.some(Boolean) },
+    { label: "Governance", done: Boolean(sponsor.trim()) && Boolean(projectManager.trim()) },
+  ];
 
   return (
     <EntityDrawer
@@ -127,99 +133,151 @@ export function CharterFormDrawer({
       }
       variant="modal"
     >
-      <form className="grid gap-5 lg:grid-cols-2" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
-        <Field label="Purpose" required hint="One to three short paragraphs framing why this project exists." className="lg:col-span-2">
-          <textarea
-            value={purpose}
-            onChange={(e) => setPurpose(e.target.value)}
-            rows={5}
-            className={cn(inputCls, "min-h-[100px]")}
-            placeholder="What problem does this project solve, and why now?"
-          />
-        </Field>
+      <form className="charter-editor" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+        <aside className="charter-editor__rail">
+          <div className="form-guidance">
+            <p className="form-guidance__eyebrow">Charter focus</p>
+            <p className="form-guidance__title">Make the project easy to approve and audit.</p>
+            <p className="form-guidance__body">
+              Capture the promise, boundaries, success proof, and accountable owners before the team starts detailed delivery.
+            </p>
+          </div>
 
-        <ListField label="Objectives" hint="Measurable outcomes. One per line." items={objectives} onChange={setObjectives} placeholder="e.g. Migrate 14,200 dossiers by 2026-08-15" className="lg:col-span-2" />
+          <div className="charter-readiness">
+            <p className="charter-readiness__title">Readiness checklist</p>
+            <ul className="charter-readiness__list">
+              {readiness.map((item) => (
+                <li key={item.label} className="charter-readiness__item">
+                  <span>{item.label}</span>
+                  <span
+                    className={cn(
+                      "charter-readiness__state",
+                      item.done && "charter-readiness__state--done"
+                    )}
+                    aria-label={item.done ? "Complete" : "Needs input"}
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
+        </aside>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:col-span-2">
-          <ListField label="In scope" items={inScope} onChange={setInScope} placeholder="e.g. Document workflows" />
-          <ListField label="Out of scope" items={outOfScope} onChange={setOutOfScope} placeholder="e.g. QMS integration" />
-        </div>
+        <div className="charter-editor__main">
+          <section className="form-section">
+            <div className="form-section__head">
+              <h3 className="form-section__title">Project intent</h3>
+              <span className="form-section__meta">Why this exists</span>
+            </div>
+            <Field label="Purpose" required hint="One to three short paragraphs framing why this project exists.">
+              <textarea
+                value={purpose}
+                onChange={(e) => setPurpose(e.target.value)}
+                rows={4}
+                className={cn(inputCls, "min-h-[96px]")}
+                placeholder="What problem does this project solve, and why now?"
+              />
+            </Field>
+            <ListField label="Objectives" hint="Measurable outcomes. One per line." items={objectives} onChange={setObjectives} placeholder="e.g. Migrate 14,200 dossiers by 2026-08-15" />
+          </section>
 
-        <ListField label="Success criteria" hint="How will you know it worked?" items={successCriteria} onChange={setSuccessCriteria} placeholder="e.g. Migration completeness ≥ 99.5%" className="lg:col-span-2" />
+          <section className="form-section">
+            <div className="form-section__head">
+              <h3 className="form-section__title">Scope boundaries</h3>
+              <span className="form-section__meta">What is included</span>
+            </div>
+            <div className="form-grid-2">
+              <ListField label="In scope" items={inScope} onChange={setInScope} placeholder="e.g. Document workflows" />
+              <ListField label="Out of scope" items={outOfScope} onChange={setOutOfScope} placeholder="e.g. QMS integration" />
+            </div>
+          </section>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:col-span-2">
-          <ListField label="Assumptions" items={assumptions} onChange={setAssumptions} placeholder="e.g. Vendor provides 2 consultants" />
-          <ListField label="Constraints" items={constraints} onChange={setConstraints} placeholder="e.g. Go-live locked at 2026-09-02" />
-        </div>
+          <section className="form-section">
+            <div className="form-section__head">
+              <h3 className="form-section__title">Success proof</h3>
+              <span className="form-section__meta">How SteerCo will judge it</span>
+            </div>
+            <ListField label="Success criteria" hint="How will you know it worked?" items={successCriteria} onChange={setSuccessCriteria} placeholder="e.g. Migration completeness >= 99.5%" />
+            <div className="form-grid-2">
+              <ListField label="Assumptions" items={assumptions} onChange={setAssumptions} placeholder="e.g. Vendor provides 2 consultants" />
+              <ListField label="Constraints" items={constraints} onChange={setConstraints} placeholder="e.g. Go-live locked at 2026-09-02" />
+            </div>
+          </section>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:col-span-2">
-          <Field label="Sponsor" required>
-            <input
-              type="text"
-              value={sponsor}
-              onChange={(e) => setSponsor(e.target.value)}
-              className={inputCls}
-              placeholder="e.g. Dr Margaret Chen, VP Regulatory Affairs"
-            />
-          </Field>
-          <Field label="Project manager" required>
-            <input
-              type="text"
-              value={projectManager}
-              onChange={(e) => setProjectManager(e.target.value)}
-              className={inputCls}
-              placeholder="e.g. Vineet Pathak"
-            />
-          </Field>
-        </div>
+          <section className="form-section">
+            <div className="form-section__head">
+              <h3 className="form-section__title">Governance</h3>
+              <span className="form-section__meta">Who owns approval</span>
+            </div>
+            <div className="form-grid-2">
+              <Field label="Sponsor" required>
+                <input
+                  type="text"
+                  value={sponsor}
+                  onChange={(e) => setSponsor(e.target.value)}
+                  className={inputCls}
+                  placeholder="e.g. Dr Margaret Chen, VP Regulatory Affairs"
+                />
+              </Field>
+              <Field label="Project manager" required>
+                <input
+                  type="text"
+                  value={projectManager}
+                  onChange={(e) => setProjectManager(e.target.value)}
+                  className={inputCls}
+                  placeholder="e.g. Vineet Pathak"
+                />
+              </Field>
+            </div>
 
-        <Field label="Budget summary" hint="One line — total, breakdown, contingency." className="lg:col-span-2">
-          <input
-            type="text"
-            value={budgetSummary}
-            onChange={(e) => setBudgetSummary(e.target.value)}
-            className={inputCls}
-            placeholder="e.g. $1.85M total · $1.20M vendor · $0.45M internal · $0.20M contingency"
-          />
-        </Field>
-
-        <Field label="Status">
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value as CharterStatus)}
-            className={inputCls}
-          >
-            {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
-          </select>
-        </Field>
-
-        {status === "approved" && (
-          <div className="grid gap-4 sm:grid-cols-2 lg:col-span-2">
-            <Field label="Approved by" required>
+            <Field label="Budget summary" hint="One line: total, breakdown, contingency.">
               <input
                 type="text"
-                value={approvedBy}
-                onChange={(e) => setApprovedBy(e.target.value)}
+                value={budgetSummary}
+                onChange={(e) => setBudgetSummary(e.target.value)}
                 className={inputCls}
-                placeholder="Sponsor name as it appears on the signoff"
+                placeholder="e.g. $1.85M total; $1.20M vendor; $0.45M internal; $0.20M contingency"
               />
             </Field>
-            <Field label="Approval date" required>
-              <input
-                type="date"
-                value={approvedDate}
-                onChange={(e) => setApprovedDate(e.target.value)}
-                className={inputCls}
-              />
-            </Field>
-          </div>
-        )}
 
-        {error && (
-          <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 lg:col-span-2">
-            {error}
-          </p>
-        )}
+            <Field label="Status">
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as CharterStatus)}
+                className={inputCls}
+              >
+                {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+              </select>
+            </Field>
+
+            {status === "approved" && (
+              <div className="form-grid-2">
+                <Field label="Approved by" required>
+                  <input
+                    type="text"
+                    value={approvedBy}
+                    onChange={(e) => setApprovedBy(e.target.value)}
+                    className={inputCls}
+                    placeholder="Sponsor name as it appears on the signoff"
+                  />
+                </Field>
+                <Field label="Approval date" required>
+                  <input
+                    type="date"
+                    value={approvedDate}
+                    onChange={(e) => setApprovedDate(e.target.value)}
+                    className={inputCls}
+                  />
+                </Field>
+              </div>
+            )}
+          </section>
+
+          {error && (
+            <p className="form-error">
+              {error}
+            </p>
+          )}
+        </div>
       </form>
     </EntityDrawer>
   );
@@ -251,9 +309,9 @@ function ListField({
     <Field label={label} hint={hint} className={className}>
       <div className="space-y-1.5">
         {items.length === 0 && (
-          <div className="rounded-md border border-dashed border-border bg-muted/20 px-3 py-2">
-            <p className="text-[11px] font-medium text-foreground">{recommendation.title}</p>
-            <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{recommendation.body}</p>
+          <div className="empty-guidance">
+            <p className="empty-guidance__title">{recommendation.title}</p>
+            <p className="empty-guidance__body">{recommendation.body}</p>
           </div>
         )}
         {items.map((item, i) => (

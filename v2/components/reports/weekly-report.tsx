@@ -34,6 +34,8 @@ function daysBetween(a: Date, b: Date) {
 
 function buildReportData() {
   const kpis = getKpis();
+  const tasksInFlight = tasks.filter((t) => t.status === "In Progress");
+  const blockedTasks = tasks.filter((t) => t.status === "Blocked");
 
   // Schedule health derived from variance of next upcoming milestone
   const scheduleHealth =
@@ -90,8 +92,44 @@ function buildReportData() {
     thisWeekMs, upcomingMs,
     thisWeekTasks, upcomingTasks,
     openRisks, pendingDecisions,
+    tasksInFlight, blockedTasks,
     burnPct, totalActualK, totalBudgetK,
   };
+}
+
+function buildEvidenceRows(data: ReturnType<typeof buildReportData>) {
+  return [
+    {
+      claim: `Schedule health is ${data.scheduleHealth}`,
+      source: `${milestones.length} milestone records and schedule variance`,
+      route: "/pharmapm-command-center/v2/milestones/",
+      label: "Open milestones",
+    },
+    {
+      claim: `${data.openRisks.length} open risks`,
+      source: `${data.openRisks.length} active risk records, ${data.kpis.highRisks} high`,
+      route: "/pharmapm-command-center/v2/risks/",
+      label: "Open risks",
+    },
+    {
+      claim: `${data.pendingDecisions.length} decisions pending`,
+      source: "Pending document reviewers and approvers",
+      route: "/pharmapm-command-center/v2/documents/",
+      label: "Open documents",
+    },
+    {
+      claim: `${data.burnPct}% budget utilised`,
+      source: `${costLines.length} cost lines, $${data.totalActualK}k actual`,
+      route: "/pharmapm-command-center/v2/costs/",
+      label: "Open costs",
+    },
+    {
+      claim: `${data.tasksInFlight.length} tasks in flight`,
+      source: `${tasks.length} task records, ${data.blockedTasks.length} blocked`,
+      route: "/pharmapm-command-center/v2/tasks/",
+      label: "Open tasks",
+    },
+  ];
 }
 
 // ─── Score band ───────────────────────────────────────────────────────────────
@@ -153,6 +191,11 @@ function exportExcel(data: ReturnType<typeof buildReportData>) {
   const taskRows = data.upcomingTasks.map((t) => [t.id, t.name, t.workstream, t.priority, t.owner, fmtDate(t.dueDate), t.status, t.progress]);
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([taskHeaders, ...taskRows]), "Tasks (Next 2 Weeks)");
 
+  // Sheet 6 — Evidence trail
+  const evidenceHeaders = ["Report claim", "Source evidence", "Source page"];
+  const evidenceRows = buildEvidenceRows(data).map((row) => [row.claim, row.source, row.route]);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([evidenceHeaders, ...evidenceRows]), "Evidence Trail");
+
   XLSX.writeFile(wb, `AivelloRIM_WeeklyReport_${TODAY.toISOString().slice(0, 10)}.xlsx`);
 }
 
@@ -182,6 +225,7 @@ const msStatusStyles: Record<string, string> = {
 
 export function WeeklyReport() {
   const [data] = useState(buildReportData);
+  const evidenceRows = buildEvidenceRows(data);
 
   const healthColor =
     data.scheduleHealth === "Green" ? "text-green-600" :
@@ -207,7 +251,7 @@ export function WeeklyReport() {
           Export Excel
         </button>
         <span className="text-[10px] text-muted-foreground ml-2">
-          5-sheet workbook: Summary · Milestones · Risks · Decisions · Tasks
+          6-sheet workbook: Summary · Milestones · Risks · Decisions · Tasks · Evidence
         </span>
       </div>
 
@@ -234,6 +278,34 @@ export function WeeklyReport() {
           </div>
         </div>
 
+        <div className="report-summary print:break-inside-avoid">
+          <div className="report-verdict">
+            <p className="report-verdict__label">Executive readout</p>
+            <h3 className="report-verdict__title">
+              {data.scheduleHealth === "Red" ? "Leadership attention needed" : "Project story is traceable"}
+            </h3>
+            <p className="report-verdict__body">
+              The weekly status is backed by source records from milestones, risks, documents, costs, and tasks. Use the evidence trail before sending the report to SteerCo.
+            </p>
+          </div>
+
+          <div className="report-evidence">
+            <div className="report-evidence__head">
+              <h3 className="report-evidence__title">Evidence trail</h3>
+              <span className="report-evidence__meta">Backtrace to source pages</span>
+            </div>
+            <div className="report-evidence__list">
+              {evidenceRows.map((row) => (
+                <div key={row.claim} className="report-evidence__row">
+                  <span className="report-evidence__claim">{row.claim}</span>
+                  <span className="report-evidence__source">{row.source}</span>
+                  <a className="report-evidence__link print:hidden" href={row.route}>{row.label}</a>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {/* ── KPI strip ── */}
         <Section title="Headline Metrics">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -243,7 +315,7 @@ export function WeeklyReport() {
               { label: "Open Risks",       value: data.openRisks.length,    sub: `${data.kpis.highRisks} high`, color: data.openRisks.length > 3 ? "text-rose-600" : "text-foreground" },
               { label: "Budget Utilised",  value: `${data.burnPct}%`,        sub: `$${data.totalActualK}k / $${data.totalBudgetK}k`, color: data.burnPct > 85 ? "text-rose-600" : data.burnPct > 60 ? "text-amber-600" : "text-foreground" },
               { label: "Decisions Pending",value: data.pendingDecisions.length, sub: "across all docs", color: data.pendingDecisions.length > 0 ? "text-amber-600" : "text-foreground" },
-              { label: "Tasks In Flight",  value: tasks.filter((t) => t.status === "In Progress").length, sub: `${tasks.filter((t) => t.status === "Blocked").length} blocked`, color: "text-foreground" },
+              { label: "Tasks In Flight",  value: data.tasksInFlight.length, sub: `${data.blockedTasks.length} blocked`, color: "text-foreground" },
             ].map((k) => (
               <div key={k.label} className="rounded-md border border-border bg-muted/20 px-3 py-2.5 print:border-border">
                 <p className={cn("text-xl font-bold tabular-nums", k.color)}>{k.value}</p>
