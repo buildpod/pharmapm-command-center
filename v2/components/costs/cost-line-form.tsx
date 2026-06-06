@@ -76,6 +76,7 @@ export function CostLineFormDrawer({
       onClose={onClose}
       title={isNew ? "Add cost line" : `Edit · ${initial?.description ?? ""}`}
       subtitle={isNew ? "Budget vs actual at the category level. Burn % auto-derives." : `${initial?.id?.toUpperCase()} · ${initial?.category}`}
+      variant="modal"
       footer={
         <div className="flex items-center justify-between gap-2">
           {!isNew ? (

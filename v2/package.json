@@ -7,6 +7,7 @@
     "dev:fresh": "node scripts/clean-next-cache.mjs && next dev -p 3000",
     "dev:verified": "node scripts/local-preview.mjs start",
     "preview:check": "node scripts/local-preview.mjs doctor",
+    "ui:regression": "node scripts/ui-regression.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
