@@ -150,6 +150,7 @@ export function MilestoneFormDrawer({
           </div>
         </div>
       }
+      variant="modal"
     >
       {confirming && initial ? (
         <ConfirmDelete

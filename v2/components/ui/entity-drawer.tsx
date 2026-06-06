@@ -15,6 +15,7 @@ export function EntityDrawer({
   subtitle,
   children,
   footer,
+  variant = "drawer",
 }: {
   open: boolean;
   onClose: () => void;
@@ -22,6 +23,7 @@ export function EntityDrawer({
   subtitle?: string;
   children: React.ReactNode;
   footer: React.ReactNode;
+  variant?: "drawer" | "modal";
 }) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -42,43 +44,51 @@ export function EntityDrawer({
 
   if (!open) return null;
 
+  const isModal = variant === "modal";
+  const panel = (
+    <div
+      className={cn(
+        "z-50 flex w-full flex-col border-border bg-card shadow-2xl",
+        isModal
+          ? "pointer-events-auto max-h-[calc(100vh-2rem)] max-w-5xl overflow-hidden rounded-lg border animate-in fade-in-0 zoom-in-95 duration-200"
+          : "fixed right-0 top-0 h-full max-w-md border-l animate-in slide-in-from-right duration-200"
+      )}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
+      <header className="flex items-start justify-between gap-3 border-b border-border bg-muted/30 px-5 py-4">
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold text-foreground">{title}</h2>
+          {subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>}
+        </div>
+        <button
+          onClick={onClose}
+          className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          title="Close (Esc)"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </header>
+
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">{children}</div>
+
+      <footer className="border-t border-border bg-muted/30 px-5 py-3">{footer}</footer>
+    </div>
+  );
+
   return (
     <>
-      {/* Backdrop */}
       <div
         className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden
       />
-      {/* Drawer */}
-      <div
-        className={cn(
-          "fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col",
-          "border-l border-border bg-card shadow-2xl",
-          "animate-in slide-in-from-right duration-200"
-        )}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-      >
-        <header className="flex items-start justify-between gap-3 border-b border-border bg-muted/30 px-5 py-4">
-          <div className="min-w-0">
-            <h2 className="text-base font-semibold text-foreground">{title}</h2>
-            {subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>}
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            title="Close (Esc)"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </header>
-
-        <div className="flex-1 overflow-y-auto px-5 py-5">{children}</div>
-
-        <footer className="border-t border-border bg-muted/30 px-5 py-3">{footer}</footer>
-      </div>
+      {isModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+          {panel}
+        </div>
+      ) : panel}
     </>
   );
 }

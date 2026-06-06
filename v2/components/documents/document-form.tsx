@@ -181,6 +181,7 @@ export function DocumentFormDrawer({
           </div>
         </div>
       }
+      variant="modal"
     >
       {confirming && initial ? (
         <ConfirmDelete label={`document "${initial.name}"`} onConfirm={() => onDelete(initial.id)} onCancel={() => setConfirming(false)} />

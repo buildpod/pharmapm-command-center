@@ -95,6 +95,7 @@ export function RiskFormDrawer({
           </div>
         </div>
       }
+      variant="modal"
     >
       {confirming && initial ? (
         <ConfirmDelete label={`risk "${initial.title}"`} onConfirm={() => onDelete(initial.id)} onCancel={() => setConfirming(false)} />

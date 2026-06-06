@@ -125,6 +125,7 @@ export function CharterFormDrawer({
           </button>
         </div>
       }
+      variant="modal"
     >
       <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
         <Field label="Purpose" required hint="One to three short paragraphs framing why this project exists.">

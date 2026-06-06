@@ -226,6 +226,7 @@ export function TaskFormDrawer({
           </div>
         </div>
       }
+      variant="modal"
     >
       {confirming && initial ? (
         <ConfirmDelete
