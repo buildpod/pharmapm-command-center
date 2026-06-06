@@ -18,16 +18,18 @@ export function CharterFormDrawer({
   open,
   initial,
   projectId,
+  templateMode = false,
   onSave,
   onClose,
 }: {
   open: boolean;
   initial: Charter | null;
   projectId: string;
+  templateMode?: boolean;
   onSave: (c: Charter) => void;
   onClose: () => void;
 }) {
-  const isNew = initial === null;
+  const isNew = initial === null || templateMode;
 
   const [purpose,            setPurpose]            = useState("");
   const [objectives,         setObjectives]         = useState<string[]>([]);
@@ -99,7 +101,9 @@ export function CharterFormDrawer({
   }
 
   const title    = isNew ? "Create charter" : "Edit charter";
-  const subtitle = isNew
+  const subtitle = templateMode
+    ? "Standard template loaded. Adjust the text before saving."
+    : isNew
     ? "The authorising document for this project. Required fields are marked."
     : `Last updated ${initial?.lastUpdated ?? "—"}`;
   const readiness = [

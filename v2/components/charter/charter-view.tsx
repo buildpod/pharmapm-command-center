@@ -37,6 +37,55 @@ export function CharterView() {
 
   const charter = charters.find((c) => c.projectId === activeProjectId);
   const [editing, setEditing] = useState(false);
+  const [templateMode, setTemplateMode] = useState(false);
+
+  const templateCharter: Charter = {
+    id: `charter-${activeProjectId}`,
+    projectId: activeProjectId,
+    purpose: `${activeProject.name} will establish a controlled delivery path for the agreed scope, business outcomes, validation needs, and go-live readiness. The charter gives SteerCo one approved reference for why the project exists, what it covers, and how success will be evidenced.`,
+    objectives: [
+      "Confirm scope, governance, workstream ownership, and delivery cadence before execution starts.",
+      "Deliver approved milestones, controlled documents, testing evidence, and readiness gates for go-live.",
+      "Maintain a traceable delivery story for SteerCo, audit, and project closure.",
+    ],
+    inScope: [
+      "Project governance, milestone control, task ownership, risk management, and decision tracking.",
+      "Core implementation workstreams, readiness gates, controlled documents, training, and go-live preparation.",
+      "Weekly status reporting with evidence linked to source project records.",
+    ],
+    outOfScope: [
+      "Unapproved system changes, business-as-usual support, and enhancements outside the agreed project scope.",
+      "Integrations, regions, or process areas not confirmed during project discovery.",
+    ],
+    successCriteria: [
+      "SteerCo can review project status, risks, decisions, and readiness from one trusted source.",
+      "Critical milestones and controlled documents are approved before go-live.",
+      "Open risks, blockers, and decision debt are visible with accountable owners.",
+    ],
+    assumptions: [
+      "Business SMEs, vendor leads, and QA reviewers are available when required.",
+      "Source data, environments, and approval forums are ready according to the project plan.",
+    ],
+    constraints: [
+      "Go-live, audit, validation, and budget constraints must be escalated through governance.",
+      "Scope changes require sponsor review before they are added to the delivery baseline.",
+    ],
+    sponsor: "",
+    projectManager: "Vineet Pathak",
+    budgetSummary: "",
+    status: "draft",
+    lastUpdated: new Date().toISOString().slice(0, 10),
+  };
+
+  function openBlankForm() {
+    setTemplateMode(false);
+    setEditing(true);
+  }
+
+  function openTemplateForm() {
+    setTemplateMode(true);
+    setEditing(true);
+  }
 
   function handleSave(c: Charter) {
     const exists = charters.some((x) => x.id === c.id);
@@ -49,6 +98,7 @@ export function CharterView() {
       toast.success("Charter created", { description: activeProject.name });
     }
     setEditing(false);
+    setTemplateMode(false);
   }
 
   // ─── Empty state ──────────────────────────────────────────────────────────
@@ -63,7 +113,7 @@ export function CharterView() {
           </p>
           <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
             <button
-              onClick={() => setEditing(true)}
+              onClick={openBlankForm}
               className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
             >
               <Scroll className="h-3.5 w-3.5" />
@@ -71,6 +121,7 @@ export function CharterView() {
             </button>
             <button
               type="button"
+              onClick={openTemplateForm}
               className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-muted"
             >
               <FileText className="h-3.5 w-3.5" />
@@ -81,10 +132,11 @@ export function CharterView() {
 
         <CharterFormDrawer
           open={editing}
-          initial={null}
+          initial={templateMode ? templateCharter : null}
           projectId={activeProjectId}
+          templateMode={templateMode}
           onSave={handleSave}
-          onClose={() => setEditing(false)}
+          onClose={() => { setEditing(false); setTemplateMode(false); }}
         />
       </>
     );
@@ -111,7 +163,7 @@ export function CharterView() {
             <p className="text-xs text-muted-foreground">{activeProject.client} · {activeProject.methodology}</p>
           </div>
           <button
-            onClick={() => setEditing(true)}
+            onClick={openBlankForm}
             className="flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
           >
             <Pencil className="h-3.5 w-3.5" />
