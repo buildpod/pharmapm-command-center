@@ -48,7 +48,7 @@ function PeopleList({
   }
 
   return (
-    <Field label={label} hint={`${people.length} ${label.toLowerCase()}`}>
+    <Field label={label} hint={`${people.length} ${label.toLowerCase()}`} className="lg:col-span-2">
       <div className="space-y-2 rounded-md border border-border bg-background p-2">
         {people.length === 0 ? (
           <div className="rounded-md border border-dashed border-border bg-muted/20 px-3 py-2">
@@ -186,8 +186,8 @@ export function DocumentFormDrawer({
       {confirming && initial ? (
         <ConfirmDelete label={`document "${initial.name}"`} onConfirm={() => onDelete(initial.id)} onCancel={() => setConfirming(false)} />
       ) : (
-        <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
-          <Field label="Name" required>
+        <form className="grid gap-4 lg:grid-cols-2" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+          <Field label="Name" required className="lg:col-span-2">
             <input type="text" value={name} onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Functional Requirements Specification" className={inputCls} autoFocus />
           </Field>
@@ -228,7 +228,7 @@ export function DocumentFormDrawer({
             </Field>
           </div>
 
-          <Field label="Description" hint="short plain-language summary">
+          <Field label="Description" hint="short plain-language summary" className="lg:col-span-2">
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2}
               placeholder="e.g. Detailed functional behaviour the configured system must satisfy." className={inputCls} />
           </Field>
@@ -237,7 +237,7 @@ export function DocumentFormDrawer({
           <PeopleList label="Approvers (Accountable)" people={approvers} onChange={setApprovers} />
 
           {error && (
-            <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:bg-rose-950/30">{error}</p>
+            <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:bg-rose-950/30 lg:col-span-2">{error}</p>
           )}
         </form>
       )}

@@ -160,14 +160,14 @@ export function MilestoneFormDrawer({
         />
       ) : (
         <form
-          className="space-y-4"
+          className="grid gap-4 lg:grid-cols-2"
           onSubmit={(e) => { e.preventDefault(); handleSave(); }}
         >
-          <DrawerGuidance title="Use milestones for decision gates or delivery proof points, not every activity.">
+          <DrawerGuidance className="lg:col-span-2" title="Use milestones for decision gates or delivery proof points, not every activity.">
             Connect predecessors when timing depends on another milestone so schedule impact is visible before saving.
           </DrawerGuidance>
 
-          <Field label="Name" required>
+          <Field label="Name" required className="lg:col-span-2">
             <input
               type="text"
               value={name}
@@ -195,7 +195,7 @@ export function MilestoneFormDrawer({
             </Field>
           </div>
 
-          <Field label="Predecessor" hint="Recommended: choose a predecessor only when this milestone cannot be achieved before it.">
+          <Field label="Predecessor" hint="Recommended: choose a predecessor only when this milestone cannot be achieved before it." className="lg:col-span-2">
             <select
               value={predecessor}
               onChange={(e) => {
@@ -289,7 +289,7 @@ export function MilestoneFormDrawer({
           </div>
 
           {error && (
-            <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:bg-rose-950/30">
+            <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:bg-rose-950/30 lg:col-span-2">
               {error}
             </p>
           )}

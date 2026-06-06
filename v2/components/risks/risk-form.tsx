@@ -100,12 +100,12 @@ export function RiskFormDrawer({
       {confirming && initial ? (
         <ConfirmDelete label={`risk "${initial.title}"`} onConfirm={() => onDelete(initial.id)} onCancel={() => setConfirming(false)} />
       ) : (
-        <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
-          <DrawerGuidance title="State the uncertain event, the delivery impact, the owner, and the mitigation that can be checked later.">
+        <form className="grid gap-4 lg:grid-cols-2" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+          <DrawerGuidance className="lg:col-span-2" title="State the uncertain event, the delivery impact, the owner, and the mitigation that can be checked later.">
             A good risk entry should make the next governance action obvious.
           </DrawerGuidance>
 
-          <Field label="Title" required>
+          <Field label="Title" required className="lg:col-span-2">
             <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Veeva Vault upgrade mid-project" className={inputCls} autoFocus />
           </Field>
@@ -143,13 +143,13 @@ export function RiskFormDrawer({
             </select>
           </Field>
 
-          <Field label="Mitigation strategy" required hint="Recommended: describe the next action, owner support, and when this will be reviewed.">
+          <Field label="Mitigation strategy" required hint="Recommended: describe the next action, owner support, and when this will be reviewed." className="lg:col-span-2">
             <textarea value={mitigation} onChange={(e) => setMitigation(e.target.value)} rows={3}
               placeholder="e.g. Engage specialist vendor; add 2-week buffer" className={inputCls} />
           </Field>
 
           {error && (
-            <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:bg-rose-950/30">{error}</p>
+            <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:bg-rose-950/30 lg:col-span-2">{error}</p>
           )}
         </form>
       )}

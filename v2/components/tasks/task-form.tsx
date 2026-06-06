@@ -236,14 +236,14 @@ export function TaskFormDrawer({
         />
       ) : (
         <form
-          className="space-y-4"
+          className="grid gap-4 lg:grid-cols-2"
           onSubmit={(e) => { e.preventDefault(); handleSave(); }}
         >
-          <DrawerGuidance title="Add the smallest trackable delivery item: clear outcome, accountable owner, due date, and only true upstream blockers.">
+          <DrawerGuidance className="lg:col-span-2" title="Add the smallest trackable delivery item: clear outcome, accountable owner, due date, and only true upstream blockers.">
             Keep task names action-oriented so status meetings can scan the register without extra explanation.
           </DrawerGuidance>
 
-          <Field label="Name" required>
+          <Field label="Name" required className="lg:col-span-2">
             <input
               type="text"
               value={name}
@@ -291,7 +291,7 @@ export function TaskFormDrawer({
             </Field>
           </div>
 
-          <Field label="Progress" hint={`Recommended: update only when evidence exists. Current progress is ${progress}%.`}>
+          <Field label="Progress" hint={`Recommended: update only when evidence exists. Current progress is ${progress}%.`} className="lg:col-span-2">
             <input
               type="range"
               min={0}
@@ -333,6 +333,7 @@ export function TaskFormDrawer({
           <Field
             label="Depends on"
             hint={`Recommended: select only tasks that must finish before this task can move. ${dependsOn.length} upstream task${dependsOn.length === 1 ? "" : "s"} selected.`}
+            className="lg:col-span-2"
           >
             <div
               className="max-h-48 overflow-y-auto rounded-md border border-border bg-background p-2 space-y-0.5"
@@ -384,7 +385,7 @@ export function TaskFormDrawer({
           </Field>
 
           {error && (
-            <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:bg-rose-950/30">
+            <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:bg-rose-950/30 lg:col-span-2">
               {error}
             </p>
           )}

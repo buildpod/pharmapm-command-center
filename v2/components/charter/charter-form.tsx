@@ -127,8 +127,8 @@ export function CharterFormDrawer({
       }
       variant="modal"
     >
-      <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
-        <Field label="Purpose" required hint="One to three short paragraphs framing why this project exists.">
+      <form className="grid gap-5 lg:grid-cols-2" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+        <Field label="Purpose" required hint="One to three short paragraphs framing why this project exists." className="lg:col-span-2">
           <textarea
             value={purpose}
             onChange={(e) => setPurpose(e.target.value)}
@@ -138,21 +138,21 @@ export function CharterFormDrawer({
           />
         </Field>
 
-        <ListField label="Objectives" hint="Measurable outcomes. One per line." items={objectives} onChange={setObjectives} placeholder="e.g. Migrate 14,200 dossiers by 2026-08-15" />
+        <ListField label="Objectives" hint="Measurable outcomes. One per line." items={objectives} onChange={setObjectives} placeholder="e.g. Migrate 14,200 dossiers by 2026-08-15" className="lg:col-span-2" />
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:col-span-2">
           <ListField label="In scope" items={inScope} onChange={setInScope} placeholder="e.g. Document workflows" />
           <ListField label="Out of scope" items={outOfScope} onChange={setOutOfScope} placeholder="e.g. QMS integration" />
         </div>
 
-        <ListField label="Success criteria" hint="How will you know it worked?" items={successCriteria} onChange={setSuccessCriteria} placeholder="e.g. Migration completeness ≥ 99.5%" />
+        <ListField label="Success criteria" hint="How will you know it worked?" items={successCriteria} onChange={setSuccessCriteria} placeholder="e.g. Migration completeness ≥ 99.5%" className="lg:col-span-2" />
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:col-span-2">
           <ListField label="Assumptions" items={assumptions} onChange={setAssumptions} placeholder="e.g. Vendor provides 2 consultants" />
           <ListField label="Constraints" items={constraints} onChange={setConstraints} placeholder="e.g. Go-live locked at 2026-09-02" />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:col-span-2">
           <Field label="Sponsor" required>
             <input
               type="text"
@@ -173,7 +173,7 @@ export function CharterFormDrawer({
           </Field>
         </div>
 
-        <Field label="Budget summary" hint="One line — total, breakdown, contingency.">
+        <Field label="Budget summary" hint="One line — total, breakdown, contingency." className="lg:col-span-2">
           <input
             type="text"
             value={budgetSummary}
@@ -194,7 +194,7 @@ export function CharterFormDrawer({
         </Field>
 
         {status === "approved" && (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 lg:col-span-2">
             <Field label="Approved by" required>
               <input
                 type="text"
@@ -216,7 +216,7 @@ export function CharterFormDrawer({
         )}
 
         {error && (
-          <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+          <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 lg:col-span-2">
             {error}
           </p>
         )}
@@ -228,13 +228,14 @@ export function CharterFormDrawer({
 // ─── List-of-strings field with add / remove ─────────────────────────────────
 
 function ListField({
-  label, hint, items, onChange, placeholder,
+  label, hint, items, onChange, placeholder, className,
 }: {
   label: string;
   hint?: string;
   items: string[];
   onChange: (next: string[]) => void;
   placeholder?: string;
+  className?: string;
 }) {
   function updateAt(i: number, value: string) {
     onChange(items.map((x, idx) => (idx === i ? value : x)));
@@ -247,7 +248,7 @@ function ListField({
   }
   const recommendation = charterListRecommendation(label);
   return (
-    <Field label={label} hint={hint}>
+    <Field label={label} hint={hint} className={className}>
       <div className="space-y-1.5">
         {items.length === 0 && (
           <div className="rounded-md border border-dashed border-border bg-muted/20 px-3 py-2">
