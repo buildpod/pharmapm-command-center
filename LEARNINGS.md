@@ -4,12 +4,12 @@
 
 ## 1. The Main Lesson
 
-The highest-leverage move is a repo-level source of truth. Without it, each AI session restarts cold, repeats decisions, touches the wrong repo, or ships a UI that passes tests but does not feel usable. For this fork, `AIVELLO_OPERATING_DOC.md` is that anchor.
+The highest-leverage move is a compact repo-level source of truth. Without it, each AI session restarts cold, repeats decisions, touches the wrong repo, or ships a UI that passes tests but does not feel usable. For this fork, `COMMAND_CENTRE_PHARMAPM_PRO.md` is that anchor.
 
 ## 2. What To Do At The Start Of A Session
 
-1. Read `AIVELLO_OPERATING_DOC.md`.
-2. Confirm the current module from section 4.
+1. Read `COMMAND_CENTRE_PHARMAPM_PRO.md`.
+2. Confirm the current product priority.
 3. Check that the work belongs in `pharmapm-command-center`, not the original `pharmapm-pro`.
 4. Make the smallest useful change.
 5. Verify with tests/build and, for UI, live browser or GitHub Pages checks.
@@ -41,7 +41,7 @@ This is intentionally different from a pure CRUD app. Detailed modules remain av
 - Keep the original repo untouched when experimenting in this fork.
 - Engine correctness comes before UI polish.
 - For any delivery-truth engine, forecast model, impact analysis, or agent-cost model, write the behavior/spec and tests before polishing the screen.
-- Keep one main module per session; extra ideas go to the operating doc backlog.
+- Keep one main module per session; extra ideas go into the operating doc only when they are durable decisions.
 - Avoid heavy visualization libraries unless the product problem proves they are needed.
 - Tests passing are necessary, but UI work also needs dogfooding.
 - Commit messages and session logs are product memory.
@@ -56,7 +56,7 @@ This is intentionally different from a pure CRUD app. Detailed modules remain av
 
 ## 7. Latest Snapshot
 
-As of 2026-05-19, the command-center fork has local guided setup/import work ready for dogfood. It adds `/v2/setup/` for guided templates, Microsoft Project/Planner imports, and blank project setup. The latest deployed public version still has operating views at:
+As of 2026-06-07, the command-center fork has guided setup/import, saved project templates, enterprise-style shell updates, wider entity modals, and a Playwright-backed release gate. The public app is:
 
 - `https://buildpod.github.io/pharmapm-command-center/v2/`
 - `https://buildpod.github.io/pharmapm-command-center/v2/worklist/`
@@ -64,4 +64,4 @@ As of 2026-05-19, the command-center fork has local guided setup/import work rea
 - `https://buildpod.github.io/pharmapm-command-center/v2/governance/`
 - `https://buildpod.github.io/pharmapm-command-center/v2/readiness/`
 
-Latest verified deploy commit: `2071af4`.
+Latest verified deploy commit: `312c9c9`.

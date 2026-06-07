@@ -18,7 +18,7 @@ This is not fatigue. It is context pressure.
 
 ## Reset Sequence
 
-1. Read `AIVELLO_OPERATING_DOC.md`.
+1. Read `COMMAND_CENTRE_PHARMAPM_PRO.md`.
 2. Read this file.
 3. Read `v2/docs/NEXT_CHAT_PROMPT.md`.
 4. Before editing code, answer these four questions:
@@ -52,7 +52,7 @@ Use these exact phrases with Codex:
 
 - Prefer short summaries over dumping long files.
 - Do not paste large diffs unless needed.
-- Keep durable decisions in `AIVELLO_OPERATING_DOC.md`.
+- Keep durable decisions in `COMMAND_CENTRE_PHARMAPM_PRO.md`.
 - Keep deep design notes in `v2/docs`.
 - Start a new thread after each major commit or product-direction decision.
 

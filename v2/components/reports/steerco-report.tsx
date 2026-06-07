@@ -139,7 +139,7 @@ function exportSteerCoExcel(data: ReturnType<typeof buildSteerCoData>) {
 
   // Sheet 1 — SteerCo Summary
   const summaryRows = [
-    ["AivelloStudio RIM — Steering Committee Report"],
+    ["AivelloStudio — Steering Committee Report"],
     ["Project",      project.name],
     ["Client",       project.client],
     ["Meeting Date", MEETING_DATE],
@@ -175,7 +175,7 @@ function exportSteerCoExcel(data: ReturnType<typeof buildSteerCoData>) {
   const riskRows = data.escalatedRisks.map((r) => [r.title, r.category, r.score, r.probability, r.impact, r.owner, r.mitigation]);
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([riskHeaders, ...riskRows]), "Escalated Risks");
 
-  XLSX.writeFile(wb, `AivelloRIM_SteerCo_${TODAY.toISOString().slice(0, 10)}.xlsx`);
+  XLSX.writeFile(wb, `AivelloStudio_SteerCo_${TODAY.toISOString().slice(0, 10)}.xlsx`);
 }
 
 // ─── Section wrapper ──────────────────────────────────────────────────────────
@@ -234,7 +234,7 @@ export function SteerCoReport() {
         <div className="flex items-start justify-between border-b border-border pb-4">
           <div>
             <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-primary">AivelloStudio RIM</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-primary">AivelloStudio</span>
               <ChevronRight className="h-3 w-3 text-muted-foreground" />
               <span className="text-[10px] text-muted-foreground">Steering Committee Report</span>
             </div>
@@ -437,7 +437,7 @@ export function SteerCoReport() {
 
         {/* Footer */}
         <div className="border-t border-border pt-3 flex items-center justify-between text-[10px] text-muted-foreground">
-          <span>AivelloStudio RIM · Steering Committee Report · {MEETING_DATE}</span>
+          <span>AivelloStudio · Steering Committee Report · {MEETING_DATE}</span>
           <span className="flex items-center gap-1">
             <AlertTriangle className="h-3 w-3" />
             Strictly Confidential — Steering Committee Use Only

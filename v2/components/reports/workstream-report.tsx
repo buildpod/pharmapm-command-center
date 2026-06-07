@@ -101,7 +101,7 @@ function exportWorkstreamExcel(ws: string, data: ReturnType<typeof buildWorkstre
 
   // Sheet 1 — Summary
   const summaryRows = [
-    ["AivelloStudio RIM — Workstream Report"],
+    ["AivelloStudio — Workstream Report"],
     ["Project",     project.name],
     ["Workstream",  ws],
     ["Report Date", fmtDate(TODAY_ISO)],
@@ -141,7 +141,7 @@ function exportWorkstreamExcel(ws: string, data: ReturnType<typeof buildWorkstre
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([depHeaders, ...depRows]), "External Dependencies");
   }
 
-  XLSX.writeFile(wb, `AivelloRIM_${ws.replace(/ /g, "_")}_Report_${TODAY.toISOString().slice(0, 10)}.xlsx`);
+  XLSX.writeFile(wb, `AivelloStudio_${ws.replace(/ /g, "_")}_Report_${TODAY.toISOString().slice(0, 10)}.xlsx`);
 }
 
 // ─── Section wrapper ──────────────────────────────────────────────────────────
@@ -288,7 +288,7 @@ export function WorkstreamReport() {
         <div className="flex items-start justify-between border-b border-border pb-4">
           <div>
             <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-primary">AivelloStudio RIM</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-primary">AivelloStudio</span>
               <ChevronRight className="h-3 w-3 text-muted-foreground" />
               <span className="text-[10px] text-muted-foreground">Workstream Report</span>
             </div>
@@ -456,7 +456,7 @@ export function WorkstreamReport() {
 
         {/* Footer */}
         <div className="border-t border-border pt-3 flex items-center justify-between text-[10px] text-muted-foreground">
-          <span>AivelloStudio RIM · {selectedWs} Workstream Report · {fmtDate(TODAY_ISO)}</span>
+          <span>AivelloStudio · {selectedWs} Workstream Report · {fmtDate(TODAY_ISO)}</span>
           <span className="flex items-center gap-1">
             <AlertTriangle className="h-3 w-3" />
             Confidential — internal use only

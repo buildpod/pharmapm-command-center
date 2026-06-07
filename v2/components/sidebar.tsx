@@ -85,7 +85,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     <>
       <div className="nav-brand">
         <div className="nav-brand__mark">A</div>
-        <div className="nav-brand__name">AivelloStudio<span> RIM</span></div>
+        <div className="nav-brand__name">AivelloStudio</div>
       </div>
 
       <div className="nav-project">

@@ -40,7 +40,7 @@ export function Topbar() {
   const label =
     Object.entries(routeLabels).find(([path]) =>
       path === "/" ? pathname === "/" : pathname.startsWith(path)
-    )?.[1] ?? "AivelloStudio RIM";
+    )?.[1] ?? "AivelloStudio";
 
   return (
     <>

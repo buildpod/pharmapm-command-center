@@ -4,7 +4,7 @@ import "./styles/design-tokens.css";
 import "./styles/components.css";
 
 export const metadata: Metadata = {
-  title: "AivelloStudio RIM",
+  title: "AivelloStudio Command Center",
   description: "Pharma project management — powered by AivelloStudio",
 };
 
