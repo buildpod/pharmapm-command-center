@@ -103,8 +103,17 @@ pnpm dev:fresh
 Verification:
 
 ```bash
+pnpm release:verify
+```
+
+`pnpm release:verify` is the release gate. It runs unit tests, production build, and Playwright UI regression to completion, then writes `v2/output/release-checks/latest.md` and `v2/output/release-checks/latest.json`. Read the full report before patching so related failures are grouped by shared dependency instead of fixed one symptom at a time.
+
+Individual checks remain useful while debugging:
+
+```bash
 pnpm test
 pnpm build
+pnpm ui:regression
 ```
 
 Route smoke list:

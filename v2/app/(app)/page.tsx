@@ -10,6 +10,7 @@
 //   → .grid-2 (Risk + Budget charts) → .grid-2 (Milestones + Decisions)
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import "@/app/styles/dashboard.css";
 import { getKpis, budgetTrend, riskTrend } from "@/lib/mockData";
 import { useProject } from "@/components/projects/project-provider";
@@ -47,6 +48,8 @@ const PHASES = [
   { key: "p6", name: "Go-Live",    pct: 0,   state: "pending" },
 ] as const;
 
+const SETUP_REVIEW_TOUR_KEY = "aivello_pending_setup_review_v1";
+
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
@@ -54,6 +57,22 @@ export default function DashboardPage() {
   const kpis = getKpis(activeProjectId);
   const charters = useEntityStore((s) => s.charters);
   const charter  = charters.find((c) => c.projectId === activeProjectId);
+  const [showSetupReview, setShowSetupReview] = useState(false);
+
+  useEffect(() => {
+    try {
+      setShowSetupReview(sessionStorage.getItem(SETUP_REVIEW_TOUR_KEY) === activeProjectId);
+    } catch {
+      setShowSetupReview(false);
+    }
+  }, [activeProjectId]);
+
+  function dismissSetupReview() {
+    try {
+      sessionStorage.removeItem(SETUP_REVIEW_TOUR_KEY);
+    } catch {}
+    setShowSetupReview(false);
+  }
 
   const scheduleOnTrack = kpis.scheduleVariance <= 0;
   const scheduleVarianceLabel = kpis.scheduleVariance === 0
@@ -94,6 +113,32 @@ export default function DashboardPage() {
           <span>Last refresh just now</span>
         </div>
       </div>
+
+      {showSetupReview && (
+        <section className="setup-review-banner" aria-label="Project setup review">
+          <div>
+            <div className="setup-review-banner__eyebrow">Guided setup review</div>
+            <h2 className="setup-review-banner__title">Check the generated project before the team starts work</h2>
+            <p className="setup-review-banner__copy">
+              Confirm milestones, task owners, risks, charter, and due dates so the template becomes your project plan, not just a starting point.
+            </p>
+            <div className="setup-review-banner__steps" aria-label="Recommended review steps">
+              <span>1. Milestones</span>
+              <span>2. Tasks and owners</span>
+              <span>3. Risks and documents</span>
+              <span>4. Charter approval</span>
+            </div>
+          </div>
+          <div className="setup-review-banner__actions">
+            <button type="button" className="btn btn--secondary" onClick={dismissSetupReview}>
+              Skip for now
+            </button>
+            <Link href="/milestones" className="btn btn--primary" onClick={dismissSetupReview}>
+              Review setup
+            </Link>
+          </div>
+        </section>
+      )}
 
       <section className="executive-verdict" aria-label="Executive verdict">
         <div>

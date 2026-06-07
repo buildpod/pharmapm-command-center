@@ -1152,6 +1152,8 @@ export function ResourcesPanel() {
           {tabs.map(({ id, label, Icon }) => (
             <button
               key={id}
+              aria-label={label}
+              title={label}
               onClick={() => setTab(id)}
               className={cn(
                 "flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",

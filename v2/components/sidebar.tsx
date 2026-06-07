@@ -21,7 +21,7 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
-import { useProject } from "@/components/projects/project-provider";
+import { ProjectSwitcher } from "@/components/projects/project-switcher";
 
 const navGroups = [
   {
@@ -76,8 +76,6 @@ const navGroups = [
 
 export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
-  const { activeProject } = useProject();
-
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
     return pathname.startsWith(href);
@@ -91,8 +89,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <div className="nav-project">
-        <div className="nav-project__name">{activeProject.name}</div>
-        <div className="nav-project__phase">{activeProject.phase}</div>
+        <ProjectSwitcher />
       </div>
 
       <nav style={{ flex: 1, overflowY: "auto", paddingBottom: "var(--space-3)" }}>

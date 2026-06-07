@@ -83,6 +83,8 @@ const TEMPLATE_IMPORT = `ID,Task Name,Workstream,Start,Finish,Resource Names,Pri
 7,Run readiness review,Readiness,2026-07-21,2026-07-31,Project Manager,Critical,0%,6`;
 
 const IMPORT_SAMPLE_BASE = "/pharmapm-command-center/v2/samples";
+const SETUP_REVIEW_TOUR_KEY = "aivello_pending_setup_review_v1";
+const setupActionRowCls = "sticky bottom-4 z-20 mt-8 flex rounded-2xl border border-border/50 bg-background/90 p-3 shadow-xl backdrop-blur-xl";
 
 const modeCards = [
   {
@@ -415,6 +417,9 @@ export default function GuidedSetupPage() {
     }
 
     setActiveProjectId(created.id);
+    try {
+      window.sessionStorage.setItem(SETUP_REVIEW_TOUR_KEY, created.id);
+    } catch {}
     router.push("/");
   }
 
@@ -511,7 +516,7 @@ export default function GuidedSetupPage() {
           </div>
         </div>
 
-        <div className="mt-8 flex justify-end">
+        <div className={cn(setupActionRowCls, "justify-end")}>
           <button
             onClick={() => {
               if (!name.trim() || !client.trim() || !startDate || !goLiveDate) {
@@ -569,7 +574,7 @@ export default function GuidedSetupPage() {
           })}
         </div>
 
-        <div className="mt-8 flex justify-between">
+        <div className={cn(setupActionRowCls, "justify-between")}>
           <button
             onClick={() => setStep(1)}
             className="flex items-center gap-2 rounded-full border border-border/50 bg-background/50 px-6 py-3 text-sm font-semibold text-foreground transition-all hover:bg-muted"
@@ -937,7 +942,7 @@ export default function GuidedSetupPage() {
           )}
         </div>
 
-        <div className="mt-8 flex justify-between">
+        <div className={cn(setupActionRowCls, "justify-between")}>
           <button
             onClick={() => setStep(2)}
             className="flex items-center gap-2 rounded-full border border-border/50 bg-background/50 px-6 py-3 text-sm font-semibold text-foreground transition-all hover:bg-muted"
@@ -1017,7 +1022,7 @@ export default function GuidedSetupPage() {
           </div>
         </div>
 
-        <div className="mt-8 flex justify-between">
+        <div className={cn(setupActionRowCls, "justify-between")}>
           <button
             onClick={() => setStep(mode === "blank" ? 2 : 3)}
             className="flex items-center gap-2 rounded-full border border-border/50 bg-background/50 px-6 py-3 text-sm font-semibold text-foreground transition-all hover:bg-muted"
@@ -1036,7 +1041,7 @@ export default function GuidedSetupPage() {
   }
 
   return (
-    <div className="min-h-[80vh] px-4 py-8">
+    <div className="min-h-[80vh] px-4 py-8 pb-24">
       {/* Progress Stepper */}
       <div className="mb-12 flex items-center justify-center gap-2">
         {[1, 2, 3, 4].map((s) => (

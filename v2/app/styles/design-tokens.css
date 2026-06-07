@@ -216,6 +216,20 @@ html, body {
   padding: var(--space-5);
 }
 
+@media (max-width: 767px) {
+  .card {
+    min-width: 0;
+    overflow: hidden;
+  }
+  .card__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .card__body {
+    padding: var(--space-4);
+  }
+}
+
 /* ============================================================
    Button
    ============================================================ */
@@ -259,4 +273,18 @@ html, body {
   padding: var(--space-8) var(--content-pad-x) var(--space-12);
   max-width: var(--content-max);
   width: 100%;
+}
+
+@media (max-width: 767px) {
+  .app-shell { grid-template-columns: 1fr; }
+  .app-shell > .app-nav { display: none; }
+  .app-topbar {
+    gap: var(--space-2);
+    padding: 0 var(--space-3);
+    overflow: hidden;
+  }
+  .app-content {
+    padding: var(--space-5) var(--space-3) var(--space-10);
+    max-width: none;
+  }
 }

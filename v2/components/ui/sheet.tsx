@@ -9,6 +9,7 @@ const Sheet = DialogPrimitive.Root;
 const SheetTrigger = DialogPrimitive.Trigger;
 const SheetClose = DialogPrimitive.Close;
 const SheetPortal = DialogPrimitive.Portal;
+const SheetTitle = DialogPrimitive.Title;
 
 const SheetOverlay = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Overlay>,
@@ -71,6 +72,7 @@ export {
   Sheet,
   SheetTrigger,
   SheetClose,
+  SheetTitle,
   SheetContent,
   SheetHeader,
 };

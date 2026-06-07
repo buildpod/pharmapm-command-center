@@ -29,6 +29,7 @@ export function ProjectSwitcher() {
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between gap-2 rounded-md bg-muted px-3 py-2 text-left hover:bg-muted/70 transition-colors"
         aria-expanded={open}
+        aria-label="Switch project"
       >
         <div className="min-w-0">
           <p className="truncate text-xs font-medium text-foreground">{activeProject.name}</p>

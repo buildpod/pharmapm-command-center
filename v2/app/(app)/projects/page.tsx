@@ -145,7 +145,7 @@ export default function ProjectsPage() {
                         Go-live <span className="font-medium text-foreground">{p.goLiveDate}</span>
                       </p>
                     </div>
-                    <div className="flex shrink-0 flex-wrap gap-2">
+                    <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
                       <ExportButton project={p} variant="compact" />
                       <button
                         onClick={() => startTemplateSave(p.id)}

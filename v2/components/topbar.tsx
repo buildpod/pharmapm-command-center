@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { Menu, Sun, Moon } from "lucide-react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { SidebarContent } from "@/components/sidebar";
 import { CommandPaletteTrigger } from "@/components/command-palette";
 import { NotificationBell } from "@/components/notification-bell";
@@ -52,7 +52,8 @@ export function Topbar() {
             <span className="sr-only">Open menu</span>
           </button>
         </SheetTrigger>
-        <SheetContent side="left" className="w-64 p-0">
+        <SheetContent side="left" className="w-64 overflow-y-auto p-0">
+          <SheetTitle className="sr-only">Product navigation</SheetTitle>
           <SidebarContent onNavigate={() => setOpen(false)} />
         </SheetContent>
       </Sheet>
