@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Plus, Check, ExternalLink, Trash2, Save } from "lucide-react";
+import { Plus, Check, ExternalLink, Trash2, Save, Search, X } from "lucide-react";
 import { useProject } from "@/components/projects/project-provider";
 import { ExportButton } from "@/components/projects/export-button";
 import { Field, inputCls, ConfirmDelete } from "@/components/ui/entity-drawer";
@@ -35,6 +35,24 @@ export default function ProjectsPage() {
   const [templateSourceId, setTemplateSourceId] = useState<string | null>(null);
   const [templateName, setTemplateName] = useState("");
   const [templateDescription, setTemplateDescription] = useState("");
+  const [query, setQuery] = useState("");
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredProjects = projects.filter((project) => {
+    if (!normalizedQuery) return true;
+    return [
+      project.name,
+      project.code,
+      project.id,
+      project.client,
+      project.phase,
+      project.methodology,
+      project.startDate,
+      project.goLiveDate,
+    ]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(normalizedQuery));
+  });
 
   function handleDelete(id: string) {
     const target = projects.find((p) => p.id === id);
@@ -103,8 +121,41 @@ export default function ProjectsPage() {
         </Link>
       </header>
 
+      <section className="rounded-xl border border-border bg-card p-4 shadow-sm" aria-label="Search projects">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <label className="relative block flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-9 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/15"
+              placeholder="Search by project, code, client, phase, method, or date..."
+              aria-label="Search projects"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                className="absolute right-2 top-1/2 rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label="Clear project search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </label>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className="rounded-full border border-border bg-muted px-2.5 py-1">
+              {filteredProjects.length} of {projects.length} projects
+            </span>
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-primary">
+              Active project stays highlighted
+            </span>
+          </div>
+        </div>
+      </section>
+
       <div className="space-y-3">
-        {projects.map((p) => {
+        {filteredProjects.map((p) => {
           const isActive = p.id === activeProjectId;
           const isConfirming = confirmDeleteId === p.id;
           return (
@@ -213,6 +264,22 @@ export default function ProjectsPage() {
             </div>
           );
         })}
+        {filteredProjects.length === 0 && (
+          <div className="rounded-xl border border-dashed border-border bg-card p-10 text-center">
+            <Search className="mx-auto h-6 w-6 text-muted-foreground" />
+            <h3 className="mt-3 text-sm font-semibold text-foreground">No matching projects</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Try a project code, client name, phase, methodology, or go-live date.
+            </p>
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              className="mt-4 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
+            >
+              Clear search
+            </button>
+          </div>
+        )}
       </div>
 
       <p className="text-[11px] text-muted-foreground">

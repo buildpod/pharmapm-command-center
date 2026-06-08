@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { ChevronsUpDown, Check, Plus, Wand2 } from "lucide-react";
+import { ChevronsUpDown, Check, Plus, Wand2, Search, X } from "lucide-react";
 import { useProject } from "./project-provider";
 import { cn } from "@/lib/utils";
 
@@ -13,7 +13,24 @@ import { cn } from "@/lib/utils";
 export function ProjectSwitcher() {
   const { projects, activeProject, setActiveProjectId } = useProject();
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const ref = useRef<HTMLDivElement>(null);
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredProjects = projects.filter((project) => {
+    if (!normalizedQuery) return true;
+    return [
+      project.name,
+      project.code,
+      project.id,
+      project.client,
+      project.phase,
+      project.methodology,
+      project.goLiveDate,
+    ]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(normalizedQuery));
+  });
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -40,13 +57,35 @@ export function ProjectSwitcher() {
 
       {open && (
         <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-md border border-border bg-card shadow-lg overflow-hidden">
+          <div className="border-b border-border p-2">
+            <label className="relative block">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                className="h-8 w-full rounded-md border border-border bg-background pl-8 pr-8 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/15"
+                placeholder="Search projects..."
+                aria-label="Search projects"
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery("")}
+                  className="absolute right-1.5 top-1/2 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  aria-label="Clear project search"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </label>
+          </div>
           <ul className="max-h-64 overflow-y-auto py-1">
-            {projects.map((p) => {
+            {filteredProjects.map((p) => {
               const active = p.id === activeProject.id;
               return (
                 <li key={p.id}>
                   <button
-                    onClick={() => { setActiveProjectId(p.id); setOpen(false); }}
+                    onClick={() => { setActiveProjectId(p.id); setOpen(false); setQuery(""); }}
                     className={cn(
                       "flex w-full items-start justify-between gap-2 px-3 py-2 text-left text-xs transition-colors hover:bg-muted",
                       active && "bg-primary/5"
@@ -63,6 +102,11 @@ export function ProjectSwitcher() {
                 </li>
               );
             })}
+            {filteredProjects.length === 0 && (
+              <li className="px-3 py-4 text-center text-xs text-muted-foreground">
+                No matching projects.
+              </li>
+            )}
           </ul>
           <Link
             href="/projects"

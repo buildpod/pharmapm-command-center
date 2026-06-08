@@ -85,7 +85,6 @@ test("sidebar navigation covers every main product area", async ({ page, isMobil
     await gotoApp(page, "/");
     if (isMobile) await page.getByRole("button", { name: /open menu/i }).click();
     await page.getByRole("link", { name: new RegExp(route.nav, "i") }).first().click();
-    await page.waitForLoadState("networkidle");
     await expect(page).toHaveURL(new RegExp(`${escapeRegex(appBase + route.path)}$`));
     await expect(page.locator("body")).toContainText(route.heading);
     await assertNoHorizontalOverflow(page);
@@ -112,6 +111,31 @@ test("topbar search, theme, notifications, and project switcher are usable", asy
   if (isMobile) await page.getByRole("button", { name: /open menu/i }).click();
   await page.getByRole("button", { name: /switch project|project/i }).first().click();
   await expect(page.locator("body")).toContainText(/Manage projects|Create or import project|Veeva/i);
+});
+
+test("project search filters the switcher and manage projects list", async ({ page, isMobile }) => {
+  await gotoApp(page, "/");
+
+  if (isMobile) await page.getByRole("button", { name: /open menu/i }).click();
+  await page.getByRole("button", { name: /switch project|project/i }).first().click();
+  const switcherSearch = page.getByRole("textbox", { name: /search projects/i }).first();
+  await expect(switcherSearch).toBeVisible();
+  await switcherSearch.fill("veeva");
+  await expect(page.getByRole("button", { name: /veeva/i }).first()).toBeVisible();
+  await switcherSearch.fill("not-a-real-project");
+  await expect(page.getByText(/no matching projects/i)).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  await gotoApp(page, "/projects/");
+  const pageSearch = page.getByRole("textbox", { name: /search projects/i });
+  await expect(pageSearch).toBeVisible();
+  await pageSearch.fill("veeva");
+  await expect(page.locator("main").getByRole("heading", { name: /veeva/i }).first()).toBeVisible();
+  await expect(page.locator("main").getByText(/\d+ of \d+ projects/i)).toBeVisible();
+  await pageSearch.fill("missing project code");
+  await expect(page.getByText(/no matching projects/i)).toBeVisible();
+  await page.getByRole("button", { name: /clear search/i }).click();
+  await expect(page.locator("main").getByRole("heading", { name: /veeva/i }).first()).toBeVisible();
 });
 
 test("entity create modals keep close, cancel, and primary actions visible", async ({ page }) => {
