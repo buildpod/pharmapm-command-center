@@ -11,7 +11,7 @@ import type {
   DependencyRepairPlan,
 } from "@/lib/domain/scheduling";
 
-// M20: Universal selective-cascade impact drawer.
+// M20: Universal selective-cascade impact review.
 // - Holds local state for per-row exclusions + date overrides
 // - Calls parent-provided onRecompute() on every state change to fetch
 //   fresh sections + constraint violations
@@ -282,31 +282,28 @@ export function ImpactDrawer({
 
   return (
     <>
-      <div
-        className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
-        onClick={onCancel}
-        aria-hidden
-      />
+      <div className="drawer-backdrop" onClick={onCancel} aria-hidden />
 
-      <div
-        className="fixed right-0 top-0 z-50 flex h-full w-full max-w-lg flex-col border-l border-border bg-card shadow-2xl"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Review schedule impact"
-        data-coachmark-anchor="schedule-impact-drawer"
-      >
+      <div className="impact-modal-wrap">
+        <div
+          className="impact-modal-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Review schedule impact"
+          data-coachmark-anchor="schedule-impact-modal"
+        >
         {/* Header */}
-        <header className="border-b border-border bg-muted/30 px-5 py-4">
+        <header className="impact-modal-header">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="text-base font-semibold text-foreground">Schedule change preview</h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">
+              <h2 className="impact-modal-header__title">Review Schedule Impact</h2>
+              <p className="impact-modal-header__subtitle">
                 Review what will change. Uncheck a row to keep its date, or pick a different date inline.
               </p>
             </div>
             <button
               onClick={onCancel}
-              className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="drawer-close"
               title="Cancel (Esc)"
             >
               <X className="h-4 w-4" />
@@ -381,7 +378,7 @@ export function ImpactDrawer({
         </header>
 
         {/* Body */}
-        <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
+        <div className="impact-modal-body">
           {totalShifts === 0 && totalWarnings === 0 && totalInfo === 0 && !hasCallout ? (
             <div className="rounded-lg border border-dashed border-border bg-muted/20 py-8 text-center">
               <Info className="mx-auto mb-2 h-5 w-5 text-muted-foreground/50" />
@@ -416,7 +413,7 @@ export function ImpactDrawer({
         </div>
 
         {/* Footer */}
-        <footer className="border-t border-border bg-muted/30 px-5 py-3">
+        <footer className="impact-modal-footer">
           <div className="flex items-center justify-end gap-2">
             <button
               onClick={onCancel}
@@ -442,6 +439,7 @@ export function ImpactDrawer({
             </button>
           </div>
         </footer>
+        </div>
       </div>
     </>
   );

@@ -158,6 +158,39 @@ test("entity create modals keep close, cancel, and primary actions visible", asy
   }
 });
 
+test("schedule impact review opens as a centered modal window", async ({ page, isMobile }) => {
+  await gotoApp(page, "/tasks/");
+
+  await page.getByRole("button", { name: "Set up user roles & permission profiles" }).click();
+  const editDialog = page.getByRole("dialog", { name: /edit/i });
+  await expect(editDialog).toBeVisible();
+  await editDialog.getByLabel(/due date/i).fill("2026-06-05");
+  await editDialog.getByRole("button", { name: /save changes/i }).click();
+
+  const impactDialog = page.getByRole("dialog", { name: /review schedule impact/i });
+  await expect(impactDialog).toBeVisible();
+  await expect(impactDialog).toContainText(/affected downstream|downstream tasks|linked milestones/i);
+  await expectActionVisibleInViewport(page, impactDialog.getByRole("button", { name: /discard changes/i }));
+  await expectActionVisibleInViewport(page, impactDialog.getByRole("button", { name: /save/i }));
+
+  const modalPanel = page.locator(".impact-modal-panel");
+  await expect(modalPanel).toBeVisible();
+  if (!isMobile) {
+    const box = await modalPanel.boundingBox();
+    const viewport = page.viewportSize();
+    expect(box, "schedule impact should have a measurable modal window").not.toBeNull();
+    expect(viewport, "viewport must be available").not.toBeNull();
+    if (box && viewport) {
+      expect(box.width, "schedule impact should be wider than a drawer").toBeGreaterThan(760);
+      expect(box.x, "schedule impact should not be right-anchored").toBeGreaterThan(80);
+      expect(viewport.width - (box.x + box.width), "schedule impact should be centered").toBeGreaterThan(80);
+    }
+  }
+
+  await impactDialog.getByRole("button", { name: /discard changes/i }).click();
+  await expect(impactDialog).toBeHidden();
+});
+
 test("charter template flow opens with useful prefilled content", async ({ page }) => {
   await gotoApp(page, "/charter/");
 

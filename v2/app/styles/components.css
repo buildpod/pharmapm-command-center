@@ -507,6 +507,83 @@
   border-top: 1px solid var(--color-line-soft);
   background: var(--color-surface-card);
 }
+
+/* ─── Schedule impact modal (decision review workflow) ──── */
+
+.impact-modal-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  pointer-events: none;
+}
+.impact-modal-panel {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  width: min(1180px, calc(100vw - 48px));
+  max-height: min(820px, calc(100dvh - 64px));
+  overflow: hidden;
+  background: var(--color-surface-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-overlay);
+}
+.impact-modal-header {
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--color-line-soft);
+  background: var(--color-surface-card);
+}
+.impact-modal-header__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semi);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+  color: var(--color-ink-900);
+}
+.impact-modal-header__subtitle {
+  max-width: 760px;
+  margin-top: 4px;
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--color-ink-500);
+}
+.impact-modal-body {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-5) var(--space-6);
+  background: var(--color-surface-page);
+}
+.impact-modal-body > * + * {
+  margin-top: var(--space-5);
+}
+.impact-modal-footer {
+  padding: var(--space-4) var(--space-6);
+  padding-bottom: max(var(--space-4), env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-line-soft);
+  background: var(--color-surface-card);
+}
+@media (max-width: 720px) {
+  .impact-modal-wrap {
+    align-items: stretch;
+    padding: var(--space-3);
+  }
+  .impact-modal-panel {
+    width: 100%;
+    max-height: calc(100dvh - 24px);
+  }
+  .impact-modal-header,
+  .impact-modal-body,
+  .impact-modal-footer {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+}
 .form-guidance {
   padding: var(--space-4);
   border: 1px solid var(--color-line-soft);
