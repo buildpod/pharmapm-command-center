@@ -254,6 +254,7 @@ describe("scheduling.computeCriticalPath", () => {
 });
 
 import { previewTaskCascade, previewMilestoneToTaskImpact, previewTaskToMilestonePush, type TaskScheduleEntry } from "./scheduling";
+import { tasks as seedTasks, milestones as seedMilestones } from "../mockData";
 
 describe("scheduling.previewTaskCascade", () => {
   // Linear chain A → B → C. Moving A's due later forces B and C to move.
@@ -374,6 +375,56 @@ describe("scheduling.previewTaskToMilestonePush — M20.3", () => {
     ];
     const pushes = previewTaskToMilestonePush(cascaded, milestones, msNumToStr);
     expect(pushes.length).toBe(0);
+  });
+});
+
+describe("scheduling seed-data pressure regression", () => {
+  const projectId = "proj-veeva-rim";
+  const projectTasks = seedTasks.filter((t) => t.projectId === projectId);
+  const projectMilestones = seedMilestones.filter((m) => m.projectId === projectId);
+  const entries: TaskScheduleEntry[] = projectTasks.map((t) => ({
+    id: t.id,
+    name: t.name,
+    workstream: t.workstream,
+    dueDate: t.dueDate,
+    dependsOn: t.dependsOn,
+    parallelDeps: t.parallelDeps,
+    depNotes: t.depNotes,
+    milestoneId: t.milestoneId,
+  }));
+  const scheduleMilestones: ScheduleMilestone[] = projectMilestones.map((m) => ({
+    id: Number(m.id.replace(/^m/, "")),
+    name: m.name,
+    predecessor: m.predecessor ? Number(m.predecessor.replace(/^m/, "")) : undefined,
+    lag: m.lag ?? 0,
+    duration: m.duration ?? 1,
+    plannedStart: m.plannedDate,
+    plannedEnd: m.plannedDate,
+    status:
+      m.status === "complete"      ? "Complete"
+      : m.status === "in-progress" ? "In Progress"
+      : m.status === "at-risk"     ? "Blocked"
+      : "Not Started",
+    lockDate: m.locked,
+  }));
+
+  it("pushes real downstream tasks and linked milestones from the seeded Veeva plan", () => {
+    const result = previewTaskCascade(entries, { id: "t1", newDueDate: "2026-06-05" });
+
+    expect(result.error).toBeNull();
+    expect(result.affected.map((row) => row.id).sort()).toEqual(["t2", "t3", "t4"]);
+    expect(result.affected.find((row) => row.id === "t2")?.newDue).toBe("2026-06-08");
+    expect(result.affected.find((row) => row.id === "t3")?.newDue).toBe("2026-06-08");
+    expect(result.affected.find((row) => row.id === "t4")?.newDue).toBe("2026-06-09");
+
+    const milestonePushes = previewTaskToMilestonePush(
+      result.tasks,
+      scheduleMilestones,
+      (id) => `m${id}`
+    );
+    const pushedById = Object.fromEntries(milestonePushes.map((row) => [row.milestoneId, row.proposedNewDate]));
+    expect(pushedById.m6).toBe("2026-06-09");
+    expect(pushedById.m7).toBe("2026-06-10");
   });
 });
 

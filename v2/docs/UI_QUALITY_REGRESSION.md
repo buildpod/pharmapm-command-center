@@ -29,6 +29,8 @@ What it checks today:
 - Sidebar navigation reaches every main product area.
 - Topbar search, theme toggle, notifications, and project switcher open without errors.
 - Entity create modals expose visible Close, Cancel, and primary action buttons inside the viewport.
+- Schedule impact review opens as a centered modal, saves selected impacts, and proves downstream task dates update in the task register.
+- SAP S/4HANA guided setup creates a SAP-specific command center and verifies SAP tasks, documents, and risks are visible after creation.
 - Charter standard-template flow opens with prefilled content.
 - Reports tabs and evidence links remain navigable.
 
@@ -65,6 +67,9 @@ Before calling a UI change done:
 | UI-002 | Entity forms | Several forms expose advanced fields too early for non-expert users. | P1 | Open | Progressive-disclose advanced scheduling/dependency fields by role or section. |
 | UI-003 | End-to-end checks | No true browser interaction regression existed. | P1 | Fixed | Playwright route, nav, topbar, modal action, charter template, and report evidence tests added. |
 | UI-004 | Release workflow | Checks were run separately, so failures could be patched one symptom at a time. | P1 | Fixed | Added `pnpm release:verify` to run all gates and write a release report before patching. |
+| UI-005 | SAP template | SAP S/4HANA used the generic focused-template builder, so output felt like a renamed Veeva/generic plan. | P0 | Fixed | Added SAP Activate-specific milestones, tasks, documents, risks, team roles, costs, and pressure tests. |
+| UI-006 | Project setup | Browser UAT exposed that project creation should persist the new project before route changes. | P0 | Fixed | Project creation now persists synchronously before returning the created project. |
+| UI-007 | Documents | SAP design/testing documents were counted but not visible because document phases did not match the Documents page buckets. | P0 | Fixed | SAP documents now map to the app's visible document lifecycle phases: Planning, Configuration, Validation, Training, Go-Live. |
 
 ## Recommended Next Automation
 

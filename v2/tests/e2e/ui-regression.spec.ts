@@ -187,8 +187,11 @@ test("schedule impact review opens as a centered modal window", async ({ page, i
     }
   }
 
-  await impactDialog.getByRole("button", { name: /discard changes/i }).click();
+  await impactDialog.getByRole("button", { name: /save/i }).click();
   await expect(impactDialog).toBeHidden();
+  await expectTaskRowDue(page, "Configure submission workspace settings", "08 Jun");
+  await expectTaskRowDue(page, "Set up workflow lifecycle rules", "08 Jun");
+  await expectTaskRowDue(page, "Configure document templates & renditions", "09 Jun");
 });
 
 test("charter template flow opens with useful prefilled content", async ({ page }) => {
@@ -236,6 +239,46 @@ test("guided setup keeps actions visible and offers a review tour after create",
   await expect(page.getByRole("button", { name: /skip for now/i })).toBeVisible();
 });
 
+test("SAP template creates an SAP-specific command center from the guided setup", async ({ page, isMobile }) => {
+  await gotoApp(page, "/setup/");
+
+  await page.getByLabel(/project name/i).fill("SAP S/4HANA UAT Implementation");
+  await page.getByLabel(/project code/i).fill("SAP-UAT-2026");
+  await page.getByLabel(/system family/i).selectOption("sap");
+  await page.getByLabel(/target go-live/i).fill("2027-01-30");
+  await page.getByRole("button", { name: /continue/i }).click();
+
+  await expect(page.getByRole("heading", { name: /build method/i })).toBeVisible();
+  await page.getByRole("button", { name: /continue/i }).click();
+
+  await expect(page.getByRole("heading", { name: /template recommendation/i })).toBeVisible();
+  await expect(page.locator("body")).toContainText(/SAP S\/4HANA implementation/i);
+  await expect(page.locator("body")).toContainText(/SAP Activate/i);
+  await expect(page.locator("body")).toContainText(/30 tasks/i);
+  await page.getByRole("button", { name: /review/i }).click();
+
+  await expect(page.getByRole("heading", { name: /review & create/i })).toBeVisible();
+  await expect(page.locator("body")).toContainText(/SAP S\/4HANA UAT Implementation/i);
+  await page.getByRole("button", { name: /create command center/i }).click();
+
+  await expect(page).toHaveURL(new RegExp(`${escapeRegex(appBase)}/$`));
+  await expect(page.getByRole("heading", { name: /SAP S\/4HANA UAT Implementation/i })).toBeVisible();
+
+  await navigateBySidebar(page, isMobile, "Tasks", /tasks\/$/);
+  await expect(page.locator("body")).toContainText(/fit-to-standard workshops/i);
+  await expect(page.locator("body")).toContainText(/Mock data load 1/i);
+  await expect(page.locator("body")).toContainText(/cutover runbook/i);
+
+  await navigateBySidebar(page, isMobile, "Documents", /documents\/$/);
+  await expect(page.locator("body")).toContainText(/Fit-to-Standard Outcome Log/i);
+  await expect(page.locator("body")).toContainText(/Security and Controls Matrix/i);
+  await expect(page.locator("body")).toContainText(/Hypercare Playbook/i);
+
+  await navigateBySidebar(page, isMobile, "Risks", /risks\/$/);
+  await expect(page.locator("body")).toContainText(/Master data quality blocks mock loads/i);
+  await expect(page.locator("body")).toContainText(/Fit-to-standard decisions reopen/i);
+});
+
 test("reports tabs and evidence links are navigable without losing the report context", async ({ page }) => {
   await gotoApp(page, "/reports/");
   await expect(page.getByRole("heading", { name: /reports/i })).toBeVisible();
@@ -264,6 +307,18 @@ async function expectActionVisibleInViewport(page: Page, locator: Locator) {
   expect(box.y).toBeGreaterThanOrEqual(0);
   expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 1);
   expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + 1);
+}
+
+async function expectTaskRowDue(page: Page, taskName: string, dueText: string) {
+  const row = page.locator("tr").filter({ has: page.getByRole("button", { name: taskName }) });
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText(dueText);
+}
+
+async function navigateBySidebar(page: Page, isMobile: boolean, navName: string, pathPattern: RegExp) {
+  if (isMobile) await page.getByRole("button", { name: /open menu/i }).click();
+  await page.getByRole("link", { name: new RegExp(navName, "i") }).first().click();
+  await expect(page).toHaveURL(pathPattern);
 }
 
 async function gotoApp(page: Page, path: string) {

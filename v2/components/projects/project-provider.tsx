@@ -71,21 +71,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const createProject = useCallback((p: Omit<Project, "id">): Project => {
     // Generate a slug-based id; fall back to timestamp if collision
     const base = "proj-" + p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 32);
-    setProjects((prev) => {
-      let id = base;
-      let i = 1;
-      while (prev.some((x) => x.id === id)) { id = `${base}-${i++}`; }
-      const created: Project = { ...p, id };
-      const next = [...prev, created];
-      persistProjects(next);
-      return next;
-    });
-    // Reconstruct the id we just generated so the caller can use it
-    const exists = projects.map((x) => x.id);
     let id = base;
     let i = 1;
-    while (exists.includes(id)) { id = `${base}-${i++}`; }
-    return { ...p, id };
+    while (projects.some((x) => x.id === id)) { id = `${base}-${i++}`; }
+    const created: Project = { ...p, id };
+    const next = [...projects, created];
+    persistProjects(next);
+    setProjects(next);
+    return created;
   }, [persistProjects, projects]);
 
   const updateProject = useCallback((p: Project) => {
