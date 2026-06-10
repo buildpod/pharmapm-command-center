@@ -15,6 +15,7 @@ import "@/app/styles/dashboard.css";
 import { getKpis, budgetTrend, riskTrend } from "@/lib/mockData";
 import { useProject } from "@/components/projects/project-provider";
 import { useEntityStore } from "@/lib/stores/entity-store";
+import { computeProjectEvm } from "@/lib/domain/evm-project";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -49,6 +50,7 @@ const PHASES = [
 ] as const;
 
 const SETUP_REVIEW_TOUR_KEY = "aivello_pending_setup_review_v1";
+const DASHBOARD_STATUS_DATE = "2026-05-19";
 
 // ─── Page ───────────────────────────────────────────────────────────────────
 
@@ -56,6 +58,8 @@ export default function DashboardPage() {
   const { activeProjectId, activeProject } = useProject();
   const kpis = getKpis(activeProjectId);
   const charters = useEntityStore((s) => s.charters);
+  const tasks = useEntityStore((s) => s.tasks);
+  const costLines = useEntityStore((s) => s.costLines);
   const charter  = charters.find((c) => c.projectId === activeProjectId);
   const [showSetupReview, setShowSetupReview] = useState(false);
 
@@ -93,11 +97,22 @@ export default function DashboardPage() {
     kpis.budgetPct >= 60 ? "kpi--warn" :
     "kpi--ok";
 
-  // Project health score — kept simple (matches reference's "95 / 100" pattern).
-  // Real validator data wires in here once the dashboard health is fully reactive;
-  // for now we surface the pre-existing visualisation.
-  const healthScore = 95;
+  const projectTasks = tasks.filter((task) => task.projectId === activeProjectId);
+  const projectCostLines = costLines.filter((line) => line.projectId === activeProjectId);
+  const evm = computeProjectEvm({
+    costLines: projectCostLines,
+    plannedCurve: budgetTrend.map((point) => ({ month: point.month, planned: point.planned })),
+    tasks: projectTasks,
+    projectStart: activeProject.startDate,
+    statusDate: DASHBOARD_STATUS_DATE,
+    curveYear: new Date(`${activeProject.startDate}T00:00:00`).getFullYear(),
+  });
+  const healthScore = evm.verdict.score;
   const healthScoreMax = 100;
+  const verdictPill =
+    evm.verdict.level === "on-track" ? "pill pill--ok" :
+    evm.verdict.level === "watch" ? "pill pill--warn" :
+    "pill pill--risk";
 
   return (
     <>
@@ -143,12 +158,12 @@ export default function DashboardPage() {
       <section className="executive-verdict" aria-label="Executive verdict">
         <div>
           <div className="executive-verdict__label">Executive Verdict</div>
-          <div className="executive-verdict__title">Verdict placeholder</div>
+          <div className="executive-verdict__title">{evm.verdict.headline}</div>
           <p className="executive-verdict__copy">
-            The project-level judgement will appear here once the health model is connected.
+            {evm.verdict.reason}
           </p>
         </div>
-        <span className="pill pill--neutral">Pending data</span>
+        <span className={verdictPill}>{evm.verdict.score}/100 confidence</span>
       </section>
 
       {/* KPI grid */}

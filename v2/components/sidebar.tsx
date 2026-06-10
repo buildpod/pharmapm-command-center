@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   AlertTriangle,
+  Activity,
   BarChart2,
   CheckSquare,
   DollarSign,
@@ -35,6 +36,7 @@ const navGroups = [
     items: [
       { label: "Delivery Signals", href: "/truth", icon: Gauge },
       { label: "Reports", href: "/reports", icon: BarChart2 },
+      { label: "Activity", href: "/activity", icon: Activity },
     ],
   },
   {

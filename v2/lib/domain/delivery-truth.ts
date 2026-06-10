@@ -1,3 +1,4 @@
+// EVM-RECONCILE: delivery-truth consumes EvmSnapshot in Phase 2 (Claude track). Do not extend the heuristics here.
 import type { CostLine, Document, Milestone, Project, Risk, Task } from "@/lib/mockData";
 import { compare, daysBetween } from "./dates";
 
