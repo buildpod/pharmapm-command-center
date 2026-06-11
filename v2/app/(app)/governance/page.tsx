@@ -3,11 +3,22 @@
 import Link from "next/link";
 import { AlertTriangle, ChevronRight, DollarSign, FileText, Scale, ScrollText } from "lucide-react";
 import { useProject } from "@/components/projects/project-provider";
+import { useProjectEvm } from "@/lib/hooks/use-project-evm";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { cn } from "@/lib/utils";
 
+function focusHref(route: string, id: string) {
+  return `${route}?focus=${encodeURIComponent(id)}`;
+}
+
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+  return new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+}
+
+function fmtMoney(value: number) {
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `$${Math.round(value / 1_000)}k`;
+  return `$${Math.round(value)}`;
 }
 
 function GovernanceCard({
@@ -50,31 +61,39 @@ function GovernanceCard({
 
 export default function GovernancePage() {
   const { activeProjectId } = useProject();
-  const risks = useEntityStore((s) => s.risks).filter((r) => r.projectId === activeProjectId);
-  const documents = useEntityStore((s) => s.documents).filter((d) => d.projectId === activeProjectId);
-  const costLines = useEntityStore((s) => s.costLines).filter((c) => c.projectId === activeProjectId);
+  const { coverage, evm } = useProjectEvm();
+  const risks = useEntityStore((s) => s.risks).filter((risk) => risk.projectId === activeProjectId);
+  const documents = useEntityStore((s) => s.documents).filter((document) => document.projectId === activeProjectId);
+  const charters = useEntityStore((s) => s.charters).filter((charter) => charter.projectId === activeProjectId);
 
-  const openRisks = risks.filter((r) => r.status === "open");
-  const highRisks = openRisks.filter((r) => r.score >= 15);
-  const pendingDocs = documents.filter((d) => d.status === "in-review");
-  const totalBudget = costLines.reduce((sum, c) => sum + c.budgetK, 0);
-  const totalActual = costLines.reduce((sum, c) => sum + c.actualK, 0);
-  const budgetPct = totalBudget > 0 ? Math.round((totalActual / totalBudget) * 100) : 0;
+  const openRisks = risks.filter((risk) => risk.status === "open");
+  const highRisks = openRisks.filter((risk) => risk.score >= 15);
+  const charter = charters[0];
+  const pendingApprovals = documents.flatMap((document) =>
+    [...document.reviewers, ...document.approvers]
+      .filter((person) => person.status === "pending")
+      .map((person) => ({ document, person })),
+  );
+  const pendingDocuments = new Set(pendingApprovals.map(({ document }) => document.id));
+  const budgetPct = evm ? Math.round((evm.snapshot.ac / Math.max(evm.snapshot.bac, 1)) * 100) : 0;
+  const budgetDetail = evm
+    ? `${fmtMoney(evm.snapshot.ac)} actual against ${fmtMoney(evm.snapshot.bac)} budget.`
+    : `Add ${coverage.missing.join(" and ") || "project data"} before budget truth is available.`;
 
   return (
     <div className="space-y-6">
       <header className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Governance</h1>
         <p className="text-sm text-muted-foreground">
-          Risks, controlled documents, decisions, charter, and budget control in one place.
+          What decisions and controls matter: top risks, pending approvals, budget truth, and charter status.
         </p>
       </header>
 
       <section className="grid grid-cols-1 gap-3 md:grid-cols-4">
         <GovernanceCard title="Open risks" value={openRisks.length} detail={`${highRisks.length} high-priority risk${highRisks.length === 1 ? "" : "s"} ${highRisks.length === 1 ? "needs" : "need"} escalation discipline.`} href="/risks" tone={highRisks.length ? "rose" : openRisks.length ? "amber" : "emerald"} icon={AlertTriangle} />
-        <GovernanceCard title="Decision packs" value={pendingDocs.length} detail="Documents currently waiting for review or approval." href="/documents" tone={pendingDocs.length ? "amber" : "emerald"} icon={FileText} />
-        <GovernanceCard title="Budget used" value={`${budgetPct}%`} detail={`$${totalActual}k actual against $${totalBudget}k budget.`} href="/costs" tone={budgetPct >= 85 ? "rose" : budgetPct >= 60 ? "amber" : "blue"} icon={DollarSign} />
-        <GovernanceCard title="Charter" value="Live" detail="Scope, assumptions, constraints, and success criteria." href="/charter" tone="blue" icon={ScrollText} />
+        <GovernanceCard title="Decision packs" value={pendingDocuments.size} detail={`${pendingApprovals.length} person-level review or approval follow-up${pendingApprovals.length === 1 ? "" : "s"}.`} href="/documents" tone={pendingApprovals.length ? "amber" : "emerald"} icon={FileText} />
+        <GovernanceCard title="Budget used" value={evm ? `${budgetPct}%` : "Pending"} detail={budgetDetail} href="/costs" tone={evm && budgetPct >= 85 ? "rose" : evm && budgetPct >= 60 ? "amber" : "blue"} icon={DollarSign} />
+        <GovernanceCard title="Charter" value={charter?.status ?? "Missing"} detail="Scope, assumptions, constraints, success criteria, and sponsor approval." href="/charter" tone={charter?.status === "approved" ? "emerald" : "blue"} icon={ScrollText} />
       </section>
 
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -84,12 +103,12 @@ export default function GovernancePage() {
             <p className="text-sm font-semibold text-foreground">Top Governance Risks</p>
           </div>
           <ul className="divide-y divide-border">
-            {openRisks.slice().sort((a, b) => b.score - a.score).slice(0, 5).map((risk) => (
+            {openRisks.slice().sort((a, b) => b.score - a.score).slice(0, 6).map((risk) => (
               <li key={risk.id}>
-                <Link href="/risks" className="group flex items-start gap-3 px-5 py-3 transition-colors hover:bg-muted/30">
+                <Link href={focusHref("/risks", risk.id)} className="group flex items-start gap-3 px-5 py-3 transition-colors hover:bg-muted/30">
                   <span className={cn(
                     "rounded-full border px-2 py-0.5 text-[10px] font-semibold",
-                    risk.score >= 15 ? "border-rose-200 bg-rose-50 text-rose-700" : "border-amber-200 bg-amber-50 text-amber-700"
+                    risk.score >= 15 ? "border-rose-200 bg-rose-50 text-rose-700" : "border-amber-200 bg-amber-50 text-amber-700",
                   )}>
                     {risk.score}
                   </span>
@@ -101,6 +120,9 @@ export default function GovernancePage() {
                 </Link>
               </li>
             ))}
+            {openRisks.length === 0 ? (
+              <li className="px-5 py-6 text-sm text-muted-foreground">No open risks need governance follow-up.</li>
+            ) : null}
           </ul>
         </div>
 
@@ -110,20 +132,23 @@ export default function GovernancePage() {
             <p className="text-sm font-semibold text-foreground">Decision Follow-Up</p>
           </div>
           <ul className="divide-y divide-border">
-            {pendingDocs.slice().sort((a, b) => a.dueDate.localeCompare(b.dueDate)).slice(0, 5).map((doc) => (
-              <li key={doc.id}>
-                <Link href="/documents" className="group flex items-start gap-3 px-5 py-3 transition-colors hover:bg-muted/30">
+            {pendingApprovals.slice().sort((a, b) => a.document.dueDate.localeCompare(b.document.dueDate)).slice(0, 8).map(({ document, person }) => (
+              <li key={`${document.id}-${person.initials}-${person.role}`}>
+                <Link href={focusHref("/documents", document.id)} className="group flex items-start gap-3 px-5 py-3 transition-colors hover:bg-muted/30">
                   <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
-                    {doc.type}
+                    {person.initials}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-foreground group-hover:text-primary">{doc.name}</p>
-                    <p className="text-xs text-muted-foreground">Owner {doc.owner} · due {formatDate(doc.dueDate)}</p>
+                    <p className="truncate text-sm font-medium text-foreground group-hover:text-primary">{person.person} decision on {document.name}</p>
+                    <p className="text-xs text-muted-foreground">{person.role} · owner {document.owner} · due {formatDate(document.dueDate)}</p>
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-70" />
                 </Link>
               </li>
             ))}
+            {pendingApprovals.length === 0 ? (
+              <li className="px-5 py-6 text-sm text-muted-foreground">No document reviews or approvals are waiting right now.</li>
+            ) : null}
           </ul>
         </div>
       </section>
