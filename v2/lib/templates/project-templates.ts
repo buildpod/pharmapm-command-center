@@ -353,13 +353,13 @@ export const PROJECT_TEMPLATES: ProjectTemplateSummary[] = [
   },
   {
     id: "csv-validation",
-    tier: "starter",
+    tier: "playbook",
     name: "CSV validation project",
     category: "Quality",
-    description: "Validation-focused plan for URS, risk assessment, UAT/PQ, traceability, evidence, and validation summary approval.",
+    description: "Computer System Validation playbook using GAMP 5 ed.2 and FDA CSA framing: intended use, GxP impact, supplier leverage, risk-based testing, traceability, VSR, release, and periodic review.",
     recommendedName: "GxP System Validation Project",
     recommendedPhase: "Phase 1 - Validation Planning",
-    recommendedMethodology: "GAMP 5 / CSV",
+    recommendedMethodology: "GAMP 5 / CSA",
     intentDefaults: {
       regulated: true,
       validation: true,
@@ -370,12 +370,22 @@ export const PROJECT_TEMPLATES: ProjectTemplateSummary[] = [
       aiDelivery: false,
     },
     coverage: {
-      workstreams: ["Validation", "QA", "Business Process", "UAT", "Cutover"],
-      milestones: 7,
-      tasks: 13,
-      documents: 8,
-      risks: 4,
-      costLines: 3,
+      workstreams: [
+        "Validation Governance",
+        "Intended Use & GxP Impact",
+        "Supplier Assurance",
+        "Requirements & Traceability",
+        "Configuration Baseline",
+        "Risk-Based Testing",
+        "Deviation Management",
+        "Release Readiness",
+        "Periodic Review",
+      ],
+      milestones: 11,
+      tasks: 26,
+      documents: 11,
+      risks: 5,
+      costLines: 4,
     },
   },
   {
@@ -444,6 +454,8 @@ export function buildTemplateOperatingModel(input: TemplateBuildInput): Template
       return buildVeevaRimTemplate(input);
     case "sap-s4hana":
       return buildSapS4HanaTemplate(input);
+    case "csv-validation":
+      return buildCsvValidationTemplate(input);
     case "veeva-qualitydocs":
     case "veeva-clinical-ops":
     case "veeva-promomats":
@@ -452,7 +464,6 @@ export function buildTemplateOperatingModel(input: TemplateBuildInput): Template
     case "lims-qc-lab":
     case "eqms-capa":
     case "mes-ebmr":
-    case "csv-validation":
     case "data-migration":
     case "generic-implementation":
       return buildFocusedTemplate(input, getProjectTemplate(input.templateId));
@@ -843,6 +854,147 @@ function buildSapS4HanaTemplate(input: TemplateBuildInput): TemplateOperatingMod
       "Fit-to-standard decisions are captured as documents/tasks today; a first-class fit-gap backlog is a P0 follow-up.",
       "Data migration runs and reconciliation are represented as tasks/milestones; a migration-run register is a P0 follow-up.",
       "Security roles and SoD controls are represented as tasks/documents; a controls matrix entity is a P1 follow-up.",
+    ],
+  };
+}
+
+function buildCsvValidationTemplate(input: TemplateBuildInput): TemplateOperatingModel {
+  const template = getProjectTemplate("csv-validation");
+  const p = input.projectId;
+  const milestone = (n: number): string => `${p}-m${n}`;
+  const task = (n: number): string => `${p}-t${n}`;
+  const document = (n: number): string => `${p}-d${n}`;
+  const risk = (n: number): string => `${p}-r${n}`;
+  const cost = (n: number): string => `${p}-c${n}`;
+
+  const teamMembers = makeTeam(p, [
+    { id: `${p}-tm1`, initials: "VL", name: "Validation Lead", role: "Validation Lead", workstream: "Validation Governance", steercoRole: "mandatory" },
+    { id: `${p}-tm2`, initials: "QA", name: "Quality Assurance", role: "QA Approver", workstream: "Quality Assurance", steercoRole: "mandatory" },
+    { id: `${p}-tm3`, initials: "SO", name: "System Owner", role: "System Owner", workstream: "System Ownership", steercoRole: "mandatory" },
+    { id: `${p}-tm4`, initials: "PO", name: "Process Owner", role: "Process Owner", workstream: "Business Process" },
+    { id: `${p}-tm5`, initials: "SV", name: "Supplier / Vendor Contact", role: "Supplier Contact", workstream: "Supplier Assurance" },
+    { id: `${p}-tm6`, initials: "IT", name: "IT / Architecture Lead", role: "IT Architecture Lead", workstream: "IT Architecture" },
+  ]);
+
+  const rawMilestones: Milestone[] = [
+    { id: milestone(1), name: "Validation Plan approved", phase: "Validation Planning", plannedDate: dateFrom(input.startDate, 7), forecastDate: dateFrom(input.startDate, 7), status: "pending", locked: false, owner: "VL", duration: 5, projectId: p },
+    { id: milestone(2), name: "Intended use and GxP impact confirmed", phase: "Validation Planning", plannedDate: dateFrom(input.startDate, 14), forecastDate: dateFrom(input.startDate, 14), status: "pending", locked: false, owner: "SO", duration: 5, predecessor: milestone(1), lag: 1, projectId: p },
+    { id: milestone(3), name: "URS approved", phase: "Requirements", plannedDate: dateFrom(input.startDate, 28), forecastDate: dateFrom(input.startDate, 28), status: "pending", locked: false, owner: "PO", duration: 7, predecessor: milestone(2), lag: 1, projectId: p },
+    { id: milestone(4), name: "Risk and GxP impact assessment complete", phase: "Risk Assessment", plannedDate: dateFrom(input.startDate, 34), forecastDate: dateFrom(input.startDate, 34), status: "pending", locked: false, owner: "QA", duration: 5, predecessor: milestone(2), lag: 0, projectId: p },
+    { id: milestone(5), name: "Supplier assessment complete", phase: "Supplier Assurance", plannedDate: dateFrom(input.startDate, 38), forecastDate: dateFrom(input.startDate, 38), status: "pending", locked: false, owner: "SV", duration: 5, predecessor: milestone(2), lag: 0, projectId: p },
+    { id: milestone(6), name: "Configuration specification baseline approved", phase: "Configuration Baseline", plannedDate: dateFrom(input.startDate, 56), forecastDate: dateFrom(input.startDate, 56), status: "pending", locked: false, owner: "IT", duration: 10, predecessor: milestone(3), lag: 1, projectId: p },
+    { id: milestone(7), name: "IQ complete", phase: "Qualification", plannedDate: dateFrom(input.startDate, 72), forecastDate: dateFrom(input.startDate, 72), status: "pending", locked: false, owner: "IT", duration: 8, predecessor: milestone(6), lag: 1, projectId: p },
+    { id: milestone(8), name: "OQ complete", phase: "Qualification", plannedDate: dateFrom(input.startDate, 92), forecastDate: dateFrom(input.startDate, 92), status: "pending", locked: false, owner: "VL", duration: 10, predecessor: milestone(7), lag: 1, projectId: p },
+    { id: milestone(9), name: "PQ/UAT complete", phase: "Business Verification", plannedDate: dateFrom(input.startDate, 112), forecastDate: dateFrom(input.startDate, 112), status: "pending", locked: false, owner: "PO", duration: 10, predecessor: milestone(8), lag: 1, projectId: p },
+    { id: milestone(10), name: "RTM reconciled and VSR approved", phase: "Release Readiness", plannedDate: dateFrom(input.goLiveDate, -7), forecastDate: dateFrom(input.goLiveDate, -7), status: "pending", locked: false, owner: "QA", duration: 5, predecessor: milestone(9), lag: 1, projectId: p },
+    { id: milestone(11), name: "Go-live / release decision approved", phase: "Release", plannedDate: input.goLiveDate, forecastDate: input.goLiveDate, status: "pending", locked: true, owner: "SO", duration: 1, predecessor: milestone(10), lag: 1, projectId: p },
+  ];
+
+  const milestones = clampMilestonesToGoLive(rawMilestones, input.goLiveDate);
+
+  const rawTasks: Task[] = [
+    { id: task(1), name: "Confirm validation scope, roles, and deliverable list", workstream: "Validation Governance", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(1), owner: "VL", dueDate: dateFrom(input.startDate, 3), projectId: p },
+    { id: task(2), name: "Author Validation Plan with CSA risk-based testing strategy", workstream: "Validation Governance", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(1), owner: "VL", dueDate: dateFrom(input.startDate, 7), dependsOn: [task(1)], projectId: p },
+    { id: task(3), name: "Define intended use and regulated process boundaries", workstream: "Intended Use & GxP Impact", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(2), owner: "SO", dueDate: dateFrom(input.startDate, 10), dependsOn: [task(1)], projectId: p },
+    { id: task(4), name: "Complete GxP impact and data integrity assessment", workstream: "Intended Use & GxP Impact", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(4), owner: "QA", dueDate: dateFrom(input.startDate, 22), dependsOn: [task(3)], projectId: p },
+    { id: task(5), name: "Classify system category and CSA risk level by function", workstream: "Risk-Based Testing", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(4), owner: "QA", dueDate: dateFrom(input.startDate, 28), dependsOn: [task(3), task(4)], projectId: p },
+    { id: task(6), name: "Request and review supplier audit package and release notes", workstream: "Supplier Assurance", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(5), owner: "SV", dueDate: dateFrom(input.startDate, 24), dependsOn: [task(3)], projectId: p },
+    { id: task(7), name: "Confirm supplier documentation leverage strategy", workstream: "Supplier Assurance", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(5), owner: "VL", dueDate: dateFrom(input.startDate, 32), dependsOn: [task(6)], projectId: p },
+    { id: task(8), name: "Author URS with testable requirements and acceptance criteria", workstream: "Requirements & Traceability", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(3), owner: "PO", dueDate: dateFrom(input.startDate, 24), dependsOn: [task(3)], projectId: p },
+    { id: task(9), name: "Review URS for ALCOA+ and Part 11 / Annex 11 controls", workstream: "Requirements & Traceability", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(3), owner: "QA", dueDate: dateFrom(input.startDate, 28), dependsOn: [task(8)], projectId: p },
+    { id: task(10), name: "Draft RTM from URS to risks, configuration, and test evidence", workstream: "Requirements & Traceability", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(3), owner: "VL", dueDate: dateFrom(input.startDate, 28), dependsOn: [task(5), task(8)], projectId: p },
+    { id: task(11), name: "Baseline Configuration Specification / Design Specification", workstream: "Configuration Baseline", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(6), owner: "IT", dueDate: dateFrom(input.startDate, 50), dependsOn: [task(8), task(10)], projectId: p },
+    { id: task(12), name: "Confirm environment qualification and access controls", workstream: "Configuration Baseline", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(7), owner: "IT", dueDate: dateFrom(input.startDate, 62), dependsOn: [task(11)], projectId: p },
+    { id: task(13), name: "Author IQ protocol using supplier installation evidence where justified", workstream: "Risk-Based Testing", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(7), owner: "VL", dueDate: dateFrom(input.startDate, 66), dependsOn: [task(7), task(12)], projectId: p },
+    { id: task(14), name: "Execute IQ and record deviations", workstream: "Risk-Based Testing", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(7), owner: "IT", dueDate: dateFrom(input.startDate, 72), dependsOn: [task(13)], projectId: p },
+    { id: task(15), name: "Author OQ protocol for high-risk configured functions", workstream: "Risk-Based Testing", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(8), owner: "VL", dueDate: dateFrom(input.startDate, 78), dependsOn: [task(5), task(11)], projectId: p },
+    { id: task(16), name: "Prepare CSA unscripted exploratory testing charter for low-risk functions", workstream: "Risk-Based Testing", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(8), owner: "PO", dueDate: dateFrom(input.startDate, 80), dependsOn: [task(5), task(11)], projectId: p },
+    { id: task(17), name: "Execute OQ with deviation triage and retest evidence", workstream: "Deviation Management", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(8), owner: "VL", dueDate: dateFrom(input.startDate, 90), dependsOn: [task(14), task(15)], projectId: p },
+    { id: task(18), name: "Run unscripted CSA testing and capture session notes", workstream: "Risk-Based Testing", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(8), owner: "PO", dueDate: dateFrom(input.startDate, 90), dependsOn: [task(16)], projectId: p },
+    { id: task(19), name: "Author PQ/UAT protocol mapped to intended use and process owners", workstream: "Business Verification", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(9), owner: "PO", dueDate: dateFrom(input.startDate, 100), dependsOn: [task(17), task(18)], projectId: p },
+    { id: task(20), name: "Execute PQ/UAT with business users and deviation handling", workstream: "Business Verification", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(9), owner: "PO", dueDate: dateFrom(input.startDate, 112), dependsOn: [task(19)], projectId: p },
+    { id: task(21), name: "Reconcile RTM coverage across URS, RA, IQ, OQ, PQ/UAT evidence", workstream: "Requirements & Traceability", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(10), owner: "VL", dueDate: dateFrom(input.goLiveDate, -12), dependsOn: [task(17), task(20)], projectId: p },
+    { id: task(22), name: "Close open deviations or document residual risk acceptance", workstream: "Deviation Management", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(10), owner: "QA", dueDate: dateFrom(input.goLiveDate, -11), dependsOn: [task(20)], projectId: p },
+    { id: task(23), name: "Author Validation Summary Report with release recommendation", workstream: "Release Readiness", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(10), owner: "VL", dueDate: dateFrom(input.goLiveDate, -9), dependsOn: [task(21), task(22)], projectId: p },
+    { id: task(24), name: "Approve VSR and release readiness package", workstream: "Release Readiness", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(10), owner: "QA", dueDate: dateFrom(input.goLiveDate, -7), dependsOn: [task(23)], projectId: p },
+    { id: task(25), name: "Set up periodic review SOP, owner, and review cadence", workstream: "Periodic Review", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(11), owner: "SO", dueDate: dateFrom(input.goLiveDate, -4), dependsOn: [task(24)], projectId: p },
+    { id: task(26), name: "Hold go-live / release decision and open post-release monitoring", workstream: "Release Readiness", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(11), owner: "SO", dueDate: input.goLiveDate, dependsOn: [task(24), task(25)], projectId: p },
+  ];
+
+  const tasks = clampTasksToMilestones(rawTasks, milestones);
+
+  const docs = [
+    ["Validation Plan", "VP", "Validation", "Planning", 7, "Validation approach, roles, GAMP 5 ed.2 / CSA rationale, supplier leverage, testing strategy, and release gates."],
+    ["User Requirements Specification", "URS", "Requirements", "Planning", 24, "Testable requirements tied to intended use, regulated process boundaries, and acceptance criteria."],
+    ["GxP Impact and Risk Assessment", "RA", "Risk", "Planning", 34, "Function-level GxP impact, CSA risk classification, data integrity controls, and testing rationale."],
+    ["Supplier Assessment", "SA", "Supplier", "Planning", 38, "Supplier qualification, audit package review, release notes, known issues, and documentation leverage decision."],
+    ["Configuration / Design Specification", "CDS", "Configuration", "Configuration", 56, "Approved configuration baseline, design decisions, security controls, and change-control boundary."],
+    ["IQ Protocol and Report", "IQ", "Testing", "Validation", 72, "Installation qualification protocol, execution evidence, deviations, and supplier-evidence references."],
+    ["OQ Protocol and Report", "OQ", "Testing", "Validation", 92, "Operational qualification scripts and evidence for high-risk configured functions."],
+    ["PQ/UAT Protocol and Report", "PQ", "Testing", "Validation", 112, "Process-owner verification, intended-use confirmation, business acceptance, and deviation outcomes."],
+    ["Requirements Traceability Matrix", "RTM", "Traceability", "Go-Live", -12, "Trace from URS to risks, configuration, IQ, OQ, PQ/UAT evidence, deviations, and VSR conclusions."],
+    ["Validation Summary Report", "VSR", "Release", "Go-Live", -7, "Final validation outcome, open residual risks, deviation summary, and QA release recommendation."],
+    ["Periodic Review SOP", "PRS", "Operational", "Go-Live", -4, "Post-release review cadence, owner, metrics, access review, audit-trail review, and change-control triggers."],
+  ] as const;
+
+  const documents: Document[] = docs.map(([name, abbreviation, type, phase, offset, description], index) => {
+    const dueDate = offset < 0 ? dateFrom(input.goLiveDate, offset) : dateFrom(input.startDate, offset);
+    return {
+      id: document(index + 1),
+      name,
+      abbreviation,
+      type,
+      phase,
+      version: "0.1",
+      status: "draft",
+      dueDate: clampDate(dueDate, input.goLiveDate),
+      description,
+      owner: index === 3 ? "SV" : index === 4 || index === 5 ? "IT" : index === 7 ? "PO" : index === 10 ? "SO" : "VL",
+      reviewers: [
+        { person: "Validation Lead", initials: "VL", role: "Validation Lead", status: "pending" },
+        { person: "System Owner", initials: "SO", role: "System Owner", status: "pending" },
+      ],
+      approvers: [
+        { person: "Quality Assurance", initials: "QA", role: "QA", status: "pending" },
+      ],
+      projectId: p,
+    };
+  });
+
+  const risks: Risk[] = [
+    { id: risk(1), title: "Supplier documentation package is incomplete or not reusable", category: "Supplier", probability: 3, impact: 5, score: 15, status: "open", owner: "SV", mitigation: "Request audit package, release notes, and validation documentation during planning; record leverage rationale in the VP and RTM, then add supplemental tests where evidence is weak.", projectId: p },
+    { id: risk(2), title: "Custom code or configuration scope creep raises validation burden", category: "Scope", probability: 3, impact: 5, score: 15, status: "open", owner: "VL", mitigation: "Route every customization through change control, reassess CSA risk, and add OQ evidence before the configuration baseline changes.", projectId: p },
+    { id: risk(3), title: "Test environment instability invalidates execution evidence", category: "Environment", probability: 3, impact: 4, score: 12, status: "open", owner: "IT", mitigation: "Qualify the environment and access controls before IQ/OQ/PQ, freeze configuration during execution, and repeat any impacted tests after instability is resolved.", projectId: p },
+    { id: risk(4), title: "ALCOA+ data integrity findings emerge during testing", category: "Data Integrity", probability: 3, impact: 5, score: 15, status: "open", owner: "QA", mitigation: "Map audit trail, security, e-signature, and record-retention controls to requirements; triage findings with QA and require remediation or documented residual-risk acceptance.", projectId: p },
+    { id: risk(5), title: "Operations SMEs are unavailable for PQ/UAT and release decision", category: "Resourcing", probability: 4, impact: 4, score: 16, status: "open", owner: "PO", mitigation: "Reserve named process-owner windows before execution, nominate alternates, and escalate missed sessions through governance before release readiness is at risk.", projectId: p },
+  ];
+
+  const costLines: CostLine[] = [
+    { id: cost(1), category: "Validation services", description: "Validation lead and CSV/CSA execution support for planning, testing, traceability, deviations, and VSR", budgetK: 240, actualK: 0, contractType: "T&M", owner: "VL", projectId: p },
+    { id: cost(2), category: "Supplier/vendor fees", description: "Supplier documentation package, environment support, release-note review, and vendor SME access", budgetK: 120, actualK: 0, contractType: "Fixed", owner: "SV", projectId: p },
+    { id: cost(3), category: "Test environment", description: "Validated test environment, access controls, refreshes, configuration freeze, and evidence storage", budgetK: 90, actualK: 0, contractType: "T&M", owner: "IT", projectId: p },
+    { id: cost(4), category: "Internal QA time", description: "QA review, approval, deviation triage, ALCOA+ assessment, and release decision support", budgetK: 160, actualK: 0, contractType: "Internal", owner: "QA", projectId: p },
+  ];
+
+  return {
+    template,
+    charter: buildCharter(input, template, [
+      "Computer System Validation planning, intended-use definition, GxP impact assessment, and CSA risk-based testing strategy",
+      "Supplier documentation leverage, URS, risk assessment, configuration/design baseline, IQ, OQ, PQ/UAT, deviations, RTM, VSR, and release decision",
+      "ALCOA+ data integrity controls, QA approval, traceability, periodic review setup, and post-release monitoring",
+    ]),
+    milestones,
+    tasks,
+    documents,
+    risks,
+    teamMembers,
+    costLines,
+    operatingNotes: [
+      "Lifecycle follows GAMP 5 ed.2 with FDA CSA framing: intended use and GxP impact drive risk-based testing depth.",
+      "Supplier documentation is leveraged only where QA records the rationale and traceability remains complete.",
+      "High-risk functions require scripted IQ/OQ/PQ evidence; low-risk functions may use documented unscripted exploratory CSA testing.",
+      "RTM and VSR are explicit release-readiness gates, and the terminal release decision is locked to protect go-live governance.",
+      "Periodic review is seeded as a post-release control so validation ownership continues after go-live.",
     ],
   };
 }
