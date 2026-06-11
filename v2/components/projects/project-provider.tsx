@@ -1,10 +1,15 @@
 "use client";
 
 import { useState, useEffect, useCallback, createContext, useContext } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { projects as initialProjects, type Project } from "@/lib/mockData";
 
 const STORAGE_KEY = "aivello_active_project_v1";
 const PROJECTS_KEY = "aivello_projects_v1";
+// CX-7: set when the user explicitly chooses to explore the sample project.
+// Without it, a visitor with no real projects lands on the setup wizard —
+// the sample is opt-in, never presented as their own work.
+export const SAMPLE_OPTIN_KEY = "aivello_sample_optin_v1";
 
 type ProjectContextValue = {
   projects: Project[];
@@ -30,7 +35,14 @@ function loadProjects(): Project[] {
     const raw = localStorage.getItem(PROJECTS_KEY);
     if (!raw) return initialProjects;
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      // Migration: projects persisted before the isSample flag existed lack
+      // it — backfill from the seed list so the sample badge applies.
+      return parsed.map((p: Project) => ({
+        ...p,
+        isSample: p.isSample ?? initialProjects.find((s) => s.id === p.id)?.isSample,
+      }));
+    }
     return initialProjects;
   } catch {
     return initialProjects;
@@ -49,6 +61,9 @@ function loadActiveId(): string {
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [projects,        setProjects]        = useState<Project[]>(initialProjects);
   const [activeProjectId, setActiveProjectIdS] = useState<string>(initialProjects[0].id);
+  const [hydrated,        setHydrated]        = useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
 
   // Hydrate from localStorage on mount (avoids SSR/static-export mismatch)
   useEffect(() => {
@@ -57,7 +72,23 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     setProjects(p);
     // Guard: if persisted activeId no longer exists, fall back to first project
     setActiveProjectIdS(p.some((x) => x.id === a) ? a : p[0].id);
+    setHydrated(true);
   }, []);
+
+  // CX-7 first-run: a visitor with no real (non-sample) projects who hasn't
+  // opted into the sample belongs in the setup wizard, not inside someone
+  // else's demo project. Gated on `hydrated` so a returning user with real
+  // projects in localStorage is never bounced during the pre-hydration render.
+  useEffect(() => {
+    if (!hydrated) return;
+    const hasRealProject = projects.some((x) => !x.isSample);
+    if (hasRealProject) return;
+    let sampleOptIn = false;
+    try { sampleOptIn = localStorage.getItem(SAMPLE_OPTIN_KEY) === "1"; } catch {}
+    if (!sampleOptIn && !pathname.startsWith("/setup")) {
+      router.replace("/setup");
+    }
+  }, [hydrated, projects, pathname, router]);
 
   const persistProjects = useCallback((next: Project[]) => {
     try { localStorage.setItem(PROJECTS_KEY, JSON.stringify(next)); } catch {}

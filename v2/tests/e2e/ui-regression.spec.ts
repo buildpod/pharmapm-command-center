@@ -50,6 +50,9 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.clear();
     window.sessionStorage.clear();
+    // CX-7: the suite exercises the seeded sample project. Opt in explicitly,
+    // otherwise the first-run guard sends a cold visitor to /setup.
+    window.localStorage.setItem("aivello_sample_optin_v1", "1");
   });
   await gotoApp(page, "/");
   (page as Page & { __errors?: string[] }).__errors = errors;

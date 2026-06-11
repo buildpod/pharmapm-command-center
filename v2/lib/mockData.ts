@@ -23,6 +23,9 @@ export type Project = {
   startDate: string;
   goLiveDate: string;
   methodology: string;
+  // Demo/sample seed project (CX-7 first-run experience): badged in the UI,
+  // opt-in only — never auto-presented as the user's own work.
+  isSample?: boolean;
 };
 
 export const projects: Project[] = [
@@ -35,6 +38,7 @@ export const projects: Project[] = [
     startDate: "2026-01-06",
     goLiveDate: "2026-09-02",
     methodology: "GAMP 5 / CSV",
+    isSample: true,
   },
   {
     id: "proj-promomats",
@@ -45,6 +49,7 @@ export const projects: Project[] = [
     startDate: "2026-06-01",
     goLiveDate: "2027-02-15",
     methodology: "GAMP 5 / CSV",
+    isSample: true,
   },
 ];
 

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, Sun, Moon } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -63,6 +64,15 @@ export function Topbar() {
         <strong>{label}</strong>
         <span>{activeProject.name}</span>
         <span>{activeProject.phase}</span>
+        {activeProject.isSample && (
+          <Link
+            href="/projects"
+            className="pill pill--warn"
+            title="This is sample data for exploring the product — open Manage Projects to remove it"
+          >
+            Sample project
+          </Link>
+        )}
       </div>
       <div className="topbar-spacer" />
 

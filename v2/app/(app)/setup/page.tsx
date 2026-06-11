@@ -16,7 +16,7 @@ import {
   Upload,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useProject } from "@/components/projects/project-provider";
+import { useProject, SAMPLE_OPTIN_KEY } from "@/components/projects/project-provider";
 import { Field, inputCls } from "@/components/ui/entity-drawer";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { cn } from "@/lib/utils";
@@ -425,12 +425,29 @@ export default function GuidedSetupPage() {
 
   // ==== RENDER STEPS ====
 
+  function exploreSample() {
+    const sample = projects.find((p) => p.isSample);
+    if (!sample) return;
+    try { localStorage.setItem(SAMPLE_OPTIN_KEY, "1"); } catch {}
+    setActiveProjectId(sample.id);
+    router.push("/");
+  }
+
   function renderStep1() {
+    const hasSample = projects.some((p) => p.isSample);
     return (
       <div className="mx-auto max-w-3xl animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="mb-8 text-center">
           <h2 className="text-3xl font-bold tracking-tight text-foreground">Project Discovery</h2>
           <p className="mt-2 text-sm text-muted-foreground">Capture only the facts needed to recommend the right command-center setup.</p>
+          {hasSample && (
+            <p className="mt-3 text-sm text-muted-foreground">
+              Just looking?{" "}
+              <button type="button" onClick={exploreSample} className="font-semibold text-primary hover:underline">
+                Explore a sample project →
+              </button>
+            </p>
+          )}
         </div>
 
         <div className="rounded-2xl border border-border/50 bg-card/40 p-8 shadow-xl backdrop-blur-xl">
