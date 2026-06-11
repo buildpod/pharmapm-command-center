@@ -390,10 +390,10 @@ export const PROJECT_TEMPLATES: ProjectTemplateSummary[] = [
   },
   {
     id: "data-migration",
-    tier: "starter",
+    tier: "playbook",
     name: "Data migration project",
     category: "Migration",
-    description: "Migration control structure for inventory, mapping, cleanse, dry runs, validation load, production load, and reconciliation.",
+    description: "Regulated migration playbook for source profiling, object and field mapping, cleansing rules, dry-run loads, reconciliation, production load, ALCOA+ verification, and legacy decommission decision.",
     recommendedName: "Regulated Data Migration Project",
     recommendedPhase: "Phase 1 - Discovery",
     recommendedMethodology: "Migration factory / CSV evidence",
@@ -407,10 +407,20 @@ export const PROJECT_TEMPLATES: ProjectTemplateSummary[] = [
       aiDelivery: true,
     },
     coverage: {
-      workstreams: ["Migration Governance", "Source Extract", "Data Quality", "Load Factory", "Reconciliation", "Cutover"],
-      milestones: 8,
-      tasks: 16,
-      documents: 6,
+      workstreams: [
+        "Migration Governance",
+        "Source Inventory",
+        "Data Quality",
+        "Mapping & Transformation",
+        "Load Factory",
+        "Reconciliation",
+        "Verification",
+        "Cutover",
+        "Legacy Decommission",
+      ],
+      milestones: 11,
+      tasks: 24,
+      documents: 8,
       risks: 5,
       costLines: 4,
     },
@@ -456,6 +466,8 @@ export function buildTemplateOperatingModel(input: TemplateBuildInput): Template
       return buildSapS4HanaTemplate(input);
     case "csv-validation":
       return buildCsvValidationTemplate(input);
+    case "data-migration":
+      return buildDataMigrationTemplate(input);
     case "veeva-qualitydocs":
     case "veeva-clinical-ops":
     case "veeva-promomats":
@@ -464,7 +476,6 @@ export function buildTemplateOperatingModel(input: TemplateBuildInput): Template
     case "lims-qc-lab":
     case "eqms-capa":
     case "mes-ebmr":
-    case "data-migration":
     case "generic-implementation":
       return buildFocusedTemplate(input, getProjectTemplate(input.templateId));
     default:
@@ -995,6 +1006,142 @@ function buildCsvValidationTemplate(input: TemplateBuildInput): TemplateOperatin
       "High-risk functions require scripted IQ/OQ/PQ evidence; low-risk functions may use documented unscripted exploratory CSA testing.",
       "RTM and VSR are explicit release-readiness gates, and the terminal release decision is locked to protect go-live governance.",
       "Periodic review is seeded as a post-release control so validation ownership continues after go-live.",
+    ],
+  };
+}
+
+function buildDataMigrationTemplate(input: TemplateBuildInput): TemplateOperatingModel {
+  const template = getProjectTemplate("data-migration");
+  const p = input.projectId;
+  const milestone = (n: number): string => `${p}-m${n}`;
+  const task = (n: number): string => `${p}-t${n}`;
+  const document = (n: number): string => `${p}-d${n}`;
+  const risk = (n: number): string => `${p}-r${n}`;
+  const cost = (n: number): string => `${p}-c${n}`;
+
+  const teamMembers = makeTeam(p, [
+    { id: `${p}-tm1`, initials: "ML", name: "Migration Lead", role: "Migration Lead", workstream: "Migration Governance", steercoRole: "mandatory" },
+    { id: `${p}-tm2`, initials: "DS", name: "Data Steward", role: "Data Steward", workstream: "Data Quality" },
+    { id: `${p}-tm3`, initials: "SS", name: "Source-System Owner", role: "Source-System Owner", workstream: "Source Inventory", steercoRole: "mandatory" },
+    { id: `${p}-tm4`, initials: "TS", name: "Target-System Owner", role: "Target-System Owner", workstream: "Load Factory", steercoRole: "mandatory" },
+    { id: `${p}-tm5`, initials: "QA", name: "QA / Verification Lead", role: "QA / Verification Lead", workstream: "Verification", steercoRole: "mandatory" },
+    { id: `${p}-tm6`, initials: "BV", name: "Business Validator", role: "Business Validator", workstream: "Business Validation" },
+  ]);
+
+  const rawMilestones: Milestone[] = [
+    { id: milestone(1), name: "Migration strategy approved", phase: "Strategy", plannedDate: dateFrom(input.startDate, 7), forecastDate: dateFrom(input.startDate, 7), status: "pending", locked: false, owner: "ML", duration: 5, projectId: p },
+    { id: milestone(2), name: "Source-system inventory complete", phase: "Discovery", plannedDate: dateFrom(input.startDate, 18), forecastDate: dateFrom(input.startDate, 18), status: "pending", locked: false, owner: "SS", duration: 8, predecessor: milestone(1), lag: 1, projectId: p },
+    { id: milestone(3), name: "Data mapping baseline approved", phase: "Mapping", plannedDate: dateFrom(input.startDate, 35), forecastDate: dateFrom(input.startDate, 35), status: "pending", locked: false, owner: "ML", duration: 10, predecessor: milestone(2), lag: 1, projectId: p },
+    { id: milestone(4), name: "Cleansing rules signed off", phase: "Data Quality", plannedDate: dateFrom(input.startDate, 42), forecastDate: dateFrom(input.startDate, 42), status: "pending", locked: false, owner: "DS", duration: 6, predecessor: milestone(2), lag: 1, projectId: p },
+    { id: milestone(5), name: "Dry-run load 1 reconciled", phase: "Dry Run", plannedDate: dateFrom(input.startDate, 63), forecastDate: dateFrom(input.startDate, 63), status: "pending", locked: false, owner: "TS", duration: 8, predecessor: milestone(3), lag: 2, projectId: p },
+    { id: milestone(6), name: "Dry-run load 2 reconciled within tolerance", phase: "Dry Run", plannedDate: dateFrom(input.startDate, 84), forecastDate: dateFrom(input.startDate, 84), status: "pending", locked: false, owner: "ML", duration: 8, predecessor: milestone(5), lag: 3, projectId: p },
+    { id: milestone(7), name: "Migration verification protocol approved", phase: "Verification", plannedDate: dateFrom(input.startDate, 92), forecastDate: dateFrom(input.startDate, 92), status: "pending", locked: false, owner: "QA", duration: 5, predecessor: milestone(6), lag: 1, projectId: p },
+    { id: milestone(8), name: "Production load window approved", phase: "Cutover", plannedDate: dateFrom(input.goLiveDate, -14), forecastDate: dateFrom(input.goLiveDate, -14), status: "pending", locked: false, owner: "ML", duration: 5, predecessor: milestone(7), lag: 1, projectId: p },
+    { id: milestone(9), name: "Production load complete", phase: "Cutover", plannedDate: dateFrom(input.goLiveDate, -3), forecastDate: dateFrom(input.goLiveDate, -3), status: "pending", locked: false, owner: "TS", duration: 2, predecessor: milestone(8), lag: 1, projectId: p },
+    { id: milestone(10), name: "Post-load verification report approved", phase: "Verification", plannedDate: input.goLiveDate, forecastDate: input.goLiveDate, status: "pending", locked: false, owner: "QA", duration: 3, predecessor: milestone(9), lag: 0, projectId: p },
+    { id: milestone(11), name: "Legacy decommission decision approved", phase: "Decommission", plannedDate: input.goLiveDate, forecastDate: input.goLiveDate, status: "pending", locked: true, owner: "SS", duration: 1, predecessor: milestone(10), lag: 1, projectId: p },
+  ];
+
+  const milestones = clampMilestonesToGoLive(rawMilestones, input.goLiveDate);
+
+  const rawTasks: Task[] = [
+    { id: task(1), name: "Confirm migration strategy, scope, owners, and regulated evidence expectations", workstream: "Migration Governance", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(1), owner: "ML", dueDate: dateFrom(input.startDate, 5), projectId: p },
+    { id: task(2), name: "Build source-system inventory with object owners and retention rules", workstream: "Source Inventory", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(2), owner: "SS", dueDate: dateFrom(input.startDate, 14), dependsOn: [task(1)], projectId: p },
+    { id: task(3), name: "Profile source data quality for completeness, duplicates, formats, and orphan records", workstream: "Data Quality", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(2), owner: "DS", dueDate: dateFrom(input.startDate, 18), dependsOn: [task(2)], projectId: p },
+    { id: task(4), name: "Classify regulated records, relationships, renditions, audit trails, and attachments", workstream: "Source Inventory", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(2), owner: "QA", dueDate: dateFrom(input.startDate, 18), dependsOn: [task(2)], projectId: p },
+    { id: task(5), name: "Build object and field mapping workbook with owner signoff columns", workstream: "Mapping & Transformation", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(3), owner: "ML", dueDate: dateFrom(input.startDate, 28), dependsOn: [task(3), task(4)], projectId: p },
+    { id: task(6), name: "Define transformation rules for code lists, dates, statuses, owners, and lifecycle states", workstream: "Mapping & Transformation", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(3), owner: "ML", dueDate: dateFrom(input.startDate, 32), dependsOn: [task(5)], projectId: p },
+    { id: task(7), name: "Define cleansing rules, exception handling, and steward approval workflow", workstream: "Data Quality", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(4), owner: "DS", dueDate: dateFrom(input.startDate, 38), dependsOn: [task(3), task(5)], projectId: p },
+    { id: task(8), name: "Approve cleansing backlog with business validators and source owners", workstream: "Data Quality", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(4), owner: "BV", dueDate: dateFrom(input.startDate, 42), dependsOn: [task(7)], projectId: p },
+    { id: task(9), name: "Build extraction package and transformation scripts for dry-run load 1", workstream: "Load Factory", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(5), owner: "TS", dueDate: dateFrom(input.startDate, 50), dependsOn: [task(6), task(8)], projectId: p },
+    { id: task(10), name: "Build reconciliation counts for records, relationships, renditions, and attachments", workstream: "Reconciliation", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(5), owner: "ML", dueDate: dateFrom(input.startDate, 52), dependsOn: [task(5), task(6)], projectId: p },
+    { id: task(11), name: "Execute dry-run load 1 and capture load defects by object", workstream: "Load Factory", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(5), owner: "TS", dueDate: dateFrom(input.startDate, 58), dependsOn: [task(9), task(10)], projectId: p },
+    { id: task(12), name: "Reconcile dry-run load 1 and triage mapping, cleansing, and load defects", workstream: "Reconciliation", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(5), owner: "ML", dueDate: dateFrom(input.startDate, 63), dependsOn: [task(11)], projectId: p },
+    { id: task(13), name: "Remediate mapping gaps and update transformation rules from dry-run 1", workstream: "Mapping & Transformation", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(6), owner: "ML", dueDate: dateFrom(input.startDate, 72), dependsOn: [task(12)], projectId: p },
+    { id: task(14), name: "Execute dry-run load 2 with corrected mappings and cleansing rules", workstream: "Load Factory", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(6), owner: "TS", dueDate: dateFrom(input.startDate, 79), dependsOn: [task(13)], projectId: p },
+    { id: task(15), name: "Reconcile dry-run load 2 and confirm error rate is within tolerance", workstream: "Reconciliation", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(6), owner: "QA", dueDate: dateFrom(input.startDate, 84), dependsOn: [task(14)], projectId: p },
+    { id: task(16), name: "Author migration verification protocol with ALCOA+ sampling evidence", workstream: "Verification", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(7), owner: "QA", dueDate: dateFrom(input.startDate, 90), dependsOn: [task(15)], projectId: p },
+    { id: task(17), name: "Define rollback plan, no-go criteria, and reconciliation stop points", workstream: "Cutover", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(8), owner: "ML", dueDate: dateFrom(input.goLiveDate, -21), dependsOn: [task(15), task(16)], projectId: p },
+    { id: task(18), name: "Prepare production cutover runbook with load sequence and ownership", workstream: "Cutover", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(8), owner: "ML", dueDate: dateFrom(input.goLiveDate, -18), dependsOn: [task(17)], projectId: p },
+    { id: task(19), name: "Issue freeze-window communications and confirm source extract cutoff", workstream: "Cutover", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(8), owner: "SS", dueDate: dateFrom(input.goLiveDate, -14), dependsOn: [task(18)], projectId: p },
+    { id: task(20), name: "Execute final production extract and pre-load reconciliation checkpoint", workstream: "Cutover", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(9), owner: "TS", dueDate: dateFrom(input.goLiveDate, -5), dependsOn: [task(19)], projectId: p },
+    { id: task(21), name: "Execute production load and capture technical load evidence", workstream: "Load Factory", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(9), owner: "TS", dueDate: dateFrom(input.goLiveDate, -3), dependsOn: [task(20)], projectId: p },
+    { id: task(22), name: "Run post-load sampling verification across records, relationships, and renditions", workstream: "Verification", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(10), owner: "QA", dueDate: dateFrom(input.goLiveDate, -1), dependsOn: [task(21)], projectId: p },
+    { id: task(23), name: "Approve migration verification report and residual mismatch disposition", workstream: "Verification", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(10), owner: "QA", dueDate: input.goLiveDate, dependsOn: [task(22)], projectId: p },
+    { id: task(24), name: "Hold legacy decommission decision and confirm archive/read-only access", workstream: "Legacy Decommission", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(11), owner: "SS", dueDate: input.goLiveDate, dependsOn: [task(23)], projectId: p },
+  ];
+
+  const tasks = clampTasksToMilestones(rawTasks, milestones);
+
+  const docs = [
+    ["Migration Strategy", "MIG", "Migration", "Planning", 7, "Scope, objects, source and target owners, regulated evidence, cutover strategy, reconciliation approach, and governance."],
+    ["Mapping Specification", "MAP", "Migration", "Planning", 35, "Object and field mapping, transformations, owner signoff, unmapped fields, and approved exceptions."],
+    ["Cleansing Rules", "CLR", "Data Quality", "Planning", 42, "Data quality rules, steward decisions, exception handling, duplicate handling, and business approval criteria."],
+    ["Dry-Run 1 Reconciliation Report", "DR1", "Migration", "Validation", 63, "Dry-run 1 record counts, relationship counts, rendition checks, defects, and remediation decisions."],
+    ["Dry-Run 2 Reconciliation Report", "DR2", "Migration", "Validation", 84, "Dry-run 2 reconciliation, error-rate tolerance, unresolved defects, and readiness recommendation."],
+    ["Migration Verification Protocol", "MVP", "Validation", "Validation", 92, "Sampling method, ALCOA+ checks, acceptance criteria, evidence requirements, and QA approval path."],
+    ["Rollback Plan", "RBP", "Cutover", "Go-Live", -14, "Rollback triggers, no-go criteria, source freeze, restore path, owner decisions, and communications."],
+    ["Migration Verification Report", "MVR", "Validation", "Go-Live", 0, "Post-load verification results, reconciliation disposition, ALCOA+ evidence, residual risks, and approval."],
+  ] as const;
+
+  const documents: Document[] = docs.map(([name, abbreviation, type, phase, offset, description], index) => {
+    const dueDate = offset < 0 ? dateFrom(input.goLiveDate, offset) : offset === 0 ? input.goLiveDate : dateFrom(input.startDate, offset);
+    return {
+      id: document(index + 1),
+      name,
+      abbreviation,
+      type,
+      phase,
+      version: "0.1",
+      status: "draft",
+      dueDate: clampDate(dueDate, input.goLiveDate),
+      description,
+      owner: index === 2 ? "DS" : index >= 5 ? "QA" : "ML",
+      reviewers: [
+        { person: "Migration Lead", initials: "ML", role: "Migration Lead", status: "pending" },
+        { person: "Target-System Owner", initials: "TS", role: "Target Owner", status: "pending" },
+      ],
+      approvers: [
+        { person: "QA / Verification Lead", initials: "QA", role: "QA", status: "pending" },
+      ],
+      projectId: p,
+    };
+  });
+
+  const risks: Risk[] = [
+    { id: risk(1), title: "Source data quality is worse than profiling indicated", category: "Data Quality", probability: 4, impact: 5, score: 20, status: "open", owner: "DS", mitigation: "Run profiling before mapping baseline, sample high-risk objects manually, keep a steward-owned cleansing backlog, and re-profile corrected extracts before dry-run 2.", projectId: p },
+    { id: risk(2), title: "Mapping gaps are found during dry-run reconciliation", category: "Mapping", probability: 4, impact: 4, score: 16, status: "open", owner: "ML", mitigation: "Track unmapped fields in the mapping specification, require owner signoff for exclusions, and hold a formal remediation checkpoint before dry-run 2.", projectId: p },
+    { id: risk(3), title: "Production load window overruns approved downtime", category: "Cutover", probability: 3, impact: 5, score: 15, status: "open", owner: "TS", mitigation: "Time dry-run loads, split batches by object criticality, define no-go checkpoints, and rehearse rollback before approving the production window.", projectId: p },
+    { id: risk(4), title: "Reconciliation mismatches remain after production load", category: "Reconciliation", probability: 3, impact: 5, score: 15, status: "open", owner: "QA", mitigation: "Use record, relationship, rendition, and attachment counts; investigate variance by object owner and require QA disposition before verification report approval.", projectId: p },
+    { id: risk(5), title: "Legacy system sunset pressure forces premature decommission", category: "Decommission", probability: 3, impact: 4, score: 12, status: "open", owner: "SS", mitigation: "Keep legacy read-only access until verification approval, define retention obligations, and require a documented decommission decision after post-load evidence is accepted.", projectId: p },
+  ];
+
+  const costLines: CostLine[] = [
+    { id: cost(1), category: "Migration vendor", description: "Extraction, transformation, load tooling, dry-run support, and production migration support", budgetK: 320, actualK: 0, contractType: "T&M", owner: "ML", projectId: p },
+    { id: cost(2), category: "Data quality tooling", description: "Profiling, duplicate detection, cleansing workflow, and reconciliation reporting support", budgetK: 140, actualK: 0, contractType: "Fixed", owner: "DS", projectId: p },
+    { id: cost(3), category: "Environment costs", description: "Migration environments, staging storage, refreshes, load rehearsal capacity, and evidence retention", budgetK: 110, actualK: 0, contractType: "T&M", owner: "TS", projectId: p },
+    { id: cost(4), category: "Internal steward time", description: "Source-owner review, cleansing decisions, business validation, QA verification, and decommission approval", budgetK: 180, actualK: 0, contractType: "Internal", owner: "DS", projectId: p },
+  ];
+
+  return {
+    template,
+    charter: buildCharter(input, template, [
+      "Regulated source-system inventory, data profiling, object and field mapping, transformation rules, and cleansing signoff",
+      "Dry-run loads, reconciliation of records, relationships, renditions, and attachments, defect triage, and error-tolerance governance",
+      "Production load planning, rollback readiness, freeze-window communications, ALCOA+ post-load verification, and legacy decommission decision",
+    ]),
+    milestones,
+    tasks,
+    documents,
+    risks,
+    teamMembers,
+    costLines,
+    operatingNotes: [
+      "Migration playbook follows a profile, map, transform, dry-run, reconcile, production-load, verify, and decommission lifecycle.",
+      "Reconciliation covers records, relationships, renditions, attachments, error tolerance, and documented owner disposition.",
+      "ALCOA+ evidence is captured in the verification protocol and report, not assumed from technical load success.",
+      "Production cutover is protected by rollback criteria, source freeze communications, and no-go checkpoints.",
+      "Legacy decommission remains locked behind post-load verification approval and retention obligations.",
     ],
   };
 }

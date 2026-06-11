@@ -176,13 +176,96 @@ describe("project templates", () => {
     expect(result.affected.length).toBeGreaterThanOrEqual(3);
   });
 
+  it("builds a regulated data migration playbook with reconciliation and verification work", () => {
+    const model = buildTemplateOperatingModel({
+      templateId: "data-migration",
+      projectId: "proj-test-migration",
+      projectName: "Regulated Data Migration Project",
+      client: "AivelloStudio Demo Corp",
+      startDate: "2026-06-01",
+      goLiveDate: "2026-11-30",
+      methodology: "Migration factory / CSV evidence",
+    });
+
+    expect(model.template.tier).toBe("playbook");
+    expect(model.milestones).toHaveLength(11);
+    expect(model.tasks).toHaveLength(24);
+    expect(model.documents).toHaveLength(8);
+    expect(model.risks).toHaveLength(5);
+    expect(model.teamMembers).toHaveLength(6);
+    expect(model.costLines).toHaveLength(4);
+    expect(model.teamMembers.map((member) => member.role)).toEqual([
+      "Migration Lead",
+      "Data Steward",
+      "Source-System Owner",
+      "Target-System Owner",
+      "QA / Verification Lead",
+      "Business Validator",
+    ]);
+    expect(model.documents.some((document) => document.abbreviation === "MAP")).toBe(true);
+    expect(model.documents.some((document) => document.abbreviation === "DR1")).toBe(true);
+    expect(model.documents.some((document) => document.abbreviation === "DR2")).toBe(true);
+    expect(model.documents.some((document) => document.abbreviation === "MVP")).toBe(true);
+    expect(model.documents.some((document) => document.abbreviation === "MVR")).toBe(true);
+    expect(model.tasks.some((task) => task.name.includes("records, relationships, renditions"))).toBe(true);
+    expect(model.tasks.some((task) => task.name.includes("ALCOA+"))).toBe(true);
+    expect(model.risks.some((risk) => risk.title.includes("Production load window overruns"))).toBe(true);
+    expect(model.risks.some((risk) => risk.mitigation.includes("read-only access"))).toBe(true);
+    expect(model.operatingNotes.some((note) => note.includes("profile, map, transform, dry-run"))).toBe(true);
+  });
+
+  it("keeps data migration milestones and tasks inside their approval gates", () => {
+    const model = buildTemplateOperatingModel({
+      templateId: "data-migration",
+      projectId: "proj-test-migration-dates",
+      projectName: "Regulated Data Migration Project",
+      client: "AivelloStudio Demo Corp",
+      startDate: "2026-06-01",
+      goLiveDate: "2026-11-30",
+      methodology: "Migration factory / CSV evidence",
+    });
+    const milestoneDateById = new Map(model.milestones.map((milestone) => [milestone.id, milestone.plannedDate]));
+    const terminalDecommission = model.milestones[model.milestones.length - 1];
+
+    expect(model.milestones.every((milestone) => milestone.plannedDate <= "2026-11-30")).toBe(true);
+    expect(terminalDecommission.name).toContain("Legacy decommission");
+    expect(terminalDecommission.locked).toBe(true);
+    expect(model.tasks.every((task) => {
+      const linkedDate = task.milestoneId ? milestoneDateById.get(task.milestoneId) : undefined;
+      return !linkedDate || task.dueDate <= linkedDate;
+    })).toBe(true);
+  });
+
+  it("pressure-tests data migration task dependencies with the generated plan", () => {
+    const model = buildTemplateOperatingModel({
+      templateId: "data-migration",
+      projectId: "proj-test-migration-cascade",
+      projectName: "Regulated Data Migration Project",
+      client: "AivelloStudio Demo Corp",
+      startDate: "2026-06-01",
+      goLiveDate: "2026-11-30",
+      methodology: "Migration factory / CSV evidence",
+    });
+    const result = previewTaskCascade(model.tasks, {
+      id: "proj-test-migration-cascade-t13",
+      newDueDate: "2026-09-30",
+    });
+    const pushedById = Object.fromEntries(result.affected.map((row) => [row.id, row.newDue]));
+
+    expect(result.error).toBeNull();
+    expect(pushedById["proj-test-migration-cascade-t14"]).toBe("2026-10-01");
+    expect(pushedById["proj-test-migration-cascade-t15"]).toBe("2026-10-02");
+    expect(pushedById["proj-test-migration-cascade-t16"]).toBe("2026-10-05");
+    expect(result.affected.length).toBeGreaterThanOrEqual(3);
+  });
+
   // ── CX-4 honesty gate ──────────────────────────────────────────────────
 
   it("every template declares its tier; only bespoke builds are playbooks", () => {
     expect(PROJECT_TEMPLATES.every((t) => t.tier === "playbook" || t.tier === "starter")).toBe(true);
     const playbooks = PROJECT_TEMPLATES.filter((t) => t.tier === "playbook").map((t) => t.id).sort();
-    expect(playbooks).toEqual(["csv-validation", "sap-s4hana", "veeva-rim"]);
-    expect(PROJECT_TEMPLATES.filter((t) => t.tier === "starter")).toHaveLength(10);
+    expect(playbooks).toEqual(["csv-validation", "data-migration", "sap-s4hana", "veeva-rim"]);
+    expect(PROJECT_TEMPLATES.filter((t) => t.tier === "starter")).toHaveLength(9);
   });
 
   it("starter scaffolds never fake domain specificity", () => {
@@ -207,6 +290,7 @@ describe("project templates", () => {
 
   it.each([
     ["csv-validation", "proj-test-csv-honest", "GxP System Validation Project", "GAMP 5 / CSA"],
+    ["data-migration", "proj-test-migration-honest", "Regulated Data Migration Project", "Migration factory / CSV evidence"],
     ["sap-s4hana", "proj-test-sap-honest", "SAP S/4HANA", "SAP Activate"],
     ["veeva-rim", "proj-test-veeva-honest", "Veeva RIM", "GAMP 5 / CSV"],
   ] as const)("playbook output contains no scaffold markers for %s", (templateId, projectId, projectName, methodology) => {
