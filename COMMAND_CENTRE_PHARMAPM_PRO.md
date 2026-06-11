@@ -97,6 +97,7 @@ Saved templates are prototype-only browser `localStorage` in `v2/lib/templates/c
 8. Imports must show mapping, preview, missing data, and unresolved links before creation.
 9. Saved templates are useful for releases/rollouts, but need backend persistence before enterprise use.
 10. Release work must run the full verification gate before push.
+11. One financial truth (Phase-2, 2026-06-11): the EVM snapshot (lib/domain/evm.ts, shared via useProjectEvm) is the single measurement layer for confidence and cost pressure across the dashboard verdict and Delivery Signals. Delivery-truth signals are the explanation layer (sources, why-it-matters, decisions). The deduction-score heuristic survives only as the no-EVM fallback. Sample data is opt-in and badged (CX-7); templates declare an honesty tier (CX-4).
 
 ## Quality And Release Gate
 

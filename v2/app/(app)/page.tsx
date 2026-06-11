@@ -15,8 +15,7 @@ import "@/app/styles/dashboard.css";
 import { getKpis, budgetTrend, riskTrend } from "@/lib/mockData";
 import { useProject } from "@/components/projects/project-provider";
 import { useEntityStore } from "@/lib/stores/entity-store";
-import { computeProjectEvm } from "@/lib/domain/evm-project";
-import { evmCoverage, effectiveStatusDate } from "@/lib/domain/evm-coverage";
+import { useProjectEvm } from "@/lib/hooks/use-project-evm";
 import { calculateForecastDate } from "@/lib/domain/delivery-truth";
 import { daysBetween } from "@/lib/domain/dates";
 
@@ -53,7 +52,6 @@ const PHASES = [
 ] as const;
 
 const SETUP_REVIEW_TOUR_KEY = "aivello_pending_setup_review_v1";
-const DASHBOARD_STATUS_DATE = "2026-05-19";
 
 // ─── Page ───────────────────────────────────────────────────────────────────
 
@@ -61,8 +59,6 @@ export default function DashboardPage() {
   const { activeProjectId, activeProject } = useProject();
   const kpis = getKpis(activeProjectId);
   const charters = useEntityStore((s) => s.charters);
-  const tasks = useEntityStore((s) => s.tasks);
-  const costLines = useEntityStore((s) => s.costLines);
   const milestones = useEntityStore((s) => s.milestones);
   const charter  = charters.find((c) => c.projectId === activeProjectId);
   const [showSetupReview, setShowSetupReview] = useState(false);
@@ -107,22 +103,9 @@ export default function DashboardPage() {
     kpis.budgetPct >= 60 ? "kpi--warn" :
     "kpi--ok";
 
-  const projectTasks = tasks.filter((task) => task.projectId === activeProjectId);
-  const projectCostLines = costLines.filter((line) => line.projectId === activeProjectId);
-  // Coverage gate (CX-1 fix-it): with no cost lines, safeDiv fallbacks make
-  // every index 1 → a fabricated "On track 100/100" on every fresh import.
-  // No data, no score — name what's missing instead.
-  const coverage = evmCoverage({ costLineCount: projectCostLines.length, taskCount: projectTasks.length });
-  const evm = coverage.ready
-    ? computeProjectEvm({
-        costLines: projectCostLines,
-        plannedCurve: budgetTrend.map((point) => ({ month: point.month, planned: point.planned })),
-        tasks: projectTasks,
-        projectStart: activeProject.startDate,
-        statusDate: effectiveStatusDate(activeProject.startDate, DASHBOARD_STATUS_DATE),
-        curveYear: new Date(`${activeProject.startDate}T00:00:00`).getFullYear(),
-      })
-    : null;
+  // Phase-2: shared hook — the SAME computation Delivery Signals uses, so the
+  // two surfaces cannot disagree. Coverage gate + status-date clamp live there.
+  const { coverage, evm } = useProjectEvm();
   const coverageHint = `Add ${coverage.missing.join(" and ")} to activate the verdict.`;
   const verdictPill = !evm
     ? "pill pill--neutral"

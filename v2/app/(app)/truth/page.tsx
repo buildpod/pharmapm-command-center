@@ -18,6 +18,7 @@ import { useProject } from "@/components/projects/project-provider";
 import { Badge } from "@/components/ui/badge";
 import { StatusPill, statusToneClasses } from "@/components/ui/status-pill";
 import { calculateDeliveryTruth, severityDeduction, type DeliveryTruthSignal, type DeliveryTruthTone } from "@/lib/domain/delivery-truth";
+import { useProjectEvm } from "@/lib/hooks/use-project-evm";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { cn } from "@/lib/utils";
 
@@ -78,6 +79,9 @@ export default function DeliveryTruthPage() {
   const documents = useEntityStore((s) => s.documents);
   const costLines = useEntityStore((s) => s.costLines);
 
+  // Phase-2: same EVM computation as the dashboard verdict (shared hook) —
+  // the confidence shown here IS the dashboard number, explained by signals.
+  const { evm } = useProjectEvm();
   const truth = useMemo(() => calculateDeliveryTruth({
     project: activeProject,
     milestones,
@@ -85,7 +89,8 @@ export default function DeliveryTruthPage() {
     risks,
     documents,
     costLines,
-  }), [activeProject, milestones, tasks, risks, documents, costLines]);
+    evm: evm?.snapshot,
+  }), [activeProject, milestones, tasks, risks, documents, costLines, evm]);
 
   const confidenceTone = bandTone(truth.confidenceScore, truth.coverage.isReady);
   const topSignal = truth.signals[0];
@@ -119,7 +124,12 @@ export default function DeliveryTruthPage() {
                 <span className="text-6xl font-bold tabular-nums leading-none">{truth.coverage.isReady ? truth.confidenceScore : "—"}</span>
                 <span className="pb-2 text-sm font-semibold uppercase tracking-wide">{truth.confidenceBand.replace("-", " ")}</span>
               </div>
-              {truth.coverage.isReady && truth.signals.length > 0 && (
+              {truth.coverage.isReady && truth.evmGrounded && evm && (
+                <p className="mt-2 text-xs tabular-nums opacity-75">
+                  {`40 × cost efficiency (${Math.min(evm.snapshot.cpi, 1).toFixed(2)}) + 40 × schedule pace (${Math.min(evm.snapshot.spit, 1).toFixed(2)}) + 20 × forecast headroom (${(1 - Math.min(Math.max(0, evm.snapshot.bac > 0 ? evm.snapshot.eac2 / evm.snapshot.bac - 1 : 0), 1)).toFixed(2)}) = ${truth.confidenceScore}`}
+                </p>
+              )}
+              {truth.coverage.isReady && !truth.evmGrounded && truth.signals.length > 0 && (
                 <p className="mt-2 text-xs tabular-nums opacity-75">
                   {`100 ${truth.signals
                     .map((signal) => `− ${severityDeduction[signal.severity]} (${signalShortLabel[signal.kind]})`)

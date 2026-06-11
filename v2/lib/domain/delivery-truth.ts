@@ -1,6 +1,12 @@
-// EVM-RECONCILE: delivery-truth consumes EvmSnapshot in Phase 2 (Claude track). Do not extend the heuristics here.
+// EVM-RECONCILE (Phase 2, done): delivery-truth consumes the EvmSnapshot when
+// supplied — confidence = the dashboard's EVM score, cost pressure fires on
+// forecast overrun (CPI/EAC), and a pace-divergence signal flags stale
+// milestone forecasts. The deduction heuristic survives only as the fallback
+// when no snapshot is available. Owned by the Claude track.
 import type { CostLine, Document, Milestone, Project, Risk, Task } from "@/lib/mockData";
 import { compare, daysBetween } from "./dates";
+import type { EvmSnapshot } from "./evm";
+import { confidenceScore as evmConfidenceScore } from "./evm-project";
 
 export const DEFAULT_TRUTH_DATE = "2026-05-19";
 
@@ -70,6 +76,10 @@ export interface DeliveryTruthCoverage {
 export interface DeliveryTruthResult {
   confidenceScore: number;
   confidenceBand: DeliveryTruthBand;
+  // Phase-2: true when the score and cost signal are grounded in the EVM
+  // snapshot (one financial truth) rather than the legacy deduction heuristic.
+  // The truth page renders the matching arithmetic.
+  evmGrounded: boolean;
   targetDate: string;
   forecastDate: string;
   scheduleDeltaDays: number;
@@ -87,6 +97,13 @@ export interface DeliveryTruthInput {
   documents: Document[];
   costLines: CostLine[];
   currentDate?: string;
+  // Phase-2 (one financial truth): when the EVM snapshot is supplied, the
+  // measurement layer changes — confidence becomes the same EVM score the
+  // dashboard verdict shows, and cost pressure fires on forecast overrun
+  // (CPI/EAC) instead of burn%-vs-time-elapsed (which false-alarms on healthy
+  // front-loaded spend and stays silent on quiet disasters). The signals keep
+  // their role as the EXPLANATION layer: sources, whyItMatters, nextAction.
+  evm?: EvmSnapshot;
 }
 
 const severityRank: Record<DeliveryTruthSeverity, number> = {
@@ -225,6 +242,89 @@ function buildCostSignal(project: Project, costLines: CostLine[], currentDate: s
       sources: topLine ? [source("cost", topLine.id, topLine.description)] : [],
       metric: { label: "Budget used", value: `${burnPct}%` },
     },
+  };
+}
+
+// Phase-2 EVM-grounded cost signal. Fires on FORECAST overrun (EAC vs BAC)
+// and cost efficiency (CPI), not on burn% vs time elapsed — a project 80%
+// done and 80% spent is healthy, and a project 30% spent but earning $0.60
+// per $1 is quietly heading over budget. The legacy heuristic gets both wrong.
+function buildEvmCostSignal(
+  project: Project,
+  costLines: CostLine[],
+  evm: EvmSnapshot,
+  currentDate: string,
+): { signal: DeliveryTruthSignal | null; budget: DeliveryTruthBudget } {
+  const budgetK = costLines.reduce((sum, line) => sum + line.budgetK, 0);
+  const actualK = costLines.reduce((sum, line) => sum + line.actualK, 0);
+  const burnPct = roundPct(actualK, budgetK);
+  const elapsed = Math.max(0, daysBetween(project.startDate, currentDate));
+  const duration = Math.max(1, daysBetween(project.startDate, project.goLiveDate));
+  const expectedElapsedPct = clamp(roundPct(elapsed, duration), 0, 100);
+  const budget = { budgetK, actualK, burnPct, expectedElapsedPct, variancePct: burnPct - expectedElapsedPct };
+
+  const breach = evm.bac > 0 ? Math.max(0, evm.eac2 / evm.bac - 1) : 0;
+  const inefficient = evm.cpi < 0.9 && evm.ac > 0;
+  if (breach <= 0 && !inefficient) return { signal: null, budget };
+
+  const severity: DeliveryTruthSeverity =
+    breach >= 0.25 ? "critical" :
+    breach >= 0.10 ? "high" :
+    "medium";
+  const fmtM = (v: number) => `$${(v / 1_000_000).toFixed(2)}M`;
+  const topLine = costLines.slice().sort((a, b) => b.actualK - a.actualK)[0];
+
+  return {
+    budget,
+    signal: {
+      id: "cost-pressure",
+      kind: "cost-pressure",
+      severity,
+      tone: toneForSeverity(severity),
+      title: breach > 0 ? "Forecast final cost is over budget" : "Cost efficiency is below plan",
+      summary: breach > 0
+        ? `At today's efficiency the project finishes at ${fmtM(evm.eac2)} against a ${fmtM(evm.bac)} budget (${Math.round(breach * 100)}% over).`
+        : `Each $1 spent is earning $${evm.cpi.toFixed(2)} of planned work — the gap compounds if it persists.`,
+      whyItMatters: "This is a forecast, not a tally — acting now (scope, rate, or budget decision) is cheaper than discovering the overrun at the end.",
+      nextAction: "Review the largest cost line and decide whether to reforecast, reduce scope, or approve more budget.",
+      sources: topLine ? [source("cost", topLine.id, topLine.description)] : [],
+      metric: { label: "Cost efficiency", value: evm.cpi.toFixed(2) },
+    },
+  };
+}
+
+// Phase-2 pace-divergence signal: earned-schedule pace says the work is slow
+// while milestone forecasts still claim the date — i.e. the forecasts are
+// likely stale. This is the divergence a CFO would otherwise catch as a
+// "your two numbers disagree" credibility hit; the product says it first.
+function buildPaceDivergenceSignal(
+  milestones: Milestone[],
+  tasks: Task[],
+  evm: EvmSnapshot,
+  goLiveDelta: number,
+): DeliveryTruthSignal | null {
+  if (evm.spit >= 0.9 || goLiveDelta > 0) return null;
+  const severity: DeliveryTruthSeverity = evm.spit < 0.75 ? "high" : "medium";
+  const laggingTasks = tasks
+    .filter((task) => task.status !== "Complete" && task.progress < 50)
+    .sort((a, b) => a.progress - b.progress)
+    .slice(0, 3);
+  const openMilestones = milestones.filter((m) => m.status !== "complete").slice(0, 2);
+
+  return {
+    id: "schedule-pace",
+    kind: "schedule-drift",
+    severity,
+    tone: toneForSeverity(severity),
+    title: "Work is being earned slower than the forecasts assume",
+    summary: `The team is earning planned work at ${Math.round(evm.spit * 100)}% of the planned pace, yet milestone forecasts still show the go-live date holding — the forecasts are likely stale.`,
+    whyItMatters: "When pace and forecasts disagree, leadership is deciding on the optimistic number. Reconciling them now keeps the SteerCo story credible.",
+    nextAction: "Ask milestone owners to re-confirm forecast dates against actual progress before the next status cycle.",
+    sources: [
+      ...laggingTasks.map((task) => source("task", task.id, task.name)),
+      ...openMilestones.map((m) => source("milestone", m.id, m.name)),
+    ],
+    metric: { label: "Schedule pace", value: evm.spit.toFixed(2) },
   };
 }
 
@@ -464,26 +564,48 @@ export function calculateDeliveryTruth(input: DeliveryTruthInput): DeliveryTruth
   const coverage = buildCoverage(milestones, tasks, risks, documents, costLines);
 
   const forecastDate = calculateForecastDate(input.project, milestones);
+  const goLiveDelta = daysBetween(input.project.goLiveDate, forecastDate);
   const scheduleSignal = buildScheduleSignal(input.project, milestones, forecastDate);
-  const { signal: costSignal, budget } = buildCostSignal(input.project, costLines, currentDate);
+  // Phase-2: with an EVM snapshot, cost pressure is forecast-grounded and the
+  // pace-divergence check runs; without one, the legacy heuristic stands.
+  const { signal: costSignal, budget } = input.evm
+    ? buildEvmCostSignal(input.project, costLines, input.evm, currentDate)
+    : buildCostSignal(input.project, costLines, currentDate);
   const signals = sortSignals([
     scheduleSignal,
     costSignal,
+    input.evm ? buildPaceDivergenceSignal(milestones, tasks, input.evm, goLiveDelta) : null,
     buildDecisionDebtSignal(documents, currentDate),
     buildReadinessSignal(tasks, documents, currentDate),
     buildBlockedWorkSignal(tasks),
     buildRiskPressureSignal(risks),
   ].filter((signal): signal is DeliveryTruthSignal => Boolean(signal)));
 
+  // One financial truth: when EVM is available the confidence IS the same
+  // computed score the dashboard verdict shows (B4 formula); the signals
+  // explain it. The deduction tally remains only as the non-EVM fallback.
+  const evmGrounded = Boolean(input.evm);
   const deduction = signals.reduce((sum, signal) => sum + severityDeduction[signal.severity], 0);
-  const confidenceScore = coverage.isReady ? clamp(100 - deduction, 0, 100) : 0;
+  const confidenceScore = !coverage.isReady
+    ? 0
+    : input.evm
+      ? evmConfidenceScore(input.evm)
+      : clamp(100 - deduction, 0, 100);
+  // Band thresholds align with the dashboard verdict levels in EVM mode so a
+  // 78 can't read "credible" here and "watch" there.
+  const band: DeliveryTruthBand = !coverage.isReady
+    ? "not-ready"
+    : evmGrounded
+      ? (confidenceScore >= 80 ? "credible" : confidenceScore >= 60 ? "watch" : confidenceScore >= 35 ? "at-risk" : "unlikely")
+      : confidenceBand(confidenceScore, signals);
 
   return {
     confidenceScore,
-    confidenceBand: coverage.isReady ? confidenceBand(confidenceScore, signals) : "not-ready",
+    confidenceBand: band,
+    evmGrounded,
     targetDate: input.project.goLiveDate,
     forecastDate,
-    scheduleDeltaDays: daysBetween(input.project.goLiveDate, forecastDate),
+    scheduleDeltaDays: goLiveDelta,
     budget,
     coverage,
     signals,
