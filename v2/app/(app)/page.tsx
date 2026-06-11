@@ -16,6 +16,9 @@ import { getKpis, budgetTrend, riskTrend } from "@/lib/mockData";
 import { useProject } from "@/components/projects/project-provider";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { computeProjectEvm } from "@/lib/domain/evm-project";
+import { evmCoverage, effectiveStatusDate } from "@/lib/domain/evm-coverage";
+import { calculateForecastDate } from "@/lib/domain/delivery-truth";
+import { daysBetween } from "@/lib/domain/dates";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -60,6 +63,7 @@ export default function DashboardPage() {
   const charters = useEntityStore((s) => s.charters);
   const tasks = useEntityStore((s) => s.tasks);
   const costLines = useEntityStore((s) => s.costLines);
+  const milestones = useEntityStore((s) => s.milestones);
   const charter  = charters.find((c) => c.projectId === activeProjectId);
   const [showSetupReview, setShowSetupReview] = useState(false);
 
@@ -78,12 +82,18 @@ export default function DashboardPage() {
     setShowSetupReview(false);
   }
 
-  const scheduleOnTrack = kpis.scheduleVariance <= 0;
-  const scheduleVarianceLabel = kpis.scheduleVariance === 0
-    ? "On schedule vs. baseline"
-    : kpis.scheduleVariance > 0
-      ? `+${kpis.scheduleVariance} day variance vs. baseline`
-      : `${Math.abs(kpis.scheduleVariance)} days ahead of baseline`;
+  // One schedule truth: same milestone-drift source as the Delivery Signals
+  // page (calculateForecastDate), replacing the mock scheduleVariance that
+  // contradicted it ("+7d At Risk" here vs "On target" there).
+  const projectMilestones = milestones.filter((m) => m.projectId === activeProjectId);
+  const forecastDate = calculateForecastDate(activeProject, projectMilestones);
+  const scheduleDeltaDays = daysBetween(activeProject.goLiveDate, forecastDate);
+  const scheduleOnTrack = scheduleDeltaDays <= 0;
+  const scheduleVarianceLabel = scheduleDeltaDays === 0
+    ? "Forecast matches the go-live target"
+    : scheduleDeltaDays > 0
+      ? `Forecast ${scheduleDeltaDays} day${scheduleDeltaDays === 1 ? "" : "s"} past the go-live target`
+      : `Forecast ${Math.abs(scheduleDeltaDays)} day${scheduleDeltaDays === -1 ? "" : "s"} ahead of the go-live target`;
 
   const scheduleKpiAccent = scheduleOnTrack ? "kpi--ok" : "kpi--warn";
 
@@ -99,20 +109,32 @@ export default function DashboardPage() {
 
   const projectTasks = tasks.filter((task) => task.projectId === activeProjectId);
   const projectCostLines = costLines.filter((line) => line.projectId === activeProjectId);
-  const evm = computeProjectEvm({
-    costLines: projectCostLines,
-    plannedCurve: budgetTrend.map((point) => ({ month: point.month, planned: point.planned })),
-    tasks: projectTasks,
-    projectStart: activeProject.startDate,
-    statusDate: DASHBOARD_STATUS_DATE,
-    curveYear: new Date(`${activeProject.startDate}T00:00:00`).getFullYear(),
-  });
-  const healthScore = evm.verdict.score;
-  const healthScoreMax = 100;
-  const verdictPill =
-    evm.verdict.level === "on-track" ? "pill pill--ok" :
-    evm.verdict.level === "watch" ? "pill pill--warn" :
-    "pill pill--risk";
+  // Coverage gate (CX-1 fix-it): with no cost lines, safeDiv fallbacks make
+  // every index 1 → a fabricated "On track 100/100" on every fresh import.
+  // No data, no score — name what's missing instead.
+  const coverage = evmCoverage({ costLineCount: projectCostLines.length, taskCount: projectTasks.length });
+  const evm = coverage.ready
+    ? computeProjectEvm({
+        costLines: projectCostLines,
+        plannedCurve: budgetTrend.map((point) => ({ month: point.month, planned: point.planned })),
+        tasks: projectTasks,
+        projectStart: activeProject.startDate,
+        statusDate: effectiveStatusDate(activeProject.startDate, DASHBOARD_STATUS_DATE),
+        curveYear: new Date(`${activeProject.startDate}T00:00:00`).getFullYear(),
+      })
+    : null;
+  const coverageHint = `Add ${coverage.missing.join(" and ")} to activate the verdict.`;
+  const verdictPill = !evm
+    ? "pill pill--neutral"
+    : evm.verdict.level === "on-track" ? "pill pill--ok"
+    : evm.verdict.level === "watch" ? "pill pill--warn"
+    : "pill pill--risk";
+  const verdictToneVar = !evm
+    ? "var(--color-status-neutral-dot)"
+    : evm.verdict.level === "on-track" ? "var(--color-status-ok-dot)"
+    : evm.verdict.level === "watch" ? "var(--color-status-warn-dot)"
+    : "var(--color-status-risk-dot)";
+  const fmtM = (v: number) => `$${(v / 1_000_000).toFixed(2)}M`;
 
   return (
     <>
@@ -158,12 +180,14 @@ export default function DashboardPage() {
       <section className="executive-verdict" aria-label="Executive verdict">
         <div>
           <div className="executive-verdict__label">Executive Verdict</div>
-          <div className="executive-verdict__title">{evm.verdict.headline}</div>
+          <div className="executive-verdict__title">{evm ? evm.verdict.headline : "Verdict pending"}</div>
           <p className="executive-verdict__copy">
-            {evm.verdict.reason}
+            {evm
+              ? evm.verdict.reason
+              : `${coverageHint} The score is computed from real delivery data — never hand-set.`}
           </p>
         </div>
-        <span className={verdictPill}>{evm.verdict.score}/100 confidence</span>
+        <span className={verdictPill}>{evm ? `${evm.verdict.score}/100 confidence` : "Pending data"}</span>
       </section>
 
       {/* KPI grid */}
@@ -262,28 +286,59 @@ export default function DashboardPage() {
 
         <section className="card">
           <div className="card__header">
-            <div className="t-card-title">Project Health</div>
-            <span className="pill pill--warn">1 medium</span>
+            <div className="t-card-title">Confidence drivers</div>
+            <span className={verdictPill}>{evm ? evm.verdict.headline : "Pending data"}</span>
           </div>
           <div className="health">
             <div>
-              <span className="health__score">{healthScore}</span>
-              <span className="health__score-max"> / {healthScoreMax}</span>
+              <span className="health__score" style={{ color: verdictToneVar }}>{evm ? evm.verdict.score : "—"}</span>
+              <span className="health__score-max"> / 100</span>
             </div>
             <div className="health__bar">
               <div
                 className="health__bar-fill"
-                style={{ width: `${(healthScore / healthScoreMax) * 100}%` }}
+                style={{
+                  width: `${evm ? evm.verdict.score : 0}%`,
+                  background: verdictToneVar,
+                }}
               />
             </div>
           </div>
-          <div className="alert-row">
-            <div className="alert-row__icon">!</div>
-            <div>
-              <div className="alert-row__title">Task / milestone date mismatch</div>
-              <div className="t-meta">Review the Project Health card on Risks for the full list</div>
+          {evm ? (
+            <>
+              <div className="alert-row">
+                <div className="alert-row__icon">$</div>
+                <div>
+                  <div className="alert-row__title">Cost efficiency {evm.snapshot.cpi.toFixed(2)}</div>
+                  <div className="t-meta">Earning ${evm.snapshot.cpi.toFixed(2)} of planned work per $1 spent</div>
+                </div>
+              </div>
+              <div className="alert-row">
+                <div className="alert-row__icon">⏱</div>
+                <div>
+                  <div className="alert-row__title">Schedule pace {evm.snapshot.spit.toFixed(2)}</div>
+                  <div className="t-meta">
+                    {evm.snapshot.spit >= 1 ? "Earning planned work on pace in real time" : "Behind pace in real time — earning planned work slower than scheduled"}
+                  </div>
+                </div>
+              </div>
+              <div className="alert-row">
+                <div className="alert-row__icon">→</div>
+                <div>
+                  <div className="alert-row__title">Forecast final cost {fmtM(evm.range.likely)}</div>
+                  <div className="t-meta">Range {fmtM(evm.range.low)} – {fmtM(evm.range.high)} across forecast methods</div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="alert-row">
+              <div className="alert-row__icon">!</div>
+              <div>
+                <div className="alert-row__title">Not enough data to judge this project</div>
+                <div className="t-meta">{coverageHint}</div>
+              </div>
             </div>
-          </div>
+          )}
         </section>
       </div>
 

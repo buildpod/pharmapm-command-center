@@ -17,7 +17,7 @@ import { useMemo } from "react";
 import { useProject } from "@/components/projects/project-provider";
 import { Badge } from "@/components/ui/badge";
 import { StatusPill, statusToneClasses } from "@/components/ui/status-pill";
-import { calculateDeliveryTruth, type DeliveryTruthSignal, type DeliveryTruthTone } from "@/lib/domain/delivery-truth";
+import { calculateDeliveryTruth, severityDeduction, type DeliveryTruthSignal, type DeliveryTruthTone } from "@/lib/domain/delivery-truth";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { cn } from "@/lib/utils";
 
@@ -48,6 +48,17 @@ function signalIcon(signal: DeliveryTruthSignal) {
       return AlertTriangle;
   }
 }
+
+// Short labels for the score arithmetic line (CX-2 D3) — the long signal
+// titles don't fit an equation.
+const signalShortLabel: Record<DeliveryTruthSignal["kind"], string> = {
+  "schedule-drift": "schedule",
+  "cost-pressure": "cost",
+  "decision-debt": "approvals",
+  "readiness-compression": "readiness",
+  "blocked-work": "blocked work",
+  "risk-pressure": "risk",
+};
 
 function sourceHref(kind: DeliveryTruthSignal["sources"][number]["kind"]) {
   return {
@@ -108,6 +119,13 @@ export default function DeliveryTruthPage() {
                 <span className="text-6xl font-bold tabular-nums leading-none">{truth.coverage.isReady ? truth.confidenceScore : "—"}</span>
                 <span className="pb-2 text-sm font-semibold uppercase tracking-wide">{truth.confidenceBand.replace("-", " ")}</span>
               </div>
+              {truth.coverage.isReady && truth.signals.length > 0 && (
+                <p className="mt-2 text-xs tabular-nums opacity-75">
+                  {`100 ${truth.signals
+                    .map((signal) => `− ${severityDeduction[signal.severity]} (${signalShortLabel[signal.kind]})`)
+                    .join(" ")} = ${truth.confidenceScore}`}
+                </p>
+              )}
               <p className="mt-3 max-w-xl text-sm leading-6 opacity-90">
                 {!truth.coverage.isReady
                   ? "Delivery Signals needs a basic plan before it can judge the promise. Finish setup or import a plan first."

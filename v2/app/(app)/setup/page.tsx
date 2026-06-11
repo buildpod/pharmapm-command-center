@@ -965,6 +965,16 @@ export default function GuidedSetupPage() {
     const summaryMilestones = templateModel?.milestones.length ?? customTemplateModel?.milestones.length ?? 0;
     const summaryOwners = templateModel?.teamMembers.length ?? customTemplateModel?.teamMembers.length ?? preview?.owners.length ?? 0;
     const summaryRisks = templateModel?.risks.length ?? customTemplateModel?.risks.length ?? 0;
+    const summaryDocuments = templateModel?.documents.length ?? customTemplateModel?.documents.length ?? 0;
+    const summaryCostLines = templateModel?.costLines.length ?? customTemplateModel?.costLines.length ?? 0;
+
+    // Coverage honesty (CX-2 D2): imports and lean templates can create a
+    // project that Delivery Signals immediately judges "not ready". Say so
+    // BEFORE creation, not after.
+    const coverageWarnings: string[] = [];
+    if (summaryMilestones === 0) coverageWarnings.push("No milestones were found — Delivery Signals will be limited until you add a target path.");
+    if (summaryDocuments === 0) coverageWarnings.push("No controlled documents yet — decision and readiness tracking starts once documents exist.");
+    if (summaryCostLines === 0) coverageWarnings.push("No budget lines yet — cost confidence and the executive verdict stay pending until a budget exists.");
 
     return (
       <div className="mx-auto max-w-3xl animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -1019,6 +1029,18 @@ export default function GuidedSetupPage() {
               <Metric label="Owners" value={summaryOwners} />
               <Metric label="Risks" value={summaryRisks} />
             </div>
+            {coverageWarnings.length > 0 && (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-semibold text-amber-700">Worth knowing before you create</p>
+                <ul className="mt-2 space-y-1.5">
+                  {coverageWarnings.map((warning) => (
+                    <li key={warning} className="text-sm text-amber-700">
+                      {warning}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </div>
 

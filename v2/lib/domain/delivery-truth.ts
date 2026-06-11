@@ -96,7 +96,8 @@ const severityRank: Record<DeliveryTruthSeverity, number> = {
   low: 1,
 };
 
-const severityDeduction: Record<DeliveryTruthSeverity, number> = {
+// Exported so the truth page can render the score arithmetic (auditable number).
+export const severityDeduction: Record<DeliveryTruthSeverity, number> = {
   critical: 18,
   high: 12,
   medium: 7,
@@ -144,7 +145,9 @@ function sortSignals(signals: DeliveryTruthSignal[]): DeliveryTruthSignal[] {
   });
 }
 
-function calculateForecastDate(project: Project, milestones: Milestone[]): string {
+// Exported so the dashboard schedule KPI reads the SAME source as the truth
+// page (one schedule truth — fixes "+7d At Risk" vs "On target" contradiction).
+export function calculateForecastDate(project: Project, milestones: Milestone[]): string {
   const goLiveMilestone = milestones.find((milestone) => milestone.phase === "Go-Live" || milestone.name.toLowerCase().includes("go-live"));
   if (goLiveMilestone?.forecastDate) return goLiveMilestone.forecastDate;
   return milestones.reduce((latest, milestone) => (
