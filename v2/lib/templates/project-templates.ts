@@ -18,9 +18,18 @@ export type ProjectTemplateId =
 
 export type ProjectIntentKey = "regulated" | "validation" | "migration" | "integrations" | "uat" | "cutover" | "aiDelivery";
 
+// CX-4 honesty gate: "playbook" = bespoke domain build a delivery lead would
+// recognise (real gates, real vocabulary, dependency graph). "starter" = the
+// generic scaffold from buildFocusedTemplate — honest structure, no domain
+// depth. Picker, detail card, and Review present these differently so no
+// template claims depth it doesn't have. A starter is promoted ONLY when it
+// gets a bespoke builder meeting the CX-5 quality bar.
+export type ProjectTemplateTier = "playbook" | "starter";
+
 export interface ProjectTemplateSummary {
   id: ProjectTemplateId;
   name: string;
+  tier: ProjectTemplateTier;
   category: string;
   description: string;
   recommendedName: string;
@@ -62,6 +71,7 @@ export interface TemplateOperatingModel {
 export const PROJECT_TEMPLATES: ProjectTemplateSummary[] = [
   {
     id: "veeva-rim",
+    tier: "playbook",
     name: "Veeva RIM implementation",
     category: "Regulatory",
     description: "Full RIM rollout across Registrations, Submissions, Publishing, Archive, Vault Connections, migration, validation, UAT, cutover, and hypercare.",
@@ -100,6 +110,7 @@ export const PROJECT_TEMPLATES: ProjectTemplateSummary[] = [
   },
   {
     id: "veeva-qualitydocs",
+    tier: "starter",
     name: "Veeva QualityDocs rollout",
     category: "Veeva Quality",
     description: "Controlled document management rollout for policies, SOPs, training impact, migration, approval workflows, validation, and go-live.",
@@ -126,6 +137,7 @@ export const PROJECT_TEMPLATES: ProjectTemplateSummary[] = [
   },
   {
     id: "veeva-clinical-ops",
+    tier: "starter",
     name: "Veeva Clinical operations rollout",
     category: "Veeva Clinical",
     description: "Clinical Vault rollout for study startup, site documents, TMF readiness, integrations, migration, UAT, and operational adoption.",
@@ -152,6 +164,7 @@ export const PROJECT_TEMPLATES: ProjectTemplateSummary[] = [
   },
   {
     id: "veeva-promomats",
+    tier: "starter",
     name: "Veeva PromoMats implementation",
     category: "Veeva Commercial",
     description: "Commercial content and MLR implementation covering claims, review workflows, digital asset controls, training, validation, and launch readiness.",
@@ -178,6 +191,7 @@ export const PROJECT_TEMPLATES: ProjectTemplateSummary[] = [
   },
   {
     id: "sap-s4hana",
+    tier: "playbook",
     name: "SAP S/4HANA implementation",
     category: "SAP ERP",
     description: "SAP Activate implementation model for fit-to-standard, process design, configuration, extensions, data migration, testing, cutover, controls, adoption, and hypercare.",
@@ -204,6 +218,7 @@ export const PROJECT_TEMPLATES: ProjectTemplateSummary[] = [
   },
   {
     id: "sap-master-data",
+    tier: "starter",
     name: "SAP master data migration",
     category: "SAP Data",
     description: "Master data program for inventory, ownership, mapping, cleanse, mock loads, reconciliation, governance, and production cutover.",
@@ -230,6 +245,7 @@ export const PROJECT_TEMPLATES: ProjectTemplateSummary[] = [
   },
   {
     id: "sap-ewm",
+    tier: "starter",
     name: "SAP EWM warehouse rollout",
     category: "SAP Supply Chain",
     description: "Warehouse rollout covering process design, devices, integration touchpoints, master data, testing, cutover rehearsal, and site readiness.",
@@ -256,6 +272,7 @@ export const PROJECT_TEMPLATES: ProjectTemplateSummary[] = [
   },
   {
     id: "lims-qc-lab",
+    tier: "starter",
     name: "LIMS QC laboratory rollout",
     category: "Laboratory",
     description: "LIMS delivery model for QC lab workflows, instruments, methods, sample lifecycle, validation, migration, training, and go-live readiness.",
@@ -282,6 +299,7 @@ export const PROJECT_TEMPLATES: ProjectTemplateSummary[] = [
   },
   {
     id: "eqms-capa",
+    tier: "starter",
     name: "eQMS CAPA and deviation rollout",
     category: "Quality",
     description: "Quality process rollout for deviations, CAPA, change control, workflows, validation, training, inspection readiness, and hypercare.",
@@ -308,6 +326,7 @@ export const PROJECT_TEMPLATES: ProjectTemplateSummary[] = [
   },
   {
     id: "mes-ebmr",
+    tier: "starter",
     name: "MES electronic batch record rollout",
     category: "Manufacturing",
     description: "MES/eBR rollout for master batch records, equipment interfaces, recipe design, validation, training, cutover, and shop-floor readiness.",
@@ -334,6 +353,7 @@ export const PROJECT_TEMPLATES: ProjectTemplateSummary[] = [
   },
   {
     id: "csv-validation",
+    tier: "starter",
     name: "CSV validation project",
     category: "Quality",
     description: "Validation-focused plan for URS, risk assessment, UAT/PQ, traceability, evidence, and validation summary approval.",
@@ -360,6 +380,7 @@ export const PROJECT_TEMPLATES: ProjectTemplateSummary[] = [
   },
   {
     id: "data-migration",
+    tier: "starter",
     name: "Data migration project",
     category: "Migration",
     description: "Migration control structure for inventory, mapping, cleanse, dry runs, validation load, production load, and reconciliation.",
@@ -386,6 +407,7 @@ export const PROJECT_TEMPLATES: ProjectTemplateSummary[] = [
   },
   {
     id: "generic-implementation",
+    tier: "starter",
     name: "Generic implementation",
     category: "General",
     description: "Reusable system implementation plan with governance, design, configuration, testing, training, go-live, and hypercare.",
@@ -864,7 +886,7 @@ function buildFocusedTemplate(input: TemplateBuildInput, template: ProjectTempla
     const owner = teamMembers.find((member) => member.workstream === workstream)?.initials ?? teamMembers[0]?.initials ?? "PM";
     return {
       id: task(index + 1),
-      name: `${workstream}: complete setup activity ${index + 1}`,
+      name: `${workstream} — scaffold step ${index + 1} (rename me)`,
       workstream,
       priority: index < 3 ? "Critical" : index < 8 ? "High" : "Medium",
       status: "Not Started",
@@ -881,7 +903,7 @@ function buildFocusedTemplate(input: TemplateBuildInput, template: ProjectTempla
 
   const documents: Document[] = Array.from({ length: template.coverage.documents }, (_, index) => ({
     id: document(index + 1),
-    name: `${template.name} document ${index + 1}`,
+    name: `Starter document ${index + 1} (rename me)`,
     abbreviation: `DOC${index + 1}`,
     type: index < 2 ? "Governance" : index < 5 ? "Validation" : "Operational",
     phase: index < 2 ? "Planning" : index < 4 ? "Configuration" : index < 6 ? "Validation" : index < 7 ? "Training" : "Go-Live",
@@ -895,16 +917,23 @@ function buildFocusedTemplate(input: TemplateBuildInput, template: ProjectTempla
     projectId: p,
   }));
 
+  // Stage-appropriate scaffold guidance instead of one repeated string —
+  // early risks get mobilisation framing, middle get build, late get readiness.
+  const scaffoldMitigations = [
+    "During mobilisation: confirm a named owner, the decision path, and the first review date.",
+    "During build: agree the trigger that escalates this to the sponsor and review it weekly.",
+    "Before go-live: confirm the fallback plan and the evidence needed to close this risk.",
+  ];
   const risks: Risk[] = Array.from({ length: template.coverage.risks }, (_, index) => ({
     id: risk(index + 1),
-    title: `${template.category} delivery risk ${index + 1}`,
+    title: `${template.category} delivery risk ${index + 1} (rename me)`,
     category: index % 2 === 0 ? "Delivery" : "Quality",
     probability: index < 2 ? 3 : 2,
     impact: index < 2 ? 4 : 3,
     score: index < 2 ? 12 : 6,
     status: "open",
     owner: teamMembers[index % teamMembers.length]?.initials ?? "PM",
-    mitigation: "Confirm owner, decision path, and next review date during mobilisation.",
+    mitigation: scaffoldMitigations[Math.min(Math.floor(index / 2), 2)],
     projectId: p,
   }));
 

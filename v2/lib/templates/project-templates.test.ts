@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildTemplateOperatingModel } from "./project-templates";
+import { buildTemplateOperatingModel, PROJECT_TEMPLATES } from "./project-templates";
 import { previewTaskCascade } from "../domain/scheduling";
 
 describe("project templates", () => {
@@ -92,5 +92,52 @@ describe("project templates", () => {
     expect(pushedById["proj-test-sap-cascade-t6"]).toBe("2026-07-13");
     expect(pushedById["proj-test-sap-cascade-t7"]).toBe("2026-07-13");
     expect(pushedById["proj-test-sap-cascade-t8"]).toBe("2026-07-13");
+  });
+
+  // ── CX-4 honesty gate ──────────────────────────────────────────────────
+
+  it("every template declares its tier; only bespoke builds are playbooks", () => {
+    expect(PROJECT_TEMPLATES.every((t) => t.tier === "playbook" || t.tier === "starter")).toBe(true);
+    const playbooks = PROJECT_TEMPLATES.filter((t) => t.tier === "playbook").map((t) => t.id).sort();
+    expect(playbooks).toEqual(["sap-s4hana", "veeva-rim"]);
+    expect(PROJECT_TEMPLATES.filter((t) => t.tier === "starter")).toHaveLength(11);
+  });
+
+  it("starter scaffolds never fake domain specificity", () => {
+    const model = buildTemplateOperatingModel({
+      templateId: "lims-qc-lab",
+      projectId: "proj-test-lims",
+      projectName: "LIMS QC Rollout",
+      client: "AivelloStudio Demo Corp",
+      startDate: "2026-06-01",
+      goLiveDate: "2026-12-15",
+      methodology: "GAMP 5",
+    });
+
+    // The old placeholder pattern must be gone…
+    expect(model.tasks.some((task) => task.name.includes("complete setup activity"))).toBe(false);
+    // …replaced by honest scaffold naming the user is told to rename.
+    expect(model.tasks.every((task) => task.name.includes("(rename me)"))).toBe(true);
+    expect(model.documents.every((doc) => doc.name.includes("(rename me)"))).toBe(true);
+    // Risk mitigations vary by stage instead of one repeated string.
+    expect(new Set(model.risks.map((risk) => risk.mitigation)).size).toBeGreaterThan(1);
+  });
+
+  it("playbook output contains no scaffold markers", () => {
+    const model = buildTemplateOperatingModel({
+      templateId: "veeva-rim",
+      projectId: "proj-test-veeva-honest",
+      projectName: "Veeva RIM",
+      client: "AivelloStudio Demo Corp",
+      startDate: "2026-06-01",
+      goLiveDate: "2026-09-30",
+      methodology: "GAMP 5 / CSV",
+    });
+    const everything = [
+      ...model.tasks.map((t) => t.name),
+      ...model.documents.map((d) => d.name),
+      ...model.risks.map((r) => r.title),
+    ];
+    expect(everything.some((name) => name.includes("rename me") || name.includes("scaffold"))).toBe(false);
   });
 });

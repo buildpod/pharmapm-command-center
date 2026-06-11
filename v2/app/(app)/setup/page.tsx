@@ -632,28 +632,50 @@ export default function GuidedSetupPage() {
                 <h3 className="text-sm font-semibold text-foreground">Recommended build template</h3>
                 <Field label="Template">
                   <select value={templateId} onChange={(event) => selectTemplate(event.target.value as ProjectTemplateId)} className={cn(inputCls, "bg-background/50 text-base py-2")}>
-                    {PROJECT_TEMPLATES.map((template) => (
-                      <option key={template.id} value={template.id}>
-                        {template.category} - {template.name}
-                      </option>
-                    ))}
+                    <optgroup label="Playbooks — domain-ready">
+                      {PROJECT_TEMPLATES.filter((template) => template.tier === "playbook").map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.category} - {template.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Starter structures — generic scaffolds">
+                      {PROJECT_TEMPLATES.filter((template) => template.tier === "starter").map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.category} - {template.name}
+                        </option>
+                      ))}
+                    </optgroup>
                   </select>
                 </Field>
                 <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wider text-primary">{selectedTemplate.category}</p>
-                      <p className="mt-1 text-lg font-bold text-foreground">{selectedTemplate.name}</p>
+                      <p className="mt-1 flex flex-wrap items-center gap-2 text-lg font-bold text-foreground">
+                        {selectedTemplate.name}
+                        {selectedTemplate.tier === "playbook" ? (
+                          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">Playbook</span>
+                        ) : (
+                          <span className="rounded-full border border-border bg-muted px-2.5 py-0.5 text-[11px] font-semibold text-muted-foreground">Starter structure</span>
+                        )}
+                      </p>
                       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{selectedTemplate.description}</p>
                     </div>
                     <Sparkles className="h-5 w-5 text-primary" />
                   </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">{selectedTemplate.coverage.workstreams.length} streams</span>
-                    <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">{selectedTemplate.coverage.tasks} tasks</span>
-                    <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">{selectedTemplate.coverage.documents} docs</span>
-                    <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">{selectedTemplate.coverage.risks} risks</span>
-                  </div>
+                  {selectedTemplate.tier === "playbook" ? (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">{selectedTemplate.coverage.workstreams.length} streams</span>
+                      <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">{selectedTemplate.coverage.tasks} tasks</span>
+                      <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">{selectedTemplate.coverage.documents} docs</span>
+                      <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">{selectedTemplate.coverage.risks} risks</span>
+                    </div>
+                  ) : (
+                    <p className="mt-4 text-sm text-muted-foreground">
+                      Generic scaffold — it gives you the structure (workstreams, gates, registers), not domain content. Rename gates and tasks to your delivery model after creation.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -972,6 +994,9 @@ export default function GuidedSetupPage() {
     // project that Delivery Signals immediately judges "not ready". Say so
     // BEFORE creation, not after.
     const coverageWarnings: string[] = [];
+    if (mode === "template" && selectedTemplate.tier === "starter") {
+      coverageWarnings.push("This is a starter scaffold, not a domain playbook — expect to rename gates and tasks to your delivery model.");
+    }
     if (summaryMilestones === 0) coverageWarnings.push("No milestones were found — Delivery Signals will be limited until you add a target path.");
     if (summaryDocuments === 0) coverageWarnings.push("No controlled documents yet — decision and readiness tracking starts once documents exist.");
     if (summaryCostLines === 0) coverageWarnings.push("No budget lines yet — cost confidence and the executive verdict stay pending until a budget exists.");
