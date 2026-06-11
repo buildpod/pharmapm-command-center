@@ -18,6 +18,7 @@ import { useProject } from "@/components/projects/project-provider";
 import { avatarColor } from "@/lib/ui/avatar-color";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { cn } from "@/lib/utils";
+import { useFocusRow } from "@/lib/hooks/use-focus-row";
 
 const TODAY = "2026-05-11";
 
@@ -208,7 +209,7 @@ function DocumentCard({
   const approversDone = doc.approvers.filter((d) => d.status === "approved").length;
 
   return (
-    <div className="group relative flex overflow-hidden rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
+    <div data-focus-id={doc.id} className="group relative flex overflow-hidden rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
       {/* Urgency strip */}
       <div className={cn("w-1 shrink-0", stripColor)} aria-hidden />
 
@@ -410,6 +411,7 @@ type DocDrawerState = { mode: "closed" } | { mode: "new" } | { mode: "edit"; doc
 
 export function DocumentsList() {
   const { activeProjectId } = useProject();
+  useFocusRow();
   const docs            = useEntityStore((s) => s.documents);
   const addDocument     = useEntityStore((s) => s.addDocument);
   const updateDocument  = useEntityStore((s) => s.updateDocument);

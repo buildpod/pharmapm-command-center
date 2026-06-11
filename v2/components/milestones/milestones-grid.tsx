@@ -36,6 +36,7 @@ import { MilestoneFormDrawer } from "./milestone-form";
 import { GanttView } from "./gantt-view";
 import { LayoutGrid, GanttChartSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useFocusRow } from "@/lib/hooks/use-focus-row";
 
 const TODAY = "2026-05-11";
 
@@ -242,6 +243,7 @@ type DrawerState = { mode: "closed" } | { mode: "new" } | { mode: "edit"; milest
 
 export function MilestonesGrid() {
   const { activeProjectId, activeProject } = useProject();
+  useFocusRow();
   const milestones        = useEntityStore((s) => s.milestones);
   const addMilestone      = useEntityStore((s) => s.addMilestone);
   const updateMilestone   = useEntityStore((s) => s.updateMilestone);
@@ -574,6 +576,7 @@ export function MilestonesGrid() {
             return (
               <li
                 key={m.id}
+                data-focus-id={m.id}
                 className={cn(
                   "grid grid-cols-[24px_2fr_1fr_1fr_1fr_64px_80px_80px_32px] gap-0 items-center px-5 py-3.5",
                   "hover:bg-muted/20 transition-colors"

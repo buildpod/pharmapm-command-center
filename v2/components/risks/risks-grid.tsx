@@ -10,6 +10,7 @@ import { StatusPill, statusToneClasses, type StatusTone } from "@/components/ui/
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { cn } from "@/lib/utils";
 import { avatarColor } from "@/lib/ui/avatar-color";
+import { useFocusRow } from "@/lib/hooks/use-focus-row";
 
 // ─── Score bands (from v1 config/rules.js) ───────────────────────────────────
 
@@ -214,6 +215,7 @@ function RiskCard({
   return (
     <article
       id={`risk-${risk.id}`}
+      data-focus-id={risk.id}
       onClick={onSelect}
       className={cn(
         "group cursor-pointer rounded-xl border bg-card p-4 shadow-sm transition-all hover:shadow-md",
@@ -293,6 +295,7 @@ type RiskDrawerState = { mode: "closed" } | { mode: "new" } | { mode: "edit"; ri
 
 export function RisksGrid() {
   const { activeProjectId } = useProject();
+  useFocusRow();
   const risks            = useEntityStore((s) => s.risks);
   const addRisk          = useEntityStore((s) => s.addRisk);
   const updateRisk       = useEntityStore((s) => s.updateRisk);

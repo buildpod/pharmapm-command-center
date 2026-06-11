@@ -13,6 +13,7 @@ import { TaskFormDrawer } from "./task-form";
 import { useProject } from "@/components/projects/project-provider";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { useSettings } from "@/lib/settingsStore";
+import { useFocusRow } from "@/lib/hooks/use-focus-row";
 import {
   previewTaskCascade, findConstraintViolations, groupViolationsByTask, diffViolations,
   previewTaskToMilestonePush,
@@ -161,7 +162,7 @@ function TaskRow({
   const isOverdue = new Date(task.dueDate) < new Date("2026-05-11") && task.status !== "Complete";
 
   return (
-    <tr className="hover:bg-muted/20 transition-colors group">
+    <tr data-focus-id={task.id} className="hover:bg-muted/20 transition-colors group">
       {/* Priority dot */}
       <td className="px-4 py-2.5 w-8">
         <span
@@ -371,6 +372,7 @@ interface TaskCascadePreviewState {
 
 export function TasksGrid() {
   const { activeProjectId } = useProject();
+  useFocusRow();
   const { settings } = useSettings();
   const tasks             = useEntityStore((s) => s.tasks);
   const addTask           = useEntityStore((s) => s.addTask);

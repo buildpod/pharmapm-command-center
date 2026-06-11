@@ -285,7 +285,7 @@ export default function DeliveryTruthPage() {
                         {signal.sources.length ? signal.sources.map((item) => (
                           <Link
                             key={`${item.kind}-${item.id}`}
-                            href={sourceHref(item.kind)}
+                            href={`${sourceHref(item.kind)}?focus=${encodeURIComponent(item.id)}`}
                             className="rounded-full border border-border bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
                             title={item.label}
                           >

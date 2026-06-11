@@ -177,7 +177,7 @@ export default function DashboardPage() {
         </section>
       )}
 
-      <section className="executive-verdict" aria-label="Executive verdict">
+      <Link href="/truth" className="executive-verdict" aria-label="Executive verdict — open Delivery Signals">
         <div>
           <div className="executive-verdict__label">Executive Verdict</div>
           <div className="executive-verdict__title">{evm ? evm.verdict.headline : "Verdict pending"}</div>
@@ -187,21 +187,24 @@ export default function DashboardPage() {
               : `${coverageHint} The score is computed from real delivery data — never hand-set.`}
           </p>
         </div>
-        <span className={verdictPill}>{evm ? `${evm.verdict.score}/100 confidence` : "Pending data"}</span>
-      </section>
+        <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
+          <span className={verdictPill}>{evm ? `${evm.verdict.score}/100 confidence` : "Pending data"}</span>
+          <span className="card-link-hint">See the evidence →</span>
+        </span>
+      </Link>
 
       {/* KPI grid */}
       <div className="kpi-grid">
-        <div className={`kpi ${scheduleKpiAccent}`}>
+        <Link href="/milestones" className={`kpi ${scheduleKpiAccent}`}>
           <div className="kpi__label">Schedule Health</div>
           <div className="kpi__value-row">
             <span className="t-kpi-value kpi__value">{scheduleOnTrack ? "On Track" : "At Risk"}</span>
           </div>
           <div className="kpi__sub">{scheduleVarianceLabel}</div>
           <KpiSparkline />
-        </div>
+        </Link>
 
-        <div className={`kpi ${riskKpiAccent}`}>
+        <Link href="/risks" className={`kpi ${riskKpiAccent}`}>
           <div className="kpi__label">Open Risks</div>
           <div className="kpi__value-row">
             <span className="t-kpi-value kpi__value">{kpis.openRisksCount}</span>
@@ -214,9 +217,9 @@ export default function DashboardPage() {
             )}
           </div>
           <KpiSparkline />
-        </div>
+        </Link>
 
-        <div className={`kpi ${budgetKpiAccent}`}>
+        <Link href="/costs" className={`kpi ${budgetKpiAccent}`}>
           <div className="kpi__label">Budget Utilised</div>
           <div className="kpi__value-row">
             <span className="t-kpi-value kpi__value">{kpis.budgetPct}%</span>
@@ -225,16 +228,16 @@ export default function DashboardPage() {
             <strong>${(kpis.latestActualK / 1000).toFixed(2)}M</strong> of ${(kpis.totalBudgetK / 1000).toFixed(1)}M
           </div>
           <KpiSparkline />
-        </div>
+        </Link>
 
-        <div className="kpi kpi--info">
+        <Link href="/milestones" className="kpi kpi--info">
           <div className="kpi__label">Days to Go-Live</div>
           <div className="kpi__value-row">
             <span className="t-kpi-value kpi__value">{kpis.daysToGoLive}</span>
           </div>
           <div className="kpi__sub">Target <strong>{formatDate(activeProject.goLiveDate)}</strong></div>
           <KpiSparkline />
-        </div>
+        </Link>
       </div>
 
       {/* Charter strip — full-width status row */}
@@ -263,7 +266,9 @@ export default function DashboardPage() {
         <section className="card">
           <div className="card__header">
             <div>
-              <div className="t-card-title">Project Phase Progress</div>
+              <div className="t-card-title">
+                Project Phase Progress <Link href="/milestones" className="card-link-hint">View milestones →</Link>
+              </div>
               <div className="t-meta">6-phase GAMP 5 lifecycle · {PHASES.reduce((s, p) => s + p.pct, 0) / PHASES.length | 0}% overall</div>
             </div>
             <span className="pill pill--info">Phase 3 of 6</span>
@@ -286,7 +291,9 @@ export default function DashboardPage() {
 
         <section className="card">
           <div className="card__header">
-            <div className="t-card-title">Confidence drivers</div>
+            <div className="t-card-title">
+              Confidence drivers <Link href="/truth" className="card-link-hint">Open Delivery Signals →</Link>
+            </div>
             <span className={verdictPill}>{evm ? evm.verdict.headline : "Pending data"}</span>
           </div>
           <div className="health">
@@ -350,7 +357,10 @@ export default function DashboardPage() {
               <div className="t-card-title">Risk Profile</div>
               <div className="t-meta">Open risks per month</div>
             </div>
-            <span className="t-eyebrow">{riskTrend.at(-1)?.open ?? 0} open</span>
+            <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span className="t-eyebrow">{riskTrend.at(-1)?.open ?? 0} open</span>
+              <Link href="/risks" className="card-link-hint">View risks →</Link>
+            </span>
           </div>
           <div className="card__body">
             <div className="chart">
@@ -394,7 +404,10 @@ export default function DashboardPage() {
               <div className="t-card-title">Budget Burn</div>
               <div className="t-meta">Cumulative $k spent</div>
             </div>
-            <span className="t-eyebrow">${budgetTrend.filter((d) => d.actual > 0).at(-1)?.actual ?? 0}k</span>
+            <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span className="t-eyebrow">${budgetTrend.filter((d) => d.actual > 0).at(-1)?.actual ?? 0}k</span>
+              <Link href="/costs" className="card-link-hint">View costs →</Link>
+            </span>
           </div>
           <div className="card__body">
             <div className="chart">

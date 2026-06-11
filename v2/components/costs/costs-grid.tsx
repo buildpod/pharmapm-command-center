@@ -8,6 +8,7 @@ import { CostLineFormDrawer } from "./cost-line-form";
 import { useProject } from "@/components/projects/project-provider";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { cn } from "@/lib/utils";
+import { useFocusRow } from "@/lib/hooks/use-focus-row";
 
 const TOTAL_BUDGET_K = 2000;
 
@@ -80,6 +81,7 @@ type CostDrawerState = { mode: "closed" } | { mode: "new" } | { mode: "edit"; li
 
 export function CostsGrid() {
   const { activeProjectId } = useProject();
+  useFocusRow();
   const costLines       = useEntityStore((s) => s.costLines);
   const addCostLine     = useEntityStore((s) => s.addCostLine);
   const updateCostLine  = useEntityStore((s) => s.updateCostLine);
@@ -202,7 +204,7 @@ export function CostsGrid() {
               const warn = pct > 60 && pct <= 85;
               const danger = pct > 85;
               return (
-                <tr key={c.id} className="transition-colors hover:bg-muted/20">
+                <tr key={c.id} data-focus-id={c.id} className="transition-colors hover:bg-muted/20">
                   <td className="px-5 py-3.5">
                     <span className={cn(
                       "rounded-full border px-2 py-0.5 text-[10px] font-semibold",
