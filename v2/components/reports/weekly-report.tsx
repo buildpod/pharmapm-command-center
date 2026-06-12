@@ -1,205 +1,79 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo } from "react";
 import { Printer, Download, AlertTriangle, CheckCircle2, Clock, ChevronRight } from "lucide-react";
 import * as XLSX from "xlsx";
+import { useProject } from "@/components/projects/project-provider";
+import { useProjectEvm } from "@/lib/hooks/use-project-evm";
 import {
-  project,
-  milestones,
-  tasks,
-  risks,
-  documents,
-  costLines,
-  getKpis,
-} from "@/lib/mockData";
+  buildWeeklyReportData,
+  daysBetween,
+  fmtReportDate,
+  type WeeklyReportData,
+} from "@/lib/reports/report-data";
+import { useEntityStore } from "@/lib/stores/entity-store";
 import { cn } from "@/lib/utils";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const TODAY     = new Date("2026-05-11");
-const REPORT_WK = "Week of 11 May 2026";
-const NEXT_2WK  = new Date("2026-05-25"); // today + 14 days
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+function slugFile(value: string) {
+  return value.replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "") || "project";
 }
-
-function daysBetween(a: Date, b: Date) {
-  return Math.ceil((b.getTime() - a.getTime()) / 86_400_000);
-}
-
-// ─── Derived report data ──────────────────────────────────────────────────────
-
-function buildReportData() {
-  const kpis = getKpis();
-  const tasksInFlight = tasks.filter((t) => t.status === "In Progress");
-  const blockedTasks = tasks.filter((t) => t.status === "Blocked");
-
-  // Schedule health derived from variance of next upcoming milestone
-  const scheduleHealth =
-    kpis.scheduleVariance >= 5 ? "Red" :
-    kpis.scheduleVariance >  0 ? "Amber" : "Green";
-
-  // Milestones due or completed in the past 7 days (this week)
-  const thisWeekMs = milestones.filter((m) => {
-    const d = new Date(m.forecastDate);
-    return d >= new Date("2026-05-04") && d <= TODAY;
-  });
-
-  // Milestones due in the next 14 days
-  const upcomingMs = milestones
-    .filter((m) => {
-      const d = new Date(m.forecastDate);
-      return d > TODAY && d <= NEXT_2WK && m.status !== "complete";
-    })
-    .sort((a, b) => a.forecastDate.localeCompare(b.forecastDate));
-
-  // Tasks completing this week
-  const thisWeekTasks = tasks.filter((t) => {
-    const d = new Date(t.dueDate);
-    return d >= new Date("2026-05-04") && d <= TODAY && t.status === "Complete";
-  });
-
-  // Tasks due in next 14 days (not complete)
-  const upcomingTasks = tasks
-    .filter((t) => {
-      const d = new Date(t.dueDate);
-      return d > TODAY && d <= NEXT_2WK && t.status !== "Complete";
-    })
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
-
-  // Open risks sorted by score desc
-  const openRisks = risks
-    .filter((r) => r.status === "open")
-    .sort((a, b) => b.score - a.score);
-
-  // Pending decisions across documents
-  const pendingDecisions = documents.flatMap((doc) =>
-    [...(doc.reviewers ?? []), ...(doc.approvers ?? [])]
-      .filter((d) => d.status === "pending")
-      .map((d) => ({ docTitle: doc.name, docType: doc.type, person: d.person, role: d.role }))
-  );
-
-  const totalBudgetK = costLines.reduce((s, c) => s + c.budgetK, 0);
-  const totalActualK = costLines.reduce((s, c) => s + c.actualK, 0);
-  const burnPct      = Math.round((totalActualK / totalBudgetK) * 100);
-
-  return {
-    kpis,
-    scheduleHealth,
-    thisWeekMs, upcomingMs,
-    thisWeekTasks, upcomingTasks,
-    openRisks, pendingDecisions,
-    tasksInFlight, blockedTasks,
-    burnPct, totalActualK, totalBudgetK,
-  };
-}
-
-function buildEvidenceRows(data: ReturnType<typeof buildReportData>) {
-  return [
-    {
-      claim: `Schedule health is ${data.scheduleHealth}`,
-      source: `${milestones.length} milestone records and schedule variance`,
-      route: "/pharmapm-command-center/v2/milestones/",
-      label: "Open milestones",
-    },
-    {
-      claim: `${data.openRisks.length} open risks`,
-      source: `${data.openRisks.length} active risk records, ${data.kpis.highRisks} high`,
-      route: "/pharmapm-command-center/v2/risks/",
-      label: "Open risks",
-    },
-    {
-      claim: `${data.pendingDecisions.length} decisions pending`,
-      source: "Pending document reviewers and approvers",
-      route: "/pharmapm-command-center/v2/documents/",
-      label: "Open documents",
-    },
-    {
-      claim: `${data.burnPct}% budget utilised`,
-      source: `${costLines.length} cost lines, $${data.totalActualK}k actual`,
-      route: "/pharmapm-command-center/v2/costs/",
-      label: "Open costs",
-    },
-    {
-      claim: `${data.tasksInFlight.length} tasks in flight`,
-      source: `${tasks.length} task records, ${data.blockedTasks.length} blocked`,
-      route: "/pharmapm-command-center/v2/tasks/",
-      label: "Open tasks",
-    },
-  ];
-}
-
-// ─── Score band ───────────────────────────────────────────────────────────────
 
 function scoreBandStyles(score: number) {
   if (score >= 15) return "bg-rose-50 text-rose-700 border border-rose-200";
-  if (score >= 8)  return "bg-amber-50 text-amber-700 border border-amber-200";
+  if (score >= 8) return "bg-amber-50 text-amber-700 border border-amber-200";
   return "bg-emerald-50 text-emerald-700 border border-emerald-200";
 }
 
-// ─── Excel export ─────────────────────────────────────────────────────────────
-
-function exportExcel(data: ReturnType<typeof buildReportData>) {
+function exportExcel(data: WeeklyReportData) {
   const wb = XLSX.utils.book_new();
 
-  // Sheet 1 — Summary
   const summaryRows = [
-    ["AivelloStudio — Weekly Status Report"],
-    ["Project", project.name],
-    ["Client",  project.client],
-    ["Phase",   project.phase],
-    ["Report Date", REPORT_WK],
+    ["AivelloStudio - Weekly Status Report"],
+    ["Project", data.project.name],
+    ["Client", data.project.client],
+    ["Phase", data.project.phase],
+    ["Report Date", data.reportWeek],
     [],
     ["KPI", "Value"],
-    ["Schedule Health",  data.scheduleHealth],
-    ["Open Risks",       data.openRisks.length],
-    ["High Risks",       data.kpis.highRisks],
-    ["Budget Utilised",  `${data.burnPct}%`],
-    ["Days to Go-Live",  data.kpis.daysToGoLive],
-    ["Budget Spent",     `$${data.totalActualK}k of $${data.totalBudgetK}k`],
+    ["Schedule Health", data.scheduleHealth],
+    ["Open Risks", data.openRisks.length],
+    ["High Risks", data.highRisks.length],
+    ["Budget Utilised", data.budget.label],
+    ["Days to Go-Live", data.daysToGoLive],
+    ["Budget Evidence", data.budget.detail],
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryRows), "Summary");
 
-  // Sheet 2 — Upcoming Milestones
   const msHeaders = ["ID", "Milestone", "Phase", "Status", "Planned", "Forecast", "Variance (days)"];
   const msRows = data.upcomingMs.map((m) => [
     m.id,
     m.name,
     m.phase,
     m.status,
-    fmtDate(m.plannedDate),
-    fmtDate(m.forecastDate),
-    daysBetween(new Date(m.plannedDate), new Date(m.forecastDate)),
+    fmtReportDate(m.plannedDate),
+    fmtReportDate(m.forecastDate),
+    daysBetween(m.plannedDate, m.forecastDate),
   ]);
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([msHeaders, ...msRows]), "Milestones (Next 2 Weeks)");
 
-  // Sheet 3 — Open Risks
   const riskHeaders = ["ID", "Risk", "Category", "P", "I", "Score", "Owner", "Mitigation"];
   const riskRows = data.openRisks.map((r) => [r.id, r.title, r.category, r.probability, r.impact, r.score, r.owner, r.mitigation]);
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([riskHeaders, ...riskRows]), "Open Risks");
 
-  // Sheet 4 — Decisions Needed
   const decHeaders = ["Document", "Type", "Person", "Role"];
   const decRows = data.pendingDecisions.map((d) => [d.docTitle, d.docType, d.person, d.role]);
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([decHeaders, ...decRows]), "Decisions Needed");
 
-  // Sheet 5 — Tasks (upcoming)
   const taskHeaders = ["ID", "Task", "Workstream", "Priority", "Owner", "Due", "Status", "Progress %"];
-  const taskRows = data.upcomingTasks.map((t) => [t.id, t.name, t.workstream, t.priority, t.owner, fmtDate(t.dueDate), t.status, t.progress]);
+  const taskRows = data.upcomingTasks.map((t) => [t.id, t.name, t.workstream, t.priority, t.owner, fmtReportDate(t.dueDate), t.status, t.progress]);
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([taskHeaders, ...taskRows]), "Tasks (Next 2 Weeks)");
 
-  // Sheet 6 — Evidence trail
   const evidenceHeaders = ["Report claim", "Source evidence", "Source page"];
-  const evidenceRows = buildEvidenceRows(data).map((row) => [row.claim, row.source, row.route]);
+  const evidenceRows = data.evidenceRows.map((row) => [row.claim, row.source, row.route]);
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([evidenceHeaders, ...evidenceRows]), "Evidence Trail");
 
-  XLSX.writeFile(wb, `AivelloStudio_WeeklyReport_${TODAY.toISOString().slice(0, 10)}.xlsx`);
+  XLSX.writeFile(wb, `AivelloStudio_WeeklyReport_${slugFile(data.project.code ?? data.project.name)}.xlsx`);
 }
-
-// ─── Section wrapper ──────────────────────────────────────────────────────────
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -212,29 +86,41 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-// ─── Status badge ─────────────────────────────────────────────────────────────
-
 const msStatusStyles: Record<string, string> = {
-  "complete":    "bg-emerald-50 text-emerald-700 border border-emerald-200",
+  complete: "bg-emerald-50 text-emerald-700 border border-emerald-200",
   "in-progress": "bg-blue-50 text-blue-700 border border-blue-200",
-  "at-risk":     "bg-rose-50 text-rose-700 border border-rose-200",
-  "pending":     "bg-muted text-muted-foreground",
+  "at-risk": "bg-rose-50 text-rose-700 border border-rose-200",
+  pending: "bg-muted text-muted-foreground",
 };
 
-// ─── Main component ───────────────────────────────────────────────────────────
-
 export function WeeklyReport() {
-  const [data] = useState(buildReportData);
-  const evidenceRows = buildEvidenceRows(data);
+  const { activeProject } = useProject();
+  const milestones = useEntityStore((state) => state.milestones);
+  const tasks = useEntityStore((state) => state.tasks);
+  const risks = useEntityStore((state) => state.risks);
+  const documents = useEntityStore((state) => state.documents);
+  const costLines = useEntityStore((state) => state.costLines);
+  const decisionRecords = useEntityStore((state) => state.decisionRecords);
+  const issues = useEntityStore((state) => state.issues);
+  const evm = useProjectEvm();
+
+  const data = useMemo(
+    () => buildWeeklyReportData({ project: activeProject, milestones, tasks, risks, documents, costLines, decisionRecords, issues, evm }),
+    [activeProject, milestones, tasks, risks, documents, costLines, decisionRecords, issues, evm]
+  );
 
   const healthColor =
     data.scheduleHealth === "Green" ? "text-green-600" :
     data.scheduleHealth === "Amber" ? "text-amber-600" :
     "text-rose-600";
+  const budgetColor =
+    !data.budget.ready || data.budget.burnPct === null ? "text-amber-600" :
+    data.budget.burnPct > 85 ? "text-rose-600" :
+    data.budget.burnPct > 60 ? "text-amber-600" :
+    "text-foreground";
 
   return (
     <div className="space-y-4">
-      {/* Toolbar — hidden when printing */}
       <div className="flex items-center gap-2 print:hidden">
         <button
           onClick={() => window.print()}
@@ -255,12 +141,10 @@ export function WeeklyReport() {
         </span>
       </div>
 
-      {/* ── Report card — this is what gets printed ── */}
       <div
         id="weekly-report"
         className="rounded-lg border border-border bg-card shadow-sm p-6 space-y-6 print:shadow-none print:border-0 print:p-0 print:rounded-none"
       >
-        {/* Report header */}
         <div className="flex items-start justify-between border-b border-border pb-4 print:pb-3">
           <div>
             <div className="flex items-center gap-2 mb-0.5">
@@ -268,13 +152,13 @@ export function WeeklyReport() {
               <ChevronRight className="h-3 w-3 text-muted-foreground" />
               <span className="text-[10px] text-muted-foreground">Weekly Status Report</span>
             </div>
-            <h2 className="text-xl font-bold text-foreground">{project.name}</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">{project.phase} · {project.client}</p>
+            <h2 className="text-xl font-bold text-foreground">{data.project.name}</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">{data.project.phase} · {data.project.client}</p>
           </div>
           <div className="text-right text-xs text-muted-foreground space-y-0.5">
-            <p className="font-semibold text-foreground">{REPORT_WK}</p>
-            <p>Go-Live: {fmtDate(project.goLiveDate)}</p>
-            <p>Methodology: {project.methodology}</p>
+            <p className="font-semibold text-foreground">{data.reportWeek}</p>
+            <p>Go-Live: {fmtReportDate(data.project.goLiveDate)}</p>
+            <p>Methodology: {data.project.methodology}</p>
           </div>
         </div>
 
@@ -295,7 +179,7 @@ export function WeeklyReport() {
               <span className="report-evidence__meta">Backtrace to source pages</span>
             </div>
             <div className="report-evidence__list">
-              {evidenceRows.map((row) => (
+              {data.evidenceRows.map((row) => (
                 <div key={row.claim} className="report-evidence__row">
                   <span className="report-evidence__claim">{row.claim}</span>
                   <span className="report-evidence__source">{row.source}</span>
@@ -306,16 +190,15 @@ export function WeeklyReport() {
           </div>
         </div>
 
-        {/* ── KPI strip ── */}
         <Section title="Headline Metrics">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             {[
               { label: "Schedule Health", value: data.scheduleHealth, sub: "RAG status", color: healthColor },
-              { label: "Days to Go-Live",  value: data.kpis.daysToGoLive,  sub: fmtDate(project.goLiveDate), color: "text-foreground" },
-              { label: "Open Risks",       value: data.openRisks.length,    sub: `${data.kpis.highRisks} high`, color: data.openRisks.length > 3 ? "text-rose-600" : "text-foreground" },
-              { label: "Budget Utilised",  value: `${data.burnPct}%`,        sub: `$${data.totalActualK}k / $${data.totalBudgetK}k`, color: data.burnPct > 85 ? "text-rose-600" : data.burnPct > 60 ? "text-amber-600" : "text-foreground" },
-              { label: "Decisions Pending",value: data.pendingDecisions.length, sub: "across all docs", color: data.pendingDecisions.length > 0 ? "text-amber-600" : "text-foreground" },
-              { label: "Tasks In Flight",  value: data.tasksInFlight.length, sub: `${data.blockedTasks.length} blocked`, color: "text-foreground" },
+              { label: "Days to Go-Live", value: data.daysToGoLive, sub: fmtReportDate(data.project.goLiveDate), color: "text-foreground" },
+              { label: "Open Risks", value: data.openRisks.length, sub: `${data.highRisks.length} high`, color: data.openRisks.length > 3 ? "text-rose-600" : "text-foreground" },
+              { label: "Budget Utilised", value: data.budget.label, sub: data.budget.detail, color: budgetColor },
+              { label: "Decisions Pending", value: data.pendingDecisions.length, sub: "across all docs", color: data.pendingDecisions.length > 0 ? "text-amber-600" : "text-foreground" },
+              { label: "Tasks In Flight", value: data.tasksInFlight.length, sub: `${data.blockedTasks.length} blocked`, color: "text-foreground" },
             ].map((k) => (
               <div key={k.label} className="rounded-md border border-border bg-muted/20 px-3 py-2.5 print:border-border">
                 <p className={cn("text-xl font-bold tabular-nums", k.color)}>{k.value}</p>
@@ -326,10 +209,7 @@ export function WeeklyReport() {
           </div>
         </Section>
 
-        {/* ── Two-column body ── */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 print:grid-cols-2">
-
-          {/* This week */}
           <Section title="This Week (completed / due)">
             {data.thisWeekMs.length === 0 && data.thisWeekTasks.length === 0 ? (
               <p className="text-xs text-muted-foreground italic">
@@ -342,7 +222,7 @@ export function WeeklyReport() {
                     <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 text-green-500 shrink-0" />
                     <div className="min-w-0">
                       <p className="text-xs font-medium text-foreground leading-tight truncate">{m.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{m.phase} · {fmtDate(m.forecastDate)}</p>
+                      <p className="text-[10px] text-muted-foreground">{m.phase} · {fmtReportDate(m.forecastDate)}</p>
                     </div>
                     <span className={cn("ml-auto rounded-full px-1.5 py-0.5 text-[9px] font-semibold shrink-0", msStatusStyles[m.status])}>
                       {m.status}
@@ -365,8 +245,7 @@ export function WeeklyReport() {
             )}
           </Section>
 
-          {/* Next 2 weeks */}
-          <Section title="Next 2 Weeks (due by 25 May)">
+          <Section title={data.nextWindowLabel}>
             {data.upcomingMs.length === 0 && data.upcomingTasks.length === 0 ? (
               <p className="text-xs text-muted-foreground italic">
                 Nothing due in the next 14 days. This gives the PM space to work ahead before the next delivery checkpoint.
@@ -374,17 +253,17 @@ export function WeeklyReport() {
             ) : (
               <div className="space-y-2">
                 {data.upcomingMs.map((m) => {
-                  const var_ = daysBetween(new Date(m.plannedDate), new Date(m.forecastDate));
+                  const variance = daysBetween(m.plannedDate, m.forecastDate);
                   return (
                     <div key={m.id} className="flex items-start gap-2 rounded-md border border-border px-3 py-2">
                       <Clock className="h-3.5 w-3.5 mt-0.5 text-blue-500 shrink-0" />
                       <div className="min-w-0">
                         <p className="text-xs font-medium text-foreground leading-tight truncate">{m.name}</p>
-                        <p className="text-[10px] text-muted-foreground">{m.phase} · Due {fmtDate(m.forecastDate)}</p>
+                        <p className="text-[10px] text-muted-foreground">{m.phase} · Due {fmtReportDate(m.forecastDate)}</p>
                       </div>
-                      {var_ > 0 && (
+                      {variance > 0 && (
                         <span className="ml-auto rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold text-amber-700 shrink-0">
-                          +{var_}d
+                          +{variance}d
                         </span>
                       )}
                     </div>
@@ -395,12 +274,12 @@ export function WeeklyReport() {
                     <Clock className="h-3.5 w-3.5 mt-0.5 text-blue-500 shrink-0" />
                     <div className="min-w-0">
                       <p className="text-xs font-medium text-foreground leading-tight truncate">{t.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{t.workstream} · {t.owner} · Due {fmtDate(t.dueDate)}</p>
+                      <p className="text-[10px] text-muted-foreground">{t.workstream} · {t.owner} · Due {fmtReportDate(t.dueDate)}</p>
                     </div>
                     <span className={cn(
                       "ml-auto rounded-full px-1.5 py-0.5 text-[9px] font-semibold shrink-0",
                       t.priority === "Critical" ? "bg-rose-50 text-rose-700 border border-rose-200" :
-                      t.priority === "High"     ? "bg-amber-50 text-amber-700 border border-amber-200" :
+                      t.priority === "High" ? "bg-amber-50 text-amber-700 border border-amber-200" :
                       "bg-muted text-muted-foreground"
                     )}>
                       {t.priority}
@@ -411,7 +290,6 @@ export function WeeklyReport() {
             )}
           </Section>
 
-          {/* Top risks */}
           <Section title="Top Open Risks">
             {data.openRisks.length === 0 ? (
               <p className="text-xs text-muted-foreground italic">
@@ -437,7 +315,7 @@ export function WeeklyReport() {
                         </td>
                         <td className="px-3 py-2">
                           <p className="font-medium text-foreground leading-tight">{r.title}</p>
-                          <p className="text-[10px] text-muted-foreground">{r.category} · P{r.probability}×I{r.impact}</p>
+                          <p className="text-[10px] text-muted-foreground">{r.category} · P{r.probability}xI{r.impact}</p>
                         </td>
                         <td className="px-3 py-2 text-center text-muted-foreground">{r.owner}</td>
                       </tr>
@@ -448,7 +326,6 @@ export function WeeklyReport() {
             )}
           </Section>
 
-          {/* Decisions needed */}
           <Section title="Decisions Needed">
             {data.pendingDecisions.length === 0 ? (
               <p className="text-xs text-muted-foreground italic">
@@ -465,8 +342,8 @@ export function WeeklyReport() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {data.pendingDecisions.map((d, i) => (
-                      <tr key={i}>
+                    {data.pendingDecisions.map((d) => (
+                      <tr key={d.id}>
                         <td className="px-3 py-2">
                           <p className="font-medium text-foreground leading-tight">{d.docTitle}</p>
                           <span className="text-[9px] text-muted-foreground">{d.docType}</span>
@@ -489,12 +366,11 @@ export function WeeklyReport() {
           </Section>
         </div>
 
-        {/* Footer */}
         <div className="border-t border-border pt-3 flex items-center justify-between text-[10px] text-muted-foreground print:pt-2">
-          <span>Generated by AivelloStudio · {REPORT_WK}</span>
+          <span>Generated by AivelloStudio · {data.reportWeek}</span>
           <span className="flex items-center gap-1">
             <AlertTriangle className="h-3 w-3" />
-            Confidential — for internal project use only
+            Confidential - for internal project use only
           </span>
         </div>
       </div>
