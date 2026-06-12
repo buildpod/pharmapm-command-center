@@ -12,6 +12,7 @@ import { useProject } from "@/components/projects/project-provider";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { computeProjectEvm, type ProjectEvm } from "@/lib/domain/evm-project";
 import { evmCoverage, effectiveStatusDate, type EvmCoverage } from "@/lib/domain/evm-coverage";
+import { projectBaseline } from "@/lib/domain/baseline";
 
 // Frozen demo status date — matches DEFAULT_TRUTH_DATE in delivery-truth.
 export const PROJECT_STATUS_DATE = "2026-05-19";
@@ -32,16 +33,30 @@ export function useProjectEvm(): ProjectEvmContext {
     const projectCostLines = costLines.filter((line) => line.projectId === activeProjectId);
     const coverage = evmCoverage({ costLineCount: projectCostLines.length, taskCount: projectTasks.length });
     const statusDate = effectiveStatusDate(activeProject.startDate, PROJECT_STATUS_DATE);
+    // Class C: every project's PV baseline derives from ITS OWN budget and
+    // dates (linear v1 — TRANSPARENCY_MODEL §11). The sample project keeps
+    // its hand-shaped budgetTrend curve; that was the last place sample data
+    // leaked into a real project's schedule math.
     const evm = coverage.ready
       ? computeProjectEvm({
           costLines: projectCostLines,
-          plannedCurve: budgetTrend.map((point) => ({ month: point.month, planned: point.planned })),
           tasks: projectTasks,
           projectStart: activeProject.startDate,
           statusDate,
-          curveYear: new Date(`${activeProject.startDate}T00:00:00`).getFullYear(),
+          ...(activeProject.isSample
+            ? {
+                plannedCurve: budgetTrend.map((point) => ({ month: point.month, planned: point.planned })),
+                curveYear: new Date(`${activeProject.startDate}T00:00:00`).getFullYear(),
+              }
+            : {
+                curve: projectBaseline({
+                  costLines: projectCostLines,
+                  startDate: activeProject.startDate,
+                  goLiveDate: activeProject.goLiveDate,
+                }),
+              }),
         })
       : null;
     return { coverage, evm, statusDate };
-  }, [activeProjectId, activeProject.startDate, tasks, costLines]);
+  }, [activeProjectId, activeProject.startDate, activeProject.goLiveDate, activeProject.isSample, tasks, costLines]);
 }

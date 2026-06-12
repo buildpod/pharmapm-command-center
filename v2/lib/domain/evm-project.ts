@@ -20,11 +20,15 @@ export interface TaskLike { progress: number; }                         // 0..10
 
 export interface DeriveInput {
   costLines: CostLineLike[];
-  plannedCurve: PlannedPointLike[];   // e.g. budgetTrend (cumulative planned $k by month)
+  // Class C: a project-specific date-based PV curve (e.g. from
+  // baseline.ts/projectBaseline). Preferred — month labels can't cross year
+  // boundaries. When provided, plannedCurve/curveYear are ignored.
+  curve?: PvPoint[];
+  plannedCurve?: PlannedPointLike[];  // legacy: cumulative planned $k by month label
   tasks: TaskLike[];                  // project tasks (progress drives EV)
   projectStart: string;              // ISO
   statusDate: string;                // ISO ("today")
-  curveYear: number;                 // year to anchor the month labels onto
+  curveYear?: number;                // year to anchor legacy month labels onto
 }
 
 const MONTHS: Record<string, string> = {
@@ -42,9 +46,11 @@ export function deriveEvmInput(input: DeriveInput): EvmInput {
   const bac = input.costLines.reduce((s, c) => s + c.budgetK, 0) * 1000;
   const ac = input.costLines.reduce((s, c) => s + c.actualK, 0) * 1000;
 
-  const curve: PvPoint[] = [
+  // Class C: a date-based per-project curve wins; the month-label path
+  // survives only for the sample project's hand-shaped budgetTrend.
+  const curve: PvPoint[] = input.curve ?? [
     { date: `${input.curveYear}-01-01`, cumulativePV: 0 },
-    ...input.plannedCurve
+    ...(input.plannedCurve ?? [])
       .filter((p) => MONTHS[p.month])
       .map((p) => ({
         date: `${input.curveYear}-${MONTHS[p.month]}-01`,
@@ -98,7 +104,11 @@ export function executiveVerdict(s: EvmSnapshot): ExecutiveVerdict {
   // Identify the dominant drag.
   const breach = Math.max(0, (s.bac > 0 ? s.eac2 / s.bac : 1) - 1);
   let reason: string;
-  if (level === "on-track") {
+  if (s.ev === 0 && s.ac === 0) {
+    // Day-zero honesty: a fresh project scores "on plan" because nothing has
+    // deviated yet — say that, don't imply earned trust.
+    reason = "Nothing earned or spent yet — the score reflects the plan only, and sharpens as work and spend register.";
+  } else if (level === "on-track") {
     reason = "Cost and schedule both tracking to plan.";
   } else if (s.cpi <= s.spit && s.cpi < 1) {
     reason = `Cost efficiency is the main drag (CPI ${s.cpi.toFixed(2)}). Forecast final cost ${breach > 0 ? `${(breach * 100).toFixed(0)}% over budget` : "near budget"}.`;

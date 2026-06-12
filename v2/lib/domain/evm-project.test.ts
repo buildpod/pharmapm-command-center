@@ -137,3 +137,52 @@ describe("M32 evm-project.computeProjectEvm", () => {
     expect(out.range.low).toBeLessThanOrEqual(out.range.high);
   });
 });
+
+// ── Class C — per-project date-based curve + day-zero honesty ───────────────
+
+describe("Class C evm-project.deriveEvmInput — direct curve", () => {
+  it("a provided date-based curve bypasses the month-label mapping", () => {
+    const inp = deriveEvmInput({
+      costLines: [{ budgetK: 500, actualK: 100 }],
+      curve: [
+        { date: "2026-06-01", cumulativePV: 0 },
+        { date: "2027-01-30", cumulativePV: 500_000 },
+      ],
+      tasks: [{ progress: 20 }],
+      projectStart: "2026-06-01",
+      statusDate: "2026-09-01",
+    });
+    expect(inp.curve[0].date).toBe("2026-06-01");
+    expect(inp.curve[1].date).toBe("2027-01-30");   // crosses the year boundary intact
+    expect(inp.bac).toBe(500_000);
+  });
+
+  it("legacy month-label path still works when no curve is given", () => {
+    const inp = deriveEvmInput(BASE);
+    expect(inp.curve).toContainEqual({ date: "2026-03-01", cumulativePV: 600_000 });
+  });
+});
+
+describe("Class C evm-project.executiveVerdict — day-zero honesty", () => {
+  it("a fresh project (nothing earned, nothing spent) says the score is plan-only", () => {
+    const snap = computeEvm({
+      bac: 500_000, actualCost: 0,
+      curve: [{ date: "2026-06-01", cumulativePV: 0 }, { date: "2026-12-01", cumulativePV: 500_000 }],
+      items: [{ id: "x", budget: 500_000, progress: 0 }],
+      statusDate: "2026-06-01", projectStart: "2026-06-01",
+    });
+    const v = executiveVerdict(snap);
+    expect(v.reason).toContain("plan only");
+    expect(v.reason).not.toContain("tracking to plan");   // no implied earned trust
+  });
+
+  it("a project with real spend keeps the normal driver reasons", () => {
+    const snap = computeEvm({
+      bac: 100, actualCost: 50,
+      curve: [{ date: "2026-01-01", cumulativePV: 0 }, { date: "2026-02-01", cumulativePV: 100 }],
+      items: [{ id: "x", budget: 100, progress: 0.5 }],
+      statusDate: "2026-01-16", projectStart: "2026-01-01",
+    });
+    expect(executiveVerdict(snap).reason).toBe("Cost and schedule both tracking to plan.");
+  });
+});
