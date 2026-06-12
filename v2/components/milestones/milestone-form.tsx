@@ -110,7 +110,7 @@ export function MilestoneFormDrawer({
 
   const title    = isNew ? "Add milestone" : `Edit · ${initial?.name ?? ""}`;
   const subtitle = isNew
-    ? "Add a new milestone to the schedule. Predecessor, duration, and lag drive schedule impact review."
+    ? "Add a new milestone to the schedule. Predecessor, duration, and lag explain timing assumptions."
     : `${initial?.id?.toUpperCase()} · ${initial?.phase}`;
 
   // Predecessors exclude self
@@ -168,16 +168,18 @@ export function MilestoneFormDrawer({
               Connect predecessors only when timing truly depends on another milestone.
             </DrawerGuidance>
             <div className="milestone-summary">
-              <div className="milestone-summary__label">Schedule impact</div>
-              <div className="milestone-summary__value">{duration + lag} days</div>
+              <div className="milestone-summary__label">Timing assumption</div>
+              <div className="milestone-summary__value">{duration + lag} working days</div>
               <div className="milestone-summary__meta">
-                {predecessor ? "After selected predecessor" : "No predecessor selected"}
+                {predecessor
+                  ? "Duration plus waiting time after the selected predecessor."
+                  : "Standalone milestone duration. It does not shift other dates until a predecessor is selected."}
               </div>
             </div>
             <div className="milestone-summary">
               <div className="milestone-summary__label">Governance note</div>
               <div className="milestone-summary__meta">
-                Lock only board-approved dates or external commitments.
+                Lock a date only when leadership, a customer, or an external partner has formally committed to it.
               </div>
             </div>
           </aside>
@@ -220,7 +222,7 @@ export function MilestoneFormDrawer({
             <section className="form-section">
               <div className="form-section__head">
                 <h3 className="form-section__title">Schedule logic</h3>
-                <span className="form-section__meta">Dependency and effort assumptions</span>
+                <span className="form-section__meta">Dependency and timing assumptions</span>
               </div>
               <div className="form-grid-2">
                 <Field label="Predecessor" hint="Choose one only when this milestone cannot finish before it." className="form-span-all">

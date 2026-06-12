@@ -90,7 +90,7 @@ function RiskMatrix({
       <div className="mb-4">
         <h2 className="text-base font-semibold text-foreground">Risk Exposure</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Probability × Impact heatmap. Click a risk dot to highlight its detail.
+          Probability × impact heatmap. Cells show exposure count; dots jump to the risk detail.
         </p>
       </div>
 
@@ -122,39 +122,49 @@ function RiskMatrix({
               [1, 2, 3, 4, 5].map((prob) => {
                 const key = `${prob}-${impact}`;
                 const cellRisks = cells[key] ?? [];
+                const visibleRisks = cellRisks.slice(0, 5);
+                const hiddenCount = Math.max(0, cellRisks.length - visibleRisks.length);
                 return (
                   <div
                     key={key}
-                    title={`P${prob} × I${impact} = ${prob * impact}`}
+                    title={`Probability ${prob} × impact ${impact} = score ${prob * impact}`}
                     className={cn(
-                      "relative flex h-14 items-center justify-center rounded-md border p-1 sm:h-16",
+                      "relative flex h-14 items-center justify-center overflow-hidden rounded-md border p-1 sm:h-16",
                       cellShade(prob, impact),
                     )}
                   >
-                    {cellRisks.length === 0 && (
-                      <span className="text-[10px] font-semibold tabular-nums text-muted-foreground/40">
-                        {prob * impact}
+                    <span className="absolute left-1.5 top-1 text-[10px] font-semibold tabular-nums text-muted-foreground/45">
+                      {prob * impact}
+                    </span>
+                    {cellRisks.length > 0 ? (
+                      <span className="absolute right-1 top-1 rounded-full bg-background/90 px-1.5 py-0.5 text-[9px] font-bold tabular-nums text-foreground shadow-sm">
+                        {cellRisks.length}
                       </span>
-                    )}
-                    <div className="flex flex-wrap items-center justify-center gap-0.5">
-                      {cellRisks.map((r) => {
+                    ) : null}
+                    <div className="flex max-w-[3.25rem] flex-wrap items-center justify-center gap-1">
+                      {visibleRisks.map((r) => {
                         const band = scoreBand(r.score);
                         const sel = r.id === selectedId;
                         return (
                           <button
                             key={r.id}
+                            type="button"
                             onClick={() => onSelect(r.id)}
-                            title={r.title}
+                            title={`${r.title} · P${r.probability} × I${r.impact}`}
                             className={cn(
-                              "flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-black text-white shadow-sm transition-transform hover:scale-125 focus:outline-none",
+                              "h-2.5 w-2.5 rounded-full shadow-sm transition-transform hover:scale-150 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
                               statusToneClasses[bandTone[band]].dot,
                               sel && cn("scale-125 ring-2 ring-offset-1", statusToneClasses[bandTone[band]].ring),
                             )}
-                          >
-                            {r.id.replace("r", "")}
-                          </button>
+                            aria-label={`Open risk: ${r.title}`}
+                          />
                         );
                       })}
+                      {hiddenCount > 0 ? (
+                        <span className="rounded-full bg-background/90 px-1 text-[9px] font-bold tabular-nums text-muted-foreground shadow-sm">
+                          +{hiddenCount}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 );
