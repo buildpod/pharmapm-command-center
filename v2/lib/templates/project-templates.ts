@@ -26,12 +26,19 @@ export type ProjectIntentKey = "regulated" | "validation" | "migration" | "integ
 // gets a bespoke builder meeting the CX-5 quality bar.
 export type ProjectTemplateTier = "playbook" | "starter";
 
+export interface ProjectTemplateModule {
+  id: string;
+  name: string;
+  description: string;
+}
+
 export interface ProjectTemplateSummary {
   id: ProjectTemplateId;
   name: string;
   tier: ProjectTemplateTier;
   category: string;
   description: string;
+  modules?: ProjectTemplateModule[];
   recommendedName: string;
   recommendedPhase: string;
   recommendedMethodology: string;
@@ -54,6 +61,7 @@ export interface TemplateBuildInput {
   startDate: string;
   goLiveDate: string;
   methodology: string;
+  modules?: string[];
 }
 
 export interface TemplateOperatingModel {
@@ -75,6 +83,13 @@ export const PROJECT_TEMPLATES: ProjectTemplateSummary[] = [
     name: "Veeva RIM implementation",
     category: "Regulatory",
     description: "Full RIM rollout across Registrations, Submissions, Publishing, Archive, Vault Connections, migration, validation, UAT, cutover, and hypercare.",
+    modules: [
+      { id: "registrations", name: "Registrations", description: "Registration data model, market scope, impact assessment, and registration lifecycle decisions." },
+      { id: "submissions", name: "Submissions", description: "Applications, submissions, regulatory objectives, content plans, and submission workflow baseline." },
+      { id: "publishing", name: "Publishing", description: "Publishing validation criteria, overlays, table-of-contents rules, lifecycle operations, and gateway readiness." },
+      { id: "archive", name: "Archive", description: "Legacy dossier import, active dossier viewer needs, archive verification, and read-only regulatory history." },
+      { id: "vault-connections", name: "Vault Connections", description: "Clinical, Safety, Quality/eQMS, and PromoMats connection flows into RIM." },
+    ],
     recommendedName: "Veeva RIM Global Implementation",
     recommendedPhase: "Phase 1 - Mobilise",
     recommendedMethodology: "GAMP 5 / CSV",
@@ -195,6 +210,15 @@ export const PROJECT_TEMPLATES: ProjectTemplateSummary[] = [
     name: "SAP S/4HANA implementation",
     category: "SAP ERP",
     description: "SAP Activate implementation model for fit-to-standard, process design, configuration, extensions, data migration, testing, cutover, controls, adoption, and hypercare.",
+    modules: [
+      { id: "finance", name: "Finance", description: "Record-to-report, finance configuration, reporting, and finance fit-gap decisions." },
+      { id: "procure-to-pay", name: "Procure to Pay", description: "Purchasing, supplier, invoice, and approval process design and configuration." },
+      { id: "order-to-cash", name: "Order to Cash", description: "Sales, billing, order management, and revenue process design and configuration." },
+      { id: "plan-to-produce", name: "Plan to Produce", description: "Planning, manufacturing, material flow, and production handoff process design." },
+      { id: "data-migration", name: "Data Migration", description: "Master data, opening balances, mock loads, cleanse rules, and reconciliation." },
+      { id: "integrations", name: "Integrations", description: "Interface inventory, design, build, smoke testing, and cutover handling." },
+      { id: "security-controls", name: "Security & Controls", description: "Role design, segregation-of-duties controls, approval workflows, and access evidence." },
+    ],
     recommendedName: "SAP S/4HANA Implementation",
     recommendedPhase: "Discover / Prepare",
     recommendedMethodology: "SAP Activate",
@@ -508,11 +532,132 @@ function clampTasksToMilestones(tasks: Task[], milestones: Milestone[]): Task[] 
   });
 }
 
+type ModuleTagged<T> = T & { moduleIds?: string[] };
+
+interface ModulePruneInput {
+  input: TemplateBuildInput;
+  template: ProjectTemplateSummary;
+  charterScope: string[];
+  milestones: ModuleTagged<Milestone>[];
+  tasks: ModuleTagged<Task>[];
+  documents: ModuleTagged<Document>[];
+  risks: ModuleTagged<Risk>[];
+  teamMembers: ModuleTagged<TeamMember>[];
+  costLines: ModuleTagged<CostLine>[];
+  moduleWorkstreams: Record<string, string[]>;
+}
+
+interface ModulePrunedModel {
+  charter: Charter;
+  milestones: Milestone[];
+  tasks: Task[];
+  documents: Document[];
+  risks: Risk[];
+  teamMembers: TeamMember[];
+  costLines: CostLine[];
+}
+
+function selectedTemplateModules(input: TemplateBuildInput, template: ProjectTemplateSummary): Set<string> {
+  const moduleIds = template.modules?.map((module) => module.id) ?? [];
+  if (moduleIds.length === 0) return new Set();
+  const requested = input.modules?.filter((moduleId) => moduleIds.includes(moduleId));
+  return new Set(requested && requested.length > 0 ? requested : moduleIds);
+}
+
+function shouldKeepTaggedEntity(entity: { moduleIds?: string[] }, selected: Set<string>): boolean {
+  return !entity.moduleIds?.length || entity.moduleIds.some((moduleId) => selected.has(moduleId));
+}
+
+function stripModuleIds<T>(entity: ModuleTagged<T>): T {
+  const rest = { ...entity };
+  delete rest.moduleIds;
+  return rest as T;
+}
+
+function pruneModuleModel({
+  input,
+  template,
+  charterScope,
+  milestones,
+  tasks,
+  documents,
+  risks,
+  teamMembers,
+  costLines,
+  moduleWorkstreams,
+}: ModulePruneInput): ModulePrunedModel {
+  const selected = selectedTemplateModules(input, template);
+  const selectedModuleNames = new Set((template.modules ?? []).filter((module) => selected.has(module.id)).map((module) => module.name));
+  const outOfScopeModules = (template.modules ?? [])
+    .filter((module) => !selected.has(module.id))
+    .map((module) => `${module.name} — excluded from this implementation`);
+  const filteredMilestones = milestones.filter((milestone) => shouldKeepTaggedEntity(milestone, selected));
+  const keptMilestoneIds = new Set(filteredMilestones.map((milestone) => milestone.id));
+  const milestoneById = new Map(milestones.map((milestone) => [milestone.id, milestone]));
+
+  function nearestSurvivingPredecessor(predecessorId?: string): string | undefined {
+    if (!predecessorId) return undefined;
+    if (keptMilestoneIds.has(predecessorId)) return predecessorId;
+    return nearestSurvivingPredecessor(milestoneById.get(predecessorId)?.predecessor);
+  }
+
+  const prunedMilestones = filteredMilestones.map((milestone) => stripModuleIds({
+    ...milestone,
+    predecessor: nearestSurvivingPredecessor(milestone.predecessor),
+  }));
+  const milestoneDateById = new Map(prunedMilestones.map((milestone) => [milestone.id, milestone.plannedDate]));
+
+  const filteredTasks = tasks.filter((task) => shouldKeepTaggedEntity(task, selected));
+  const keptTaskIds = new Set(filteredTasks.map((task) => task.id));
+  const sortedMilestones = [...prunedMilestones].sort((a, b) => a.plannedDate.localeCompare(b.plannedDate));
+
+  function nearestSurvivingMilestone(task: Task): string | undefined {
+    if (task.milestoneId && milestoneDateById.has(task.milestoneId)) return task.milestoneId;
+    return sortedMilestones.find((milestone) => milestone.plannedDate >= task.dueDate)?.id;
+  }
+
+  const prunedTasks = clampTasksToMilestones(
+    filteredTasks.map((task) => stripModuleIds({
+      ...task,
+      milestoneId: nearestSurvivingMilestone(task),
+      dependsOn: task.dependsOn?.filter((taskId) => keptTaskIds.has(taskId)),
+    })),
+    prunedMilestones,
+  );
+
+  const selectedWorkstreams = new Set(
+    Object.entries(moduleWorkstreams)
+      .filter(([moduleId]) => selected.has(moduleId))
+      .flatMap(([, workstreams]) => workstreams),
+  );
+  const moduleWorkstreamSet = new Set(Object.values(moduleWorkstreams).flat());
+
+  return {
+    charter: buildCharter(
+      input,
+      template,
+      charterScope.filter((scope) => {
+        if (selectedModuleNames.size === template.modules?.length) return true;
+        return !template.modules?.some((module) => scope.includes(module.name)) || Array.from(selectedModuleNames).some((name) => scope.includes(name));
+      }),
+      outOfScopeModules,
+    ),
+    milestones: prunedMilestones,
+    tasks: prunedTasks,
+    documents: documents.filter((document) => shouldKeepTaggedEntity(document, selected)).map(stripModuleIds),
+    risks: risks.filter((risk) => shouldKeepTaggedEntity(risk, selected)).map(stripModuleIds),
+    teamMembers: teamMembers
+      .filter((member) => !moduleWorkstreamSet.has(member.workstream) || selectedWorkstreams.has(member.workstream))
+      .map(stripModuleIds),
+    costLines: costLines.filter((line) => shouldKeepTaggedEntity(line, selected)).map(stripModuleIds),
+  };
+}
+
 function makeTeam(projectId: string, members: Array<Omit<TeamMember, "projectId">>): TeamMember[] {
   return members.map((member) => ({ ...member, projectId }));
 }
 
-function buildCharter(input: TemplateBuildInput, template: ProjectTemplateSummary, specificScope: string[]): Charter {
+function buildCharter(input: TemplateBuildInput, template: ProjectTemplateSummary, specificScope: string[], outOfScopeExtras: string[] = []): Charter {
   return {
     id: `charter-${input.projectId}`,
     projectId: input.projectId,
@@ -524,6 +669,7 @@ function buildCharter(input: TemplateBuildInput, template: ProjectTemplateSummar
     ],
     inScope: specificScope,
     outOfScope: [
+      ...outOfScopeExtras,
       "Production data integrations beyond planned project scope",
       "Custom product development outside approved configuration and reporting",
       "Backend, SSO, and multi-user permissions in this static command-center prototype",
@@ -579,12 +725,12 @@ function buildVeevaRimTemplate(input: TemplateBuildInput): TemplateOperatingMode
     { id: `${p}-tm15`, initials: "SP", name: "Sponsor / SteerCo", role: "Executive Sponsor", workstream: "Executive", steercoRole: "mandatory" },
   ]);
 
-  const rawMilestones: Milestone[] = [
+  const rawMilestones: ModuleTagged<Milestone>[] = [
     { id: milestone(1), name: "Charter and governance approved", phase: "Initiation", plannedDate: dateFrom(input.startDate, 5), forecastDate: dateFrom(input.startDate, 5), status: "pending", locked: false, owner: "PM", duration: 5, projectId: p },
     { id: milestone(2), name: "Process design baseline approved", phase: "Design", plannedDate: dateFrom(input.startDate, 25), forecastDate: dateFrom(input.startDate, 25), status: "pending", locked: false, owner: "RO", duration: 15, predecessor: milestone(1), lag: 1, projectId: p },
-    { id: milestone(3), name: "RIM data model and scope frozen", phase: "Design", plannedDate: dateFrom(input.startDate, 35), forecastDate: dateFrom(input.startDate, 35), status: "pending", locked: false, owner: "RG", duration: 10, predecessor: milestone(2), lag: 0, projectId: p },
-    { id: milestone(4), name: "Vault Connections design approved", phase: "Design", plannedDate: dateFrom(input.startDate, 42), forecastDate: dateFrom(input.startDate, 42), status: "pending", locked: false, owner: "CT", duration: 10, predecessor: milestone(2), lag: 0, projectId: p },
-    { id: milestone(5), name: "Configuration sprint 1 complete", phase: "Config", plannedDate: dateFrom(input.startDate, 60), forecastDate: dateFrom(input.startDate, 60), status: "pending", locked: false, owner: "SU", duration: 15, predecessor: milestone(3), lag: 1, projectId: p },
+    { id: milestone(3), name: "RIM data model and scope frozen", phase: "Design", plannedDate: dateFrom(input.startDate, 35), forecastDate: dateFrom(input.startDate, 35), status: "pending", locked: false, owner: "RG", duration: 10, predecessor: milestone(2), lag: 0, projectId: p, moduleIds: ["registrations"] },
+    { id: milestone(4), name: "Vault Connections design approved", phase: "Design", plannedDate: dateFrom(input.startDate, 42), forecastDate: dateFrom(input.startDate, 42), status: "pending", locked: false, owner: "CT", duration: 10, predecessor: milestone(2), lag: 0, projectId: p, moduleIds: ["vault-connections"] },
+    { id: milestone(5), name: "Configuration sprint 1 complete", phase: "Config", plannedDate: dateFrom(input.startDate, 60), forecastDate: dateFrom(input.startDate, 60), status: "pending", locked: false, owner: "SU", duration: 15, predecessor: milestone(3), lag: 1, projectId: p, moduleIds: ["submissions", "publishing"] },
     { id: milestone(6), name: "Migration dry run 1 reconciled", phase: "Config", plannedDate: dateFrom(input.startDate, 72), forecastDate: dateFrom(input.startDate, 72), status: "pending", locked: false, owner: "DM", duration: 10, predecessor: milestone(3), lag: 1, projectId: p },
     { id: milestone(7), name: "Validation strategy and URS approved", phase: "Testing", plannedDate: dateFrom(input.startDate, 78), forecastDate: dateFrom(input.startDate, 78), status: "pending", locked: false, owner: "QA", duration: 12, predecessor: milestone(5), lag: 0, projectId: p },
     { id: milestone(8), name: "SIT complete", phase: "Testing", plannedDate: dateFrom(input.startDate, 100), forecastDate: dateFrom(input.startDate, 100), status: "pending", locked: false, owner: "CT", duration: 15, predecessor: milestone(7), lag: 1, projectId: p },
@@ -595,23 +741,23 @@ function buildVeevaRimTemplate(input: TemplateBuildInput): TemplateOperatingMode
     { id: milestone(13), name: "Production go-live", phase: "Go-Live", plannedDate: input.goLiveDate, forecastDate: input.goLiveDate, status: "pending", locked: true, owner: "PM", duration: 1, predecessor: milestone(12), lag: 1, projectId: p },
   ];
 
-  const milestones = clampMilestonesToGoLive(rawMilestones, input.goLiveDate);
+  const milestones = clampMilestonesToGoLive(rawMilestones, input.goLiveDate) as ModuleTagged<Milestone>[];
 
-  const rawTasks: Task[] = [
+  const rawTasks: ModuleTagged<Task>[] = [
     { id: task(1), name: "Confirm RIM scope across Registrations, Submissions, Publishing, and Archive", workstream: "Program Governance", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(1), owner: "PM", dueDate: dateFrom(input.startDate, 5), projectId: p },
     { id: task(2), name: "Define SteerCo cadence, CCB rules, and decision log ownership", workstream: "Program Governance", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(1), owner: "PM", dueDate: dateFrom(input.startDate, 7), dependsOn: [task(1)], projectId: p },
-    { id: task(3), name: "Map global registration data objects and market scope", workstream: "Registrations", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(3), owner: "RG", dueDate: dateFrom(input.startDate, 25), dependsOn: [task(1)], projectId: p },
-    { id: task(4), name: "Design registration impact-assessment workflow", workstream: "Registrations", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(3), owner: "RG", dueDate: dateFrom(input.startDate, 35), dependsOn: [task(3)], projectId: p },
-    { id: task(5), name: "Define application, submission, and regulatory objective relationships", workstream: "Submissions", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(2), owner: "SU", dueDate: dateFrom(input.startDate, 28), dependsOn: [task(1)], projectId: p },
-    { id: task(6), name: "Configure submission content-plan template baseline", workstream: "Submissions", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(5), owner: "SU", dueDate: dateFrom(input.startDate, 58), dependsOn: [task(5)], projectId: p },
-    { id: task(7), name: "Define publishing validation criteria and continuous-publishing checks", workstream: "Publishing", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(5), owner: "PU", dueDate: dateFrom(input.startDate, 55), dependsOn: [task(5)], projectId: p },
-    { id: task(8), name: "Set up publishing overlays, TOC rules, lifecycle operations, and gateway checks", workstream: "Publishing", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(8), owner: "PU", dueDate: dateFrom(input.startDate, 92), dependsOn: [task(7)], projectId: p },
-    { id: task(9), name: "Define archive import scope and active dossier viewer needs", workstream: "Archive", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(2), owner: "AR", dueDate: dateFrom(input.startDate, 32), dependsOn: [task(1)], projectId: p },
-    { id: task(10), name: "Prepare legacy dossier import and archive verification plan", workstream: "Archive", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(8), owner: "AR", dueDate: dateFrom(input.startDate, 95), dependsOn: [task(9)], projectId: p },
-    { id: task(11), name: "Design Clinical Operations Vault connection flow", workstream: "Vault Connections", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(4), owner: "CL", dueDate: dateFrom(input.startDate, 40), dependsOn: [task(5)], projectId: p },
-    { id: task(12), name: "Design Safety Vault connection flow", workstream: "Vault Connections", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(4), owner: "SA", dueDate: dateFrom(input.startDate, 40), dependsOn: [task(5)], projectId: p },
-    { id: task(13), name: "Design Quality/eQMS Vault connection flow", workstream: "Vault Connections", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(4), owner: "QM", dueDate: dateFrom(input.startDate, 42), dependsOn: [task(5)], projectId: p },
-    { id: task(14), name: "Design PromoMats to RIM regulatory submission handoff", workstream: "Vault Connections", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(4), owner: "PR", dueDate: dateFrom(input.startDate, 42), dependsOn: [task(5)], projectId: p },
+    { id: task(3), name: "Map global registration data objects and market scope", workstream: "Registrations", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(3), owner: "RG", dueDate: dateFrom(input.startDate, 25), dependsOn: [task(1)], projectId: p, moduleIds: ["registrations"] },
+    { id: task(4), name: "Design registration impact-assessment workflow", workstream: "Registrations", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(3), owner: "RG", dueDate: dateFrom(input.startDate, 35), dependsOn: [task(3)], projectId: p, moduleIds: ["registrations"] },
+    { id: task(5), name: "Define application, submission, and regulatory objective relationships", workstream: "Submissions", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(2), owner: "SU", dueDate: dateFrom(input.startDate, 28), dependsOn: [task(1)], projectId: p, moduleIds: ["submissions"] },
+    { id: task(6), name: "Configure submission content-plan template baseline", workstream: "Submissions", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(5), owner: "SU", dueDate: dateFrom(input.startDate, 58), dependsOn: [task(5)], projectId: p, moduleIds: ["submissions"] },
+    { id: task(7), name: "Define publishing validation criteria and continuous-publishing checks", workstream: "Publishing", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(5), owner: "PU", dueDate: dateFrom(input.startDate, 55), dependsOn: [task(5)], projectId: p, moduleIds: ["publishing"] },
+    { id: task(8), name: "Set up publishing overlays, TOC rules, lifecycle operations, and gateway checks", workstream: "Publishing", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(8), owner: "PU", dueDate: dateFrom(input.startDate, 92), dependsOn: [task(7)], projectId: p, moduleIds: ["publishing"] },
+    { id: task(9), name: "Define archive import scope and active dossier viewer needs", workstream: "Archive", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(2), owner: "AR", dueDate: dateFrom(input.startDate, 32), dependsOn: [task(1)], projectId: p, moduleIds: ["archive"] },
+    { id: task(10), name: "Prepare legacy dossier import and archive verification plan", workstream: "Archive", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(8), owner: "AR", dueDate: dateFrom(input.startDate, 95), dependsOn: [task(9)], projectId: p, moduleIds: ["archive"] },
+    { id: task(11), name: "Design Clinical Operations Vault connection flow", workstream: "Vault Connections", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(4), owner: "CL", dueDate: dateFrom(input.startDate, 40), dependsOn: [task(5)], projectId: p, moduleIds: ["vault-connections"] },
+    { id: task(12), name: "Design Safety Vault connection flow", workstream: "Vault Connections", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(4), owner: "SA", dueDate: dateFrom(input.startDate, 40), dependsOn: [task(5)], projectId: p, moduleIds: ["vault-connections"] },
+    { id: task(13), name: "Design Quality/eQMS Vault connection flow", workstream: "Vault Connections", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(4), owner: "QM", dueDate: dateFrom(input.startDate, 42), dependsOn: [task(5)], projectId: p, moduleIds: ["vault-connections"] },
+    { id: task(14), name: "Design PromoMats to RIM regulatory submission handoff", workstream: "Vault Connections", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(4), owner: "PR", dueDate: dateFrom(input.startDate, 42), dependsOn: [task(5)], projectId: p, moduleIds: ["vault-connections"] },
     { id: task(15), name: "Create source-system inventory and object mapping workbook", workstream: "Data Migration", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(6), owner: "DM", dueDate: dateFrom(input.startDate, 35), dependsOn: [task(1)], projectId: p },
     { id: task(16), name: "Run extract and transformation logic for migration dry run 1", workstream: "Data Migration", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(6), owner: "DM", dueDate: dateFrom(input.startDate, 65), dependsOn: [task(15)], projectId: p },
     { id: task(17), name: "Reconcile dry run 1 counts, relationships, renditions, and audit evidence", workstream: "Data Migration", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(6), owner: "DM", dueDate: dateFrom(input.startDate, 72), dependsOn: [task(16)], projectId: p },
@@ -625,30 +771,30 @@ function buildVeevaRimTemplate(input: TemplateBuildInput): TemplateOperatingMode
     { id: task(25), name: "Run readiness walkthroughs for regulatory operations and affiliates", workstream: "DAP / Adoption", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(11), owner: "DA", dueDate: dateFrom(input.startDate, 138), dependsOn: [task(24)], projectId: p },
     { id: task(26), name: "Finalize production cutover sequence and rollback plan", workstream: "Cutover", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(11), owner: "PM", dueDate: dateFrom(input.startDate, 140), dependsOn: [task(23), task(25)], projectId: p },
     { id: task(27), name: "Complete production migration load and reconciliation", workstream: "Cutover", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(13), owner: "DM", dueDate: dateFrom(input.goLiveDate, -1), dependsOn: [task(26)], projectId: p },
-    { id: task(28), name: "Confirm gateway readiness and submission publishing smoke test", workstream: "Cutover", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(12), owner: "PU", dueDate: dateFrom(input.goLiveDate, -3), dependsOn: [task(26)], projectId: p },
+    { id: task(28), name: "Confirm gateway readiness and submission publishing smoke test", workstream: "Cutover", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(12), owner: "PU", dueDate: dateFrom(input.goLiveDate, -3), dependsOn: [task(26)], projectId: p, moduleIds: ["publishing"] },
     { id: task(29), name: "Hold final go-live decision meeting", workstream: "Program Governance", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(12), owner: "SP", dueDate: dateFrom(input.goLiveDate, -2), dependsOn: [task(27), task(28)], projectId: p },
     { id: task(30), name: "Open hypercare triage and command-center rhythm", workstream: "Program Governance", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(13), owner: "PM", dueDate: input.goLiveDate, dependsOn: [task(29)], projectId: p },
     { id: task(31), name: "Close week-one hypercare findings and ownership handoff", workstream: "Program Governance", priority: "Medium", status: "Not Started", progress: 0, owner: "PM", dueDate: dateFrom(input.goLiveDate, 7), dependsOn: [task(30)], projectId: p },
   ];
 
-  const tasks = clampTasksToMilestones(rawTasks, milestones);
+  const tasks = clampTasksToMilestones(rawTasks, milestones) as ModuleTagged<Task>[];
 
   const docs = [
-    ["Program Charter", "CHTR", "Governance", "Planning", 5, "Scope, governance, sponsor accountability, and success criteria."],
-    ["Validation Master Plan", "VMP", "Compliance", "Planning", 18, "Validation strategy, roles, deliverables, and evidence acceptance."],
-    ["User Requirements Specification", "URS", "Business", "Validation", 55, "Requirements for RIM modules, integrations, migration, and controls."],
-    ["Configuration Specification", "CS", "Technical", "Configuration", 70, "Configured lifecycles, objects, security, and workflows."],
-    ["Vault Connections Design", "VCD", "Technical", "Configuration", 45, "Clinical, Safety, Quality/eQMS, and PromoMats connection design."],
-    ["Data Migration Strategy", "DMS", "Migration", "Planning", 35, "Extract, transform, dry-run, reconciliation, and load approach."],
-    ["UAT / PQ Protocol", "UAT", "Validation", "Validation", 92, "Persona-based UAT/PQ scripts and execution rules."],
-    ["Traceability Matrix", "TMX", "Validation", "Validation", 112, "URS to configuration to UAT/PQ evidence coverage."],
-    ["Validation Summary Report", "VSR", "Compliance", "Validation", 132, "Final validation outcome and residual-risk signoff."],
-    ["Training and DAP Plan", "DAP", "Training", "Training", 118, "Role-based training and adoption support plan."],
-    ["Cutover Runbook", "CUT", "Go-Live", "Go-Live", 138, "Production cutover, rollback, ownership, and communication sequence."],
-    ["Hypercare Playbook", "HYP", "Go-Live", "Go-Live", 145, "Issue triage, support rhythm, and handoff rules."],
+    ["Program Charter", "CHTR", "Governance", "Planning", 5, "Scope, governance, sponsor accountability, and success criteria.", undefined],
+    ["Validation Master Plan", "VMP", "Compliance", "Planning", 18, "Validation strategy, roles, deliverables, and evidence acceptance.", undefined],
+    ["User Requirements Specification", "URS", "Business", "Validation", 55, "Requirements for RIM modules, integrations, migration, and controls.", undefined],
+    ["Configuration Specification", "CS", "Technical", "Configuration", 70, "Configured lifecycles, objects, security, and workflows.", ["registrations", "submissions", "publishing", "archive"]],
+    ["Vault Connections Design", "VCD", "Technical", "Configuration", 45, "Clinical, Safety, Quality/eQMS, and PromoMats connection design.", ["vault-connections"]],
+    ["Data Migration Strategy", "DMS", "Migration", "Planning", 35, "Extract, transform, dry-run, reconciliation, and load approach.", undefined],
+    ["UAT / PQ Protocol", "UAT", "Validation", "Validation", 92, "Persona-based UAT/PQ scripts and execution rules.", undefined],
+    ["Traceability Matrix", "TMX", "Validation", "Validation", 112, "URS to configuration to UAT/PQ evidence coverage.", undefined],
+    ["Validation Summary Report", "VSR", "Compliance", "Validation", 132, "Final validation outcome and residual-risk signoff.", undefined],
+    ["Training and DAP Plan", "DAP", "Training", "Training", 118, "Role-based training and adoption support plan.", undefined],
+    ["Cutover Runbook", "CUT", "Go-Live", "Go-Live", 138, "Production cutover, rollback, ownership, and communication sequence.", undefined],
+    ["Hypercare Playbook", "HYP", "Go-Live", "Go-Live", 145, "Issue triage, support rhythm, and handoff rules.", undefined],
   ] as const;
 
-  const documents: Document[] = docs.map(([name, abbreviation, type, phase, offset, description], index) => ({
+  const documents: ModuleTagged<Document>[] = docs.map(([name, abbreviation, type, phase, offset, description, moduleIds], index) => ({
     id: document(index + 1),
     name,
     abbreviation,
@@ -666,42 +812,57 @@ function buildVeevaRimTemplate(input: TemplateBuildInput): TemplateOperatingMode
     approvers: [
       { person: "Sponsor / SteerCo", initials: "SP", role: "Sponsor", status: "pending" },
     ],
+    moduleIds: moduleIds ? [...moduleIds] : undefined,
     projectId: p,
   }));
 
-  const risks: Risk[] = [
-    { id: risk(1), title: "Registration data model decisions arrive late", category: "Scope", probability: 3, impact: 5, score: 15, status: "open", owner: "RG", mitigation: "Run data-model decision workshops in mobilisation and track decisions weekly.", projectId: p },
-    { id: risk(2), title: "Vault Connections scope expands after design baseline", category: "Integration", probability: 4, impact: 4, score: 16, status: "open", owner: "CT", mitigation: "Freeze connection object flows and route new flows through CCB.", projectId: p },
+  const risks: ModuleTagged<Risk>[] = [
+    { id: risk(1), title: "Registration data model decisions arrive late", category: "Scope", probability: 3, impact: 5, score: 15, status: "open", owner: "RG", mitigation: "Run data-model decision workshops in mobilisation and track decisions weekly.", projectId: p, moduleIds: ["registrations"] },
+    { id: risk(2), title: "Vault Connections scope expands after design baseline", category: "Integration", probability: 4, impact: 4, score: 16, status: "open", owner: "CT", mitigation: "Freeze connection object flows and route new flows through CCB.", projectId: p, moduleIds: ["vault-connections"] },
     { id: risk(3), title: "Legacy migration quality blocks dry-run reconciliation", category: "Migration", probability: 4, impact: 5, score: 20, status: "open", owner: "DM", mitigation: "Profile source data early and agree mandatory cleanse rules before dry run 1.", projectId: p },
     { id: risk(4), title: "UAT scripts do not cover real regulatory user journeys", category: "Validation", probability: 3, impact: 5, score: 15, status: "open", owner: "QA", mitigation: "Trace every critical persona journey to URS and PQ evidence.", projectId: p },
-    { id: risk(5), title: "Publishing gateway readiness is discovered too late", category: "Technical", probability: 3, impact: 4, score: 12, status: "open", owner: "PU", mitigation: "Add gateway smoke test before final readiness gate.", projectId: p },
+    { id: risk(5), title: "Publishing gateway readiness is discovered too late", category: "Technical", probability: 3, impact: 4, score: 12, status: "open", owner: "PU", mitigation: "Add gateway smoke test before final readiness gate.", projectId: p, moduleIds: ["publishing"] },
     { id: risk(6), title: "Affiliate users resist new RIM process", category: "Adoption", probability: 3, impact: 3, score: 9, status: "open", owner: "DA", mitigation: "Use role-based walkthroughs and hypercare floor-walking.", projectId: p },
     { id: risk(7), title: "Validation evidence is scattered across tools", category: "Compliance", probability: 2, impact: 5, score: 10, status: "open", owner: "QA", mitigation: "Define evidence location, naming, and traceability ownership before UAT.", projectId: p },
   ];
 
-  const costLines: CostLine[] = [
+  const costLines: ModuleTagged<CostLine>[] = [
     { id: cost(1), category: "Implementation", description: "RIM configuration and workstream delivery", budgetK: 780, actualK: 0, contractType: "T&M", owner: "PM", projectId: p },
-    { id: cost(2), category: "Integration", description: "Vault Connections and gateway readiness", budgetK: 360, actualK: 0, contractType: "T&M", owner: "CT", projectId: p },
+    { id: cost(2), category: "Integration", description: "Vault Connections and gateway readiness", budgetK: 360, actualK: 0, contractType: "T&M", owner: "CT", projectId: p, moduleIds: ["vault-connections"] },
     { id: cost(3), category: "Migration", description: "Legacy-to-Vault migration factory", budgetK: 420, actualK: 0, contractType: "Fixed", owner: "DM", projectId: p },
     { id: cost(4), category: "Validation", description: "CSV, UAT/PQ, traceability, and evidence", budgetK: 340, actualK: 0, contractType: "T&M", owner: "QA", projectId: p },
     { id: cost(5), category: "Training", description: "DAP, training, and hypercare adoption", budgetK: 180, actualK: 0, contractType: "T&M", owner: "DA", projectId: p },
     { id: cost(6), category: "Internal", description: "Program governance and SteerCo overhead", budgetK: 220, actualK: 0, contractType: "Internal", owner: "PM", projectId: p },
   ];
 
-  return {
+  const charterScope = [
+    "Veeva Registrations, Submissions, Submissions Publishing, and Submissions Archive implementation",
+    "Vault Connections with Clinical Operations, Safety, Quality/eQMS, and PromoMats",
+    "Legacy regulatory data and document migration into Vault RIM",
+    "Risk-based validation, UAT/PQ, traceability, cutover, go-live, and hypercare",
+  ];
+  const moduleModel = pruneModuleModel({
+    input,
     template,
-    charter: buildCharter(input, template, [
-      "Veeva Registrations, Submissions, Submissions Publishing, and Submissions Archive implementation",
-      "Vault Connections with Clinical Operations, Safety, Quality/eQMS, and PromoMats",
-      "Legacy regulatory data and document migration into Vault RIM",
-      "Risk-based validation, UAT/PQ, traceability, cutover, go-live, and hypercare",
-    ]),
+    charterScope,
     milestones,
     tasks,
     documents,
     risks,
     teamMembers,
     costLines,
+    moduleWorkstreams: {
+      registrations: ["Registrations"],
+      submissions: ["Submissions"],
+      publishing: ["Publishing"],
+      archive: ["Archive"],
+      "vault-connections": ["Vault Connections"],
+    },
+  });
+
+  return {
+    template,
+    ...moduleModel,
     operatingNotes: [
       "Vault Connections are represented as workstream tasks in this pass; a first-class connection register is a P0 follow-up.",
       "Migration dry runs are represented as tasks and milestones; a migration run object is a P0 follow-up.",
@@ -737,14 +898,14 @@ function buildSapS4HanaTemplate(input: TemplateBuildInput): TemplateOperatingMod
     { id: `${p}-tm15`, initials: "QA", name: "Validation / QA Lead", role: "Validation Lead", workstream: "Quality", steercoRole: "optional" },
   ]);
 
-  const rawMilestones: Milestone[] = [
+  const rawMilestones: ModuleTagged<Milestone>[] = [
     { id: milestone(1), name: "Project charter and SAP Activate governance approved", phase: "Initiation", plannedDate: dateFrom(input.startDate, 5), forecastDate: dateFrom(input.startDate, 5), status: "pending", locked: false, owner: "PM", duration: 5, projectId: p },
     { id: milestone(2), name: "Prepare phase mobilization complete", phase: "Initiation", plannedDate: dateFrom(input.startDate, 15), forecastDate: dateFrom(input.startDate, 15), status: "pending", locked: false, owner: "PM", duration: 10, predecessor: milestone(1), lag: 1, projectId: p },
     { id: milestone(3), name: "Fit-to-standard workshops complete", phase: "Design", plannedDate: dateFrom(input.startDate, 35), forecastDate: dateFrom(input.startDate, 35), status: "pending", locked: false, owner: "SA", duration: 15, predecessor: milestone(2), lag: 1, projectId: p },
     { id: milestone(4), name: "Solution design and backlog baseline approved", phase: "Design", plannedDate: dateFrom(input.startDate, 50), forecastDate: dateFrom(input.startDate, 50), status: "pending", locked: false, owner: "SA", duration: 10, predecessor: milestone(3), lag: 1, projectId: p },
     { id: milestone(5), name: "Configuration sprint 1 complete", phase: "Config", plannedDate: dateFrom(input.startDate, 75), forecastDate: dateFrom(input.startDate, 75), status: "pending", locked: false, owner: "SA", duration: 15, predecessor: milestone(4), lag: 1, projectId: p },
-    { id: milestone(6), name: "Mock data load 1 reconciled", phase: "Config", plannedDate: dateFrom(input.startDate, 85), forecastDate: dateFrom(input.startDate, 85), status: "pending", locked: false, owner: "DM", duration: 10, predecessor: milestone(4), lag: 1, projectId: p },
-    { id: milestone(7), name: "Integration build and smoke test complete", phase: "Config", plannedDate: dateFrom(input.startDate, 95), forecastDate: dateFrom(input.startDate, 95), status: "pending", locked: false, owner: "INT", duration: 15, predecessor: milestone(5), lag: 1, projectId: p },
+    { id: milestone(6), name: "Mock data load 1 reconciled", phase: "Config", plannedDate: dateFrom(input.startDate, 85), forecastDate: dateFrom(input.startDate, 85), status: "pending", locked: false, owner: "DM", duration: 10, predecessor: milestone(4), lag: 1, projectId: p, moduleIds: ["data-migration"] },
+    { id: milestone(7), name: "Integration build and smoke test complete", phase: "Config", plannedDate: dateFrom(input.startDate, 95), forecastDate: dateFrom(input.startDate, 95), status: "pending", locked: false, owner: "INT", duration: 15, predecessor: milestone(5), lag: 1, projectId: p, moduleIds: ["integrations"] },
     { id: milestone(8), name: "SIT complete and defects triaged", phase: "Testing", plannedDate: dateFrom(input.startDate, 115), forecastDate: dateFrom(input.startDate, 115), status: "pending", locked: false, owner: "TST", duration: 15, predecessor: milestone(7), lag: 1, projectId: p },
     { id: milestone(9), name: "UAT and role readiness complete", phase: "Testing", plannedDate: dateFrom(input.startDate, 138), forecastDate: dateFrom(input.startDate, 138), status: "pending", locked: false, owner: "TST", duration: 15, predecessor: milestone(8), lag: 1, projectId: p },
     { id: milestone(10), name: "Cutover rehearsal and security signoff complete", phase: "Training", plannedDate: dateFrom(input.startDate, 155), forecastDate: dateFrom(input.startDate, 155), status: "pending", locked: false, owner: "CUT", duration: 10, predecessor: milestone(9), lag: 1, projectId: p },
@@ -752,31 +913,31 @@ function buildSapS4HanaTemplate(input: TemplateBuildInput): TemplateOperatingMod
     { id: milestone(12), name: "Production go-live and hypercare opened", phase: "Go-Live", plannedDate: input.goLiveDate, forecastDate: input.goLiveDate, status: "pending", locked: true, owner: "PM", duration: 1, predecessor: milestone(11), lag: 1, projectId: p },
   ];
 
-  const milestones = clampMilestonesToGoLive(rawMilestones, input.goLiveDate);
+  const milestones = clampMilestonesToGoLive(rawMilestones, input.goLiveDate) as ModuleTagged<Milestone>[];
 
-  const rawTasks: Task[] = [
+  const rawTasks: ModuleTagged<Task>[] = [
     { id: task(1), name: "Confirm business case, scope, rollout waves, and governance model", workstream: "Program Governance", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(1), owner: "PM", dueDate: dateFrom(input.startDate, 5), projectId: p },
     { id: task(2), name: "Set up SAP Activate cadence, decision log, issue path, and quality gates", workstream: "SAP Activate", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(2), owner: "PM", dueDate: dateFrom(input.startDate, 12), dependsOn: [task(1)], projectId: p },
     { id: task(3), name: "Confirm system landscape, environments, transports, and release plan", workstream: "Technical Architecture", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(2), owner: "BAS", dueDate: dateFrom(input.startDate, 15), dependsOn: [task(1)], projectId: p },
     { id: task(4), name: "Prepare fit-to-standard workshop plan and process inventory", workstream: "Solution Design", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(3), owner: "SA", dueDate: dateFrom(input.startDate, 20), dependsOn: [task(2)], projectId: p },
-    { id: task(5), name: "Run finance fit-to-standard workshops and confirm fit-gap backlog", workstream: "Finance", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(3), owner: "FIN", dueDate: dateFrom(input.startDate, 32), dependsOn: [task(4)], projectId: p },
-    { id: task(6), name: "Run procure-to-pay fit-to-standard workshops and confirm fit-gap backlog", workstream: "Procure to Pay", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(3), owner: "PTP", dueDate: dateFrom(input.startDate, 33), dependsOn: [task(4)], projectId: p },
-    { id: task(7), name: "Run order-to-cash fit-to-standard workshops and confirm fit-gap backlog", workstream: "Order to Cash", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(3), owner: "OTC", dueDate: dateFrom(input.startDate, 34), dependsOn: [task(4)], projectId: p },
-    { id: task(8), name: "Run plan-to-produce fit-to-standard workshops and confirm fit-gap backlog", workstream: "Plan to Produce", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(3), owner: "PTD", dueDate: dateFrom(input.startDate, 35), dependsOn: [task(4)], projectId: p },
+    { id: task(5), name: "Run finance fit-to-standard workshops and confirm fit-gap backlog", workstream: "Finance", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(3), owner: "FIN", dueDate: dateFrom(input.startDate, 32), dependsOn: [task(4)], projectId: p, moduleIds: ["finance"] },
+    { id: task(6), name: "Run procure-to-pay fit-to-standard workshops and confirm fit-gap backlog", workstream: "Procure to Pay", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(3), owner: "PTP", dueDate: dateFrom(input.startDate, 33), dependsOn: [task(4)], projectId: p, moduleIds: ["procure-to-pay"] },
+    { id: task(7), name: "Run order-to-cash fit-to-standard workshops and confirm fit-gap backlog", workstream: "Order to Cash", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(3), owner: "OTC", dueDate: dateFrom(input.startDate, 34), dependsOn: [task(4)], projectId: p, moduleIds: ["order-to-cash"] },
+    { id: task(8), name: "Run plan-to-produce fit-to-standard workshops and confirm fit-gap backlog", workstream: "Plan to Produce", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(3), owner: "PTD", dueDate: dateFrom(input.startDate, 35), dependsOn: [task(4)], projectId: p, moduleIds: ["plan-to-produce"] },
     { id: task(9), name: "Approve global template scope and localization decision log", workstream: "Solution Design", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(4), owner: "SA", dueDate: dateFrom(input.startDate, 48), dependsOn: [task(5), task(6), task(7), task(8)], projectId: p },
-    { id: task(10), name: "Baseline data objects, ownership, and cleanse rules", workstream: "Data Migration", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(6), owner: "DM", dueDate: dateFrom(input.startDate, 45), dependsOn: [task(5), task(6), task(7), task(8)], projectId: p },
-    { id: task(11), name: "Confirm interface inventory, owners, and cutover criticality", workstream: "Integrations", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(7), owner: "INT", dueDate: dateFrom(input.startDate, 47), dependsOn: [task(9)], projectId: p },
-    { id: task(12), name: "Design roles, segregation-of-duties controls, and approval workflows", workstream: "Security & Controls", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(4), owner: "SEC", dueDate: dateFrom(input.startDate, 50), dependsOn: [task(9)], projectId: p },
-    { id: task(13), name: "Configure finance baseline processes and key reports", workstream: "Finance", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(5), owner: "FIN", dueDate: dateFrom(input.startDate, 68), dependsOn: [task(9)], projectId: p },
-    { id: task(14), name: "Configure procure-to-pay baseline processes and approvals", workstream: "Procure to Pay", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(5), owner: "PTP", dueDate: dateFrom(input.startDate, 70), dependsOn: [task(9)], projectId: p },
-    { id: task(15), name: "Configure order-to-cash baseline processes and billing controls", workstream: "Order to Cash", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(5), owner: "OTC", dueDate: dateFrom(input.startDate, 72), dependsOn: [task(9)], projectId: p },
-    { id: task(16), name: "Configure plan-to-produce baseline processes and manufacturing handoffs", workstream: "Plan to Produce", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(5), owner: "PTD", dueDate: dateFrom(input.startDate, 75), dependsOn: [task(9)], projectId: p },
-    { id: task(17), name: "Run mock data load 1 for master data and opening balances", workstream: "Data Migration", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(6), owner: "DM", dueDate: dateFrom(input.startDate, 80), dependsOn: [task(10), task(13), task(14), task(15), task(16)], projectId: p },
-    { id: task(18), name: "Reconcile mock load 1 and log cleanse decisions", workstream: "Data Migration", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(6), owner: "DM", dueDate: dateFrom(input.startDate, 85), dependsOn: [task(17)], projectId: p },
-    { id: task(19), name: "Build and smoke-test priority interfaces", workstream: "Integrations", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(7), owner: "INT", dueDate: dateFrom(input.startDate, 92), dependsOn: [task(11), task(13), task(14), task(15), task(16)], projectId: p },
+    { id: task(10), name: "Baseline data objects, ownership, and cleanse rules", workstream: "Data Migration", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(6), owner: "DM", dueDate: dateFrom(input.startDate, 45), dependsOn: [task(5), task(6), task(7), task(8)], projectId: p, moduleIds: ["data-migration"] },
+    { id: task(11), name: "Confirm interface inventory, owners, and cutover criticality", workstream: "Integrations", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(7), owner: "INT", dueDate: dateFrom(input.startDate, 47), dependsOn: [task(9)], projectId: p, moduleIds: ["integrations"] },
+    { id: task(12), name: "Design roles, segregation-of-duties controls, and approval workflows", workstream: "Security & Controls", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(4), owner: "SEC", dueDate: dateFrom(input.startDate, 50), dependsOn: [task(9)], projectId: p, moduleIds: ["security-controls"] },
+    { id: task(13), name: "Configure finance baseline processes and key reports", workstream: "Finance", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(5), owner: "FIN", dueDate: dateFrom(input.startDate, 68), dependsOn: [task(9)], projectId: p, moduleIds: ["finance"] },
+    { id: task(14), name: "Configure procure-to-pay baseline processes and approvals", workstream: "Procure to Pay", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(5), owner: "PTP", dueDate: dateFrom(input.startDate, 70), dependsOn: [task(9)], projectId: p, moduleIds: ["procure-to-pay"] },
+    { id: task(15), name: "Configure order-to-cash baseline processes and billing controls", workstream: "Order to Cash", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(5), owner: "OTC", dueDate: dateFrom(input.startDate, 72), dependsOn: [task(9)], projectId: p, moduleIds: ["order-to-cash"] },
+    { id: task(16), name: "Configure plan-to-produce baseline processes and manufacturing handoffs", workstream: "Plan to Produce", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(5), owner: "PTD", dueDate: dateFrom(input.startDate, 75), dependsOn: [task(9)], projectId: p, moduleIds: ["plan-to-produce"] },
+    { id: task(17), name: "Run mock data load 1 for master data and opening balances", workstream: "Data Migration", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(6), owner: "DM", dueDate: dateFrom(input.startDate, 80), dependsOn: [task(10), task(13), task(14), task(15), task(16)], projectId: p, moduleIds: ["data-migration"] },
+    { id: task(18), name: "Reconcile mock load 1 and log cleanse decisions", workstream: "Data Migration", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(6), owner: "DM", dueDate: dateFrom(input.startDate, 85), dependsOn: [task(17)], projectId: p, moduleIds: ["data-migration"] },
+    { id: task(19), name: "Build and smoke-test priority interfaces", workstream: "Integrations", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(7), owner: "INT", dueDate: dateFrom(input.startDate, 92), dependsOn: [task(11), task(13), task(14), task(15), task(16)], projectId: p, moduleIds: ["integrations"] },
     { id: task(20), name: "Prepare SIT scenarios across finance, supply chain, and manufacturing", workstream: "Testing", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(8), owner: "TST", dueDate: dateFrom(input.startDate, 98), dependsOn: [task(18), task(19)], projectId: p },
     { id: task(21), name: "Execute SIT cycle 1 and triage cross-process defects", workstream: "Testing", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(8), owner: "TST", dueDate: dateFrom(input.startDate, 112), dependsOn: [task(20)], projectId: p },
-    { id: task(22), name: "Confirm role mapping, access testing, and controls evidence", workstream: "Security & Controls", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(10), owner: "SEC", dueDate: dateFrom(input.startDate, 116), dependsOn: [task(12), task(21)], projectId: p },
+    { id: task(22), name: "Confirm role mapping, access testing, and controls evidence", workstream: "Security & Controls", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(10), owner: "SEC", dueDate: dateFrom(input.startDate, 116), dependsOn: [task(12), task(21)], projectId: p, moduleIds: ["security-controls"] },
     { id: task(23), name: "Prepare UAT scripts, business owners, and acceptance criteria", workstream: "Testing", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(9), owner: "TST", dueDate: dateFrom(input.startDate, 122), dependsOn: [task(21)], projectId: p },
     { id: task(24), name: "Run business UAT and sign off critical process variants", workstream: "Testing", priority: "Critical", status: "Not Started", progress: 0, milestoneId: milestone(9), owner: "TST", dueDate: dateFrom(input.startDate, 136), dependsOn: [task(23)], projectId: p },
     { id: task(25), name: "Complete role-based training and adoption readiness checks", workstream: "Adoption", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(9), owner: "OCM", dueDate: dateFrom(input.startDate, 138), dependsOn: [task(23)], projectId: p },
@@ -787,24 +948,24 @@ function buildSapS4HanaTemplate(input: TemplateBuildInput): TemplateOperatingMod
     { id: task(30), name: "Open hypercare command center and issue triage rhythm", workstream: "Hypercare", priority: "High", status: "Not Started", progress: 0, milestoneId: milestone(12), owner: "PM", dueDate: input.goLiveDate, dependsOn: [task(29)], projectId: p },
   ];
 
-  const tasks = clampTasksToMilestones(rawTasks, milestones);
+  const tasks = clampTasksToMilestones(rawTasks, milestones) as ModuleTagged<Task>[];
 
   const docs = [
-    ["SAP Project Charter", "CHTR", "Governance", "Planning", 5, "Business case, scope, implementation approach, governance, and success measures."],
-    ["SAP Activate Governance Plan", "GOV", "Governance", "Planning", 12, "Cadence, decision rights, quality gates, issue path, and escalation model."],
-    ["Fit-to-Standard Outcome Log", "FTS", "Business", "Planning", 35, "Workshop outcomes, fit-gap decisions, localization choices, and backlog ownership."],
-    ["Solution Design Baseline", "SDB", "Technical", "Configuration", 50, "Approved global template, process variants, extensions, and configuration scope."],
-    ["Data Migration Strategy", "DMS", "Migration", "Configuration", 45, "Objects, ownership, source mapping, cleanse rules, mock loads, and reconciliation approach."],
-    ["Interface Inventory and Design", "INT", "Technical", "Configuration", 55, "Interface list, owners, criticality, design decisions, and cutover handling."],
-    ["Security and Controls Matrix", "SCM", "Controls", "Configuration", 65, "Roles, SoD controls, approval workflows, and access-testing evidence."],
-    ["SIT Plan and Defect Triage Rules", "SIT", "Testing", "Validation", 96, "Integrated test scope, environments, entry criteria, defect severity, and exit criteria."],
-    ["UAT Plan and Acceptance Criteria", "UAT", "Testing", "Validation", 118, "Business user scenarios, owners, signoff criteria, and residual-risk handling."],
-    ["Training and Adoption Plan", "OCM", "Training", "Training", 125, "Role-based training, comms, readiness checks, and floor-walking support."],
-    ["Cutover Runbook", "CUT", "Go-Live", "Go-Live", 145, "Dress rehearsal, final data load, freeze windows, rollback, and command-center rhythm."],
-    ["Hypercare Playbook", "HYP", "Go-Live", "Go-Live", 158, "Triage model, support ownership, SLA, daily huddles, and business handoff."],
+    ["SAP Project Charter", "CHTR", "Governance", "Planning", 5, "Business case, scope, implementation approach, governance, and success measures.", undefined],
+    ["SAP Activate Governance Plan", "GOV", "Governance", "Planning", 12, "Cadence, decision rights, quality gates, issue path, and escalation model.", undefined],
+    ["Fit-to-Standard Outcome Log", "FTS", "Business", "Planning", 35, "Workshop outcomes, fit-gap decisions, localization choices, and backlog ownership.", ["finance", "procure-to-pay", "order-to-cash", "plan-to-produce"]],
+    ["Solution Design Baseline", "SDB", "Technical", "Configuration", 50, "Approved global template, process variants, extensions, and configuration scope.", ["finance", "procure-to-pay", "order-to-cash", "plan-to-produce"]],
+    ["Data Migration Strategy", "DMS", "Migration", "Configuration", 45, "Objects, ownership, source mapping, cleanse rules, mock loads, and reconciliation approach.", ["data-migration"]],
+    ["Interface Inventory and Design", "INT", "Technical", "Configuration", 55, "Interface list, owners, criticality, design decisions, and cutover handling.", ["integrations"]],
+    ["Security and Controls Matrix", "SCM", "Controls", "Configuration", 65, "Roles, SoD controls, approval workflows, and access-testing evidence.", ["security-controls"]],
+    ["SIT Plan and Defect Triage Rules", "SIT", "Testing", "Validation", 96, "Integrated test scope, environments, entry criteria, defect severity, and exit criteria.", undefined],
+    ["UAT Plan and Acceptance Criteria", "UAT", "Testing", "Validation", 118, "Business user scenarios, owners, signoff criteria, and residual-risk handling.", undefined],
+    ["Training and Adoption Plan", "OCM", "Training", "Training", 125, "Role-based training, comms, readiness checks, and floor-walking support.", undefined],
+    ["Cutover Runbook", "CUT", "Go-Live", "Go-Live", 145, "Dress rehearsal, final data load, freeze windows, rollback, and command-center rhythm.", undefined],
+    ["Hypercare Playbook", "HYP", "Go-Live", "Go-Live", 158, "Triage model, support ownership, SLA, daily huddles, and business handoff.", undefined],
   ] as const;
 
-  const documents: Document[] = docs.map(([name, abbreviation, type, phase, offset, description], index) => ({
+  const documents: ModuleTagged<Document>[] = docs.map(([name, abbreviation, type, phase, offset, description, moduleIds], index) => ({
     id: document(index + 1),
     name,
     abbreviation,
@@ -822,44 +983,61 @@ function buildSapS4HanaTemplate(input: TemplateBuildInput): TemplateOperatingMod
     approvers: [
       { person: "Executive Sponsor", initials: "SP", role: "Sponsor", status: "pending" },
     ],
+    moduleIds: moduleIds ? [...moduleIds] : undefined,
     projectId: p,
   }));
 
-  const risks: Risk[] = [
+  const risks: ModuleTagged<Risk>[] = [
     { id: risk(1), title: "Fit-to-standard decisions reopen after design baseline", category: "Scope", probability: 4, impact: 5, score: 20, status: "open", owner: "SA", mitigation: "Use decision log, CCB review, and visible impact before accepting late process variation.", projectId: p },
-    { id: risk(2), title: "Master data quality blocks mock loads and SIT", category: "Migration", probability: 4, impact: 5, score: 20, status: "open", owner: "DM", mitigation: "Profile data early, assign cleanse owners, and review unresolved objects weekly.", projectId: p },
+    { id: risk(2), title: "Master data quality blocks mock loads and SIT", category: "Migration", probability: 4, impact: 5, score: 20, status: "open", owner: "DM", mitigation: "Profile data early, assign cleanse owners, and review unresolved objects weekly.", projectId: p, moduleIds: ["data-migration"] },
     { id: risk(3), title: "Custom code and extensions exceed approved scope", category: "Technical", probability: 3, impact: 5, score: 15, status: "open", owner: "SA", mitigation: "Route every extension through design authority with standard-first challenge.", projectId: p },
-    { id: risk(4), title: "Critical interfaces are discovered late", category: "Integration", probability: 3, impact: 5, score: 15, status: "open", owner: "INT", mitigation: "Lock interface inventory during Explore and run early smoke tests for critical flows.", projectId: p },
-    { id: risk(5), title: "Security roles fail SoD or business usability checks", category: "Controls", probability: 3, impact: 4, score: 12, status: "open", owner: "SEC", mitigation: "Run role mapping and SoD reviews before UAT, not during final readiness.", projectId: p },
+    { id: risk(4), title: "Critical interfaces are discovered late", category: "Integration", probability: 3, impact: 5, score: 15, status: "open", owner: "INT", mitigation: "Lock interface inventory during Explore and run early smoke tests for critical flows.", projectId: p, moduleIds: ["integrations"] },
+    { id: risk(5), title: "Security roles fail SoD or business usability checks", category: "Controls", probability: 3, impact: 4, score: 12, status: "open", owner: "SEC", mitigation: "Run role mapping and SoD reviews before UAT, not during final readiness.", projectId: p, moduleIds: ["security-controls"] },
     { id: risk(6), title: "UAT becomes training instead of decision-quality validation", category: "Testing", probability: 3, impact: 4, score: 12, status: "open", owner: "TST", mitigation: "Train users before UAT and require acceptance criteria per scenario.", projectId: p },
     { id: risk(7), title: "Cutover dependencies are unclear across business and IT teams", category: "Cutover", probability: 3, impact: 5, score: 15, status: "open", owner: "CUT", mitigation: "Run a full dress rehearsal and keep the cutover runbook owner-approved.", projectId: p },
     { id: risk(8), title: "Business adoption drops after go-live", category: "Adoption", probability: 3, impact: 3, score: 9, status: "open", owner: "OCM", mitigation: "Use role-based training, hypercare huddles, and visible issue ownership.", projectId: p },
   ];
 
-  const costLines: CostLine[] = [
+  const costLines: ModuleTagged<CostLine>[] = [
     { id: cost(1), category: "Implementation", description: "SAP functional configuration and solution delivery", budgetK: 1250, actualK: 0, contractType: "T&M", owner: "PM", projectId: p },
     { id: cost(2), category: "Technical", description: "Basis, environments, transports, extensions, and technical architecture", budgetK: 420, actualK: 0, contractType: "T&M", owner: "BAS", projectId: p },
-    { id: cost(3), category: "Migration", description: "Master data, opening balances, mock loads, and reconciliation", budgetK: 520, actualK: 0, contractType: "T&M", owner: "DM", projectId: p },
-    { id: cost(4), category: "Integration", description: "Interface design, build, test, and cutover support", budgetK: 380, actualK: 0, contractType: "T&M", owner: "INT", projectId: p },
-    { id: cost(5), category: "Controls", description: "Security roles, SoD, controls testing, and access remediation", budgetK: 240, actualK: 0, contractType: "T&M", owner: "SEC", projectId: p },
+    { id: cost(3), category: "Migration", description: "Master data, opening balances, mock loads, and reconciliation", budgetK: 520, actualK: 0, contractType: "T&M", owner: "DM", projectId: p, moduleIds: ["data-migration"] },
+    { id: cost(4), category: "Integration", description: "Interface design, build, test, and cutover support", budgetK: 380, actualK: 0, contractType: "T&M", owner: "INT", projectId: p, moduleIds: ["integrations"] },
+    { id: cost(5), category: "Controls", description: "Security roles, SoD, controls testing, and access remediation", budgetK: 240, actualK: 0, contractType: "T&M", owner: "SEC", projectId: p, moduleIds: ["security-controls"] },
     { id: cost(6), category: "Training", description: "Change management, training, adoption, and hypercare support", budgetK: 260, actualK: 0, contractType: "T&M", owner: "OCM", projectId: p },
     { id: cost(7), category: "Internal", description: "Business SME time, governance, testing, and cutover staffing", budgetK: 430, actualK: 0, contractType: "Internal", owner: "PM", projectId: p },
   ];
 
-  return {
+  const charterScope = [
+    "SAP S/4HANA global template design using SAP Activate phases",
+    "Finance, procure-to-pay, order-to-cash, and plan-to-produce process design and configuration",
+    "Master data migration, interface build, role/security controls, integrated testing, UAT, cutover, go-live, and hypercare",
+    "Training, adoption readiness, business signoff, and SteerCo decision traceability",
+  ];
+  const moduleModel = pruneModuleModel({
+    input,
     template,
-    charter: buildCharter(input, template, [
-      "SAP S/4HANA global template design using SAP Activate phases",
-      "Finance, procure-to-pay, order-to-cash, and plan-to-produce process design and configuration",
-      "Master data migration, interface build, role/security controls, integrated testing, UAT, cutover, go-live, and hypercare",
-      "Training, adoption readiness, business signoff, and SteerCo decision traceability",
-    ]),
+    charterScope,
     milestones,
     tasks,
     documents,
     risks,
     teamMembers,
     costLines,
+    moduleWorkstreams: {
+      finance: ["Finance"],
+      "procure-to-pay": ["Procure to Pay"],
+      "order-to-cash": ["Order to Cash"],
+      "plan-to-produce": ["Plan to Produce"],
+      "data-migration": ["Data Migration"],
+      integrations: ["Integrations"],
+      "security-controls": ["Security & Controls"],
+    },
+  });
+
+  return {
+    template,
+    ...moduleModel,
     operatingNotes: [
       "SAP Activate work is represented with phases and registers; SAP Cloud ALM integration is a follow-up integration object.",
       "Fit-to-standard decisions are captured as documents/tasks today; a first-class fit-gap backlog is a P0 follow-up.",

@@ -113,6 +113,10 @@ const modeCards = [
   },
 ];
 
+function defaultModuleIds(template: { modules?: { id: string }[] }): string[] {
+  return template.modules?.map((module) => module.id) ?? [];
+}
+
 export default function GuidedSetupPage() {
   const router = useRouter();
   const { projects, createProject, setActiveProjectId } = useProject();
@@ -129,6 +133,11 @@ export default function GuidedSetupPage() {
   const [mode, setMode] = useState<SetupMode>("template");
   const [templateId, setTemplateId] = useState<ProjectTemplateId>("veeva-rim");
   const selectedTemplate = getProjectTemplate(templateId);
+  const selectedTemplateModules = selectedTemplate.modules ?? [];
+  const [selectedModuleIds, setSelectedModuleIds] = useState<string[]>(() => defaultModuleIds(selectedTemplate));
+  const moduleSelectionMessage = selectedTemplateModules.length > 0 && selectedModuleIds.length === 0
+    ? "Choose at least one part of the suite before review."
+    : null;
   const [customTemplates, setCustomTemplates] = useState<CustomProjectTemplate[]>([]);
   const [customTemplateId, setCustomTemplateId] = useState("");
   const selectedCustomTemplate = customTemplates.find((template) => template.id === customTemplateId) ?? null;
@@ -175,9 +184,10 @@ export default function GuidedSetupPage() {
           startDate,
           goLiveDate,
           methodology,
+          modules: selectedModuleIds,
         })
       : null
-  ), [client, goLiveDate, methodology, mode, name, startDate, templateId]);
+  ), [client, goLiveDate, methodology, mode, name, selectedModuleIds, startDate, templateId]);
 
   const customTemplateModel = useMemo<CustomTemplateOperatingModel | null>(() => (
     mode === "saved" && selectedCustomTemplate
@@ -205,6 +215,7 @@ export default function GuidedSetupPage() {
     const previousTemplate = selectedTemplate;
     const template = getProjectTemplate(nextTemplateId);
     setTemplateId(nextTemplateId);
+    setSelectedModuleIds(defaultModuleIds(template));
     setName((current) => current.trim() && current !== previousTemplate.recommendedName ? current : template.recommendedName);
     setProjectCode((current) => {
       const previousCode = buildProjectCode(previousTemplate.recommendedName, client, startDate);
@@ -212,6 +223,15 @@ export default function GuidedSetupPage() {
     });
     setPhase((current) => current.trim() && current !== previousTemplate.recommendedPhase ? current : template.recommendedPhase);
     setMethodology(template.recommendedMethodology);
+  }
+
+  function toggleTemplateModule(moduleId: string) {
+    setSelectedModuleIds((current) => {
+      if (current.includes(moduleId)) {
+        return current.length === 1 ? current : current.filter((id) => id !== moduleId);
+      }
+      return [...current, moduleId];
+    });
   }
 
   function recommendTemplateId(input: SetupIntake): ProjectTemplateId {
@@ -324,6 +344,9 @@ export default function GuidedSetupPage() {
     if (mode === "template" && !templateModel) {
       return "Choose a project template before creating the setup.";
     }
+    if (mode === "template" && selectedTemplateModules.length > 0 && selectedModuleIds.length === 0) {
+      return "Choose at least one part of the suite before creating it.";
+    }
     if (mode === "template" && feasibility.status === "impossible") {
       return "Timeline is not credible for this setup. Change project type, scope, or dates before creating it.";
     }
@@ -365,6 +388,7 @@ export default function GuidedSetupPage() {
         startDate: created.startDate,
         goLiveDate: created.goLiveDate,
         methodology: created.methodology,
+        modules: selectedModuleIds,
       });
       addCharter(model.charter, { source: "import", note: `${model.template.name} setup` });
       model.milestones.forEach((milestone) => addMilestone(milestone, { source: "import", note: `${model.template.name} setup` }));
@@ -627,6 +651,11 @@ export default function GuidedSetupPage() {
   }
 
   function renderStep3() {
+    const templateWorkstreamCount = templateModel ? new Set(templateModel.tasks.map((task) => task.workstream)).size : selectedTemplate.coverage.workstreams.length;
+    const templateTaskCount = templateModel?.tasks.length ?? selectedTemplate.coverage.tasks;
+    const templateDocumentCount = templateModel?.documents.length ?? selectedTemplate.coverage.documents;
+    const templateRiskCount = templateModel?.risks.length ?? selectedTemplate.coverage.risks;
+
     return (
       <div className="mx-auto max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="mb-8 text-center">
@@ -683,10 +712,10 @@ export default function GuidedSetupPage() {
                   </div>
                   {selectedTemplate.tier === "playbook" ? (
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">{selectedTemplate.coverage.workstreams.length} streams</span>
-                      <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">{selectedTemplate.coverage.tasks} tasks</span>
-                      <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">{selectedTemplate.coverage.documents} docs</span>
-                      <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">{selectedTemplate.coverage.risks} risks</span>
+                      <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">{templateWorkstreamCount} streams</span>
+                      <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">{templateTaskCount} tasks</span>
+                      <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">{templateDocumentCount} docs</span>
+                      <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">{templateRiskCount} risks</span>
                     </div>
                   ) : (
                     <p className="mt-4 text-sm text-muted-foreground">
@@ -695,6 +724,48 @@ export default function GuidedSetupPage() {
                   )}
                 </div>
               </div>
+
+              {selectedTemplateModules.length > 0 && (
+                <div className="rounded-xl border border-border/50 bg-background/40 p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Which parts are you implementing?</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Select the suite areas in scope. Shared governance, validation, cutover, and hypercare stay included.
+                      </p>
+                    </div>
+                    <span className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
+                      {selectedModuleIds.length} of {selectedTemplateModules.length} selected
+                    </span>
+                  </div>
+                  <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                    {selectedTemplateModules.map((module) => {
+                      const checked = selectedModuleIds.includes(module.id);
+                      return (
+                        <label
+                          key={module.id}
+                          className={cn(
+                            "flex cursor-pointer gap-3 rounded-xl border p-4 transition-all",
+                            checked ? "border-primary bg-primary/10 shadow-sm" : "border-border/50 bg-background/50 hover:border-border hover:bg-background"
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleTemplateModule(module.id)}
+                            className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                          />
+                          <span>
+                            <span className="block text-sm font-semibold text-foreground">{module.name}</span>
+                            <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{module.description}</span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {moduleSelectionMessage && <p className="mt-3 text-sm font-medium text-destructive">{moduleSelectionMessage}</p>}
+                </div>
+              )}
 
               <details className="rounded-xl border border-border/50 bg-background/30 p-5">
                 <summary className="cursor-pointer text-sm font-semibold text-foreground">
@@ -1006,6 +1077,7 @@ export default function GuidedSetupPage() {
     const summaryRisks = templateModel?.risks.length ?? customTemplateModel?.risks.length ?? 0;
     const summaryDocuments = templateModel?.documents.length ?? customTemplateModel?.documents.length ?? 0;
     const summaryCostLines = templateModel?.costLines.length ?? customTemplateModel?.costLines.length ?? 0;
+    const reviewModules = selectedTemplateModules.filter((module) => selectedModuleIds.includes(module.id));
 
     // Coverage honesty (CX-2 D2): imports and lean templates can create a
     // project that Delivery Signals immediately judges "not ready". Say so
@@ -1053,6 +1125,27 @@ export default function GuidedSetupPage() {
           </div>
 
           {mode === "template" && <FeasibilityCard feasibility={feasibility} onRevisitTimeline={() => setStep(1)} />}
+
+          {mode === "template" && selectedTemplateModules.length > 0 && (
+            <div className="rounded-2xl border border-border/50 bg-card/40 p-6 shadow-xl backdrop-blur-xl">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground">Selected Suite Parts</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">Deselected parts will be recorded as out of scope in the charter.</p>
+                </div>
+                <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground">
+                  {reviewModules.length} of {selectedTemplateModules.length}
+                </span>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {reviewModules.map((module) => (
+                  <span key={module.id} className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                    {module.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {mode === "saved" && selectedCustomTemplate && (
             <div className="rounded-2xl border border-border/50 bg-card/40 p-6 shadow-xl backdrop-blur-xl">

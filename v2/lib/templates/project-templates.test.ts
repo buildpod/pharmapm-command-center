@@ -1,6 +1,43 @@
 import { describe, expect, it } from "vitest";
 import { buildTemplateOperatingModel, PROJECT_TEMPLATES } from "./project-templates";
+import type { TemplateOperatingModel } from "./project-templates";
 import { previewTaskCascade } from "../domain/scheduling";
+
+function baseInput(templateId: TemplateOperatingModel["template"]["id"], projectId: string) {
+  const template = PROJECT_TEMPLATES.find((item) => item.id === templateId);
+  if (!template) throw new Error(`Unknown template ${templateId}`);
+  return {
+    templateId,
+    projectId,
+    projectName: template.recommendedName,
+    client: "AivelloStudio Demo Corp",
+    startDate: "2026-06-01",
+    goLiveDate: templateId === "sap-s4hana" ? "2027-01-30" : "2026-11-30",
+    methodology: template.recommendedMethodology,
+  };
+}
+
+function assertNoDanglingTemplateReferences(model: TemplateOperatingModel) {
+  const taskIds = new Set(model.tasks.map((task) => task.id));
+  const milestoneIds = new Set(model.milestones.map((milestone) => milestone.id));
+
+  model.tasks.forEach((task) => {
+    expect(task.milestoneId === undefined || milestoneIds.has(task.milestoneId)).toBe(true);
+    task.dependsOn?.forEach((dependencyId) => expect(taskIds.has(dependencyId)).toBe(true));
+  });
+  model.milestones.forEach((milestone) => {
+    expect(milestone.predecessor === undefined || milestoneIds.has(milestone.predecessor)).toBe(true);
+  });
+}
+
+function assertTasksDoNotExceedLinkedMilestones(model: TemplateOperatingModel) {
+  const milestoneDateById = new Map(model.milestones.map((milestone) => [milestone.id, milestone.plannedDate]));
+
+  expect(model.tasks.every((task) => {
+    const linkedDate = task.milestoneId ? milestoneDateById.get(task.milestoneId) : undefined;
+    return !linkedDate || task.dueDate <= linkedDate;
+  })).toBe(true);
+}
 
 describe("project templates", () => {
   it("builds a Veeva RIM operating model, not just tasks", () => {
@@ -92,6 +129,101 @@ describe("project templates", () => {
     expect(pushedById["proj-test-sap-cascade-t6"]).toBe("2026-07-13");
     expect(pushedById["proj-test-sap-cascade-t7"]).toBe("2026-07-13");
     expect(pushedById["proj-test-sap-cascade-t8"]).toBe("2026-07-13");
+  });
+
+  it("declares modules only for playbooks that split by product area", () => {
+    const moduleBearingTemplates = PROJECT_TEMPLATES.filter((template) => template.modules?.length).map((template) => template.id).sort();
+    const csvValidation = PROJECT_TEMPLATES.find((template) => template.id === "csv-validation");
+    const dataMigration = PROJECT_TEMPLATES.find((template) => template.id === "data-migration");
+    const starterTemplates = PROJECT_TEMPLATES.filter((template) => template.tier === "starter");
+
+    expect(moduleBearingTemplates).toEqual(["sap-s4hana", "veeva-rim"]);
+    expect(csvValidation?.modules).toBeUndefined();
+    expect(dataMigration?.modules).toBeUndefined();
+    expect(starterTemplates.every((template) => !template.modules?.length)).toBe(true);
+  });
+
+  it("keeps Veeva RIM all-module output unchanged from the default build", () => {
+    const input = baseInput("veeva-rim", "proj-test-veeva-all-modules");
+    const defaultModel = buildTemplateOperatingModel(input);
+    const allModulesModel = buildTemplateOperatingModel({
+      ...input,
+      modules: PROJECT_TEMPLATES.find((template) => template.id === "veeva-rim")?.modules?.map((module) => module.id),
+    });
+
+    expect(allModulesModel).toEqual(defaultModel);
+  });
+
+  it("prunes Veeva RIM to selected suite modules without broken references", () => {
+    const model = buildTemplateOperatingModel({
+      ...baseInput("veeva-rim", "proj-test-veeva-pruned"),
+      modules: ["registrations", "submissions"],
+    });
+    const workstreams = new Set(model.tasks.map((task) => task.workstream));
+    const terminalMilestone = model.milestones[model.milestones.length - 1];
+    const cascade = previewTaskCascade(model.tasks, {
+      id: "proj-test-veeva-pruned-t3",
+      newDueDate: "2026-08-03",
+    });
+
+    expect(workstreams.has("Registrations")).toBe(true);
+    expect(workstreams.has("Submissions")).toBe(true);
+    expect(workstreams.has("Publishing")).toBe(false);
+    expect(workstreams.has("Archive")).toBe(false);
+    expect(workstreams.has("Vault Connections")).toBe(false);
+    expect(model.teamMembers.some((member) => member.workstream === "Vault Connections")).toBe(false);
+    expect(model.documents.some((document) => document.abbreviation === "VCD")).toBe(false);
+    expect(model.charter.outOfScope).toContain("Publishing — excluded from this implementation");
+    expect(model.charter.outOfScope).toContain("Archive — excluded from this implementation");
+    expect(model.charter.outOfScope).toContain("Vault Connections — excluded from this implementation");
+    expect(terminalMilestone.locked).toBe(true);
+    assertNoDanglingTemplateReferences(model);
+    assertTasksDoNotExceedLinkedMilestones(model);
+    expect(cascade.error).toBeNull();
+  });
+
+  it("keeps SAP all-module output unchanged from the default build", () => {
+    const input = baseInput("sap-s4hana", "proj-test-sap-all-modules");
+    const defaultModel = buildTemplateOperatingModel(input);
+    const allModulesModel = buildTemplateOperatingModel({
+      ...input,
+      modules: PROJECT_TEMPLATES.find((template) => template.id === "sap-s4hana")?.modules?.map((module) => module.id),
+    });
+
+    expect(allModulesModel).toEqual(defaultModel);
+  });
+
+  it("prunes SAP S/4HANA to selected functional modules without broken references", () => {
+    const model = buildTemplateOperatingModel({
+      ...baseInput("sap-s4hana", "proj-test-sap-pruned"),
+      modules: ["finance", "data-migration"],
+    });
+    const workstreams = new Set(model.tasks.map((task) => task.workstream));
+    const terminalMilestone = model.milestones[model.milestones.length - 1];
+    const cascade = previewTaskCascade(model.tasks, {
+      id: "proj-test-sap-pruned-t5",
+      newDueDate: "2026-08-03",
+    });
+
+    expect(workstreams.has("Finance")).toBe(true);
+    expect(workstreams.has("Data Migration")).toBe(true);
+    expect(workstreams.has("Procure to Pay")).toBe(false);
+    expect(workstreams.has("Order to Cash")).toBe(false);
+    expect(workstreams.has("Plan to Produce")).toBe(false);
+    expect(workstreams.has("Integrations")).toBe(false);
+    expect(workstreams.has("Security & Controls")).toBe(false);
+    expect(model.teamMembers.some((member) => member.workstream === "Integrations")).toBe(false);
+    expect(model.documents.some((document) => document.abbreviation === "INT")).toBe(false);
+    expect(model.documents.some((document) => document.abbreviation === "SCM")).toBe(false);
+    expect(model.charter.outOfScope).toContain("Procure to Pay — excluded from this implementation");
+    expect(model.charter.outOfScope).toContain("Order to Cash — excluded from this implementation");
+    expect(model.charter.outOfScope).toContain("Plan to Produce — excluded from this implementation");
+    expect(model.charter.outOfScope).toContain("Integrations — excluded from this implementation");
+    expect(model.charter.outOfScope).toContain("Security & Controls — excluded from this implementation");
+    expect(terminalMilestone.locked).toBe(true);
+    assertNoDanglingTemplateReferences(model);
+    assertTasksDoNotExceedLinkedMilestones(model);
+    expect(cascade.error).toBeNull();
   });
 
   it("builds a CSV validation playbook with GAMP 5 and CSA-specific work", () => {
