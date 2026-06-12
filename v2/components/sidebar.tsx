@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentType } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -10,7 +11,6 @@ import {
   CheckSquare,
   DollarSign,
   FileText,
-  FolderKanban,
   Gauge,
   GitBranch,
   Inbox,
@@ -19,72 +19,38 @@ import {
   Rocket,
   Scale,
   Scroll,
-  Settings,
   Sparkles,
   Users,
 } from "lucide-react";
 import { ProjectSwitcher } from "@/components/projects/project-switcher";
+import { adminNavItems, appTabs, getRouteNavContext, isActiveRoute, utilityNavItems, type AppNavItem } from "@/lib/navigation";
 
-const navGroups = [
-  {
-    label: "Home",
-    items: [
-      { label: "Dashboard", href: "/", icon: LayoutDashboard },
-    ],
-  },
-  {
-    label: "Briefing",
-    items: [
-      { label: "Delivery Signals", href: "/truth", icon: Gauge },
-      { label: "Reports", href: "/reports", icon: BarChart2 },
-      { label: "Activity", href: "/activity", icon: Activity },
-    ],
-  },
-  {
-    label: "Run",
-    items: [
-      { label: "New Project", href: "/setup", icon: Sparkles },
-      { label: "Worklist", href: "/worklist", icon: Inbox },
-      { label: "My Items", href: "/my-items", icon: CheckSquare },
-      { label: "Readiness Gates", href: "/readiness", icon: Rocket },
-    ],
-  },
-  {
-    label: "Control",
-    items: [
-      { label: "Plan", href: "/plan", icon: GitBranch },
-      { label: "Governance", href: "/governance", icon: Scale },
-      { label: "Decisions", href: "/decisions", icon: Scale },
-      { label: "Issues", href: "/issues", icon: AlertOctagon },
-    ],
-  },
-  {
-    label: "Records",
-    items: [
-      { label: "Charter", href: "/charter", icon: Scroll },
-      { label: "Milestones", href: "/milestones", icon: Milestone },
-      { label: "Tasks", href: "/tasks", icon: CheckSquare },
-      { label: "Risks", href: "/risks", icon: AlertTriangle, count: "3" },
-      { label: "Documents", href: "/documents", icon: FileText, count: "2", countTone: "info" as const },
-      { label: "Costs", href: "/costs", icon: DollarSign },
-      { label: "People & Meetings", href: "/resources", icon: Users },
-    ],
-  },
-  {
-    label: "Admin",
-    items: [
-      { label: "Manage Projects", href: "/projects", icon: FolderKanban },
-      { label: "Rules & Settings", href: "/settings", icon: Settings },
-    ],
-  },
-];
+const iconByHref = {
+  "/": LayoutDashboard,
+  "/truth": Gauge,
+  "/reports": BarChart2,
+  "/activity": Activity,
+  "/setup": Sparkles,
+  "/worklist": Inbox,
+  "/my-items": CheckSquare,
+  "/readiness": Rocket,
+  "/plan": GitBranch,
+  "/governance": Scale,
+  "/decisions": Scale,
+  "/issues": AlertOctagon,
+  "/charter": Scroll,
+  "/milestones": Milestone,
+  "/tasks": CheckSquare,
+  "/risks": AlertTriangle,
+  "/documents": FileText,
+  "/costs": DollarSign,
+  "/resources": Users,
+} satisfies Record<string, ComponentType<{ className?: string }>>;
 
-export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+export function SidebarContent({ mode = "desktop", onNavigate }: { mode?: "desktop" | "mobile"; onNavigate?: () => void }) {
   const pathname = usePathname();
-  const isActive = (href: string) => {
-    if (href === "/") return pathname === "/";
-    return pathname.startsWith(href);
-  };
+  const { tab } = getRouteNavContext(pathname);
+  const navGroups = mode === "mobile" ? appTabs : [tab];
 
   return (
     <>
@@ -93,44 +59,38 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         <div className="nav-brand__name">AivelloStudio</div>
       </div>
 
-      <div className="nav-project">
-        <ProjectSwitcher />
-      </div>
+      {mode === "mobile" && (
+        <div className="nav-project">
+          <ProjectSwitcher />
+        </div>
+      )}
 
       <nav style={{ flex: 1, overflowY: "auto", paddingBottom: "var(--space-3)" }}>
         {navGroups.map((group) => (
           <div key={group.label} className="nav-group">
             <div className="nav-group__title">{group.label}</div>
-            {group.items.map((item) => {
-              const Icon = item.icon;
-              const active = isActive(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={onNavigate}
-                  className={active ? "nav-item nav-item--active" : "nav-item"}
-                >
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: "10px" }}>
-                    <Icon className="nav-item__icon" />
-                    {item.label}
-                  </span>
-                  {"count" in item && item.count && (
-                    <span
-                      className={
-                        "countTone" in item && item.countTone === "info"
-                          ? "nav-item__count nav-item__count--info"
-                          : "nav-item__count"
-                      }
-                    >
-                      {item.count}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
+            {group.items.map((item) => (
+              <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onNavigate} />
+            ))}
+            {mode === "desktop" && <QuickActions items={group.quickActions} onNavigate={onNavigate} />}
           </div>
         ))}
+        {mode === "mobile" && (
+          <>
+            <div className="nav-group">
+              <div className="nav-group__title">Create</div>
+              {utilityNavItems.map((item) => (
+                <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onNavigate} />
+              ))}
+            </div>
+            <div className="nav-group">
+              <div className="nav-group__title">Admin</div>
+              {adminNavItems.map((item) => (
+                <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onNavigate} />
+              ))}
+            </div>
+          </>
+        )}
       </nav>
 
       <div className="nav-user">
@@ -141,5 +101,41 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       </div>
     </>
+  );
+}
+
+function NavLink({ item, pathname, onNavigate }: { item: AppNavItem; pathname: string; onNavigate?: () => void }) {
+  const Icon = iconByHref[item.href as keyof typeof iconByHref] ?? Sparkles;
+  const active = isActiveRoute(pathname, item.href);
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      className={active ? "nav-item nav-item--active" : "nav-item"}
+    >
+      <span style={{ display: "inline-flex", alignItems: "center", gap: "10px" }}>
+        <Icon className="nav-item__icon" />
+        {item.label}
+      </span>
+      {item.count && (
+        <span className={item.countTone === "info" ? "nav-item__count nav-item__count--info" : "nav-item__count"}>
+          {item.count}
+        </span>
+      )}
+    </Link>
+  );
+}
+
+function QuickActions({ items, onNavigate }: { items: AppNavItem[]; onNavigate?: () => void }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="nav-quick">
+      <div className="nav-quick__title">Quick actions</div>
+      {items.map((item) => (
+        <Link key={item.label} href={item.href} onClick={onNavigate} className="nav-quick__item">
+          {item.label}
+        </Link>
+      ))}
+    </div>
   );
 }

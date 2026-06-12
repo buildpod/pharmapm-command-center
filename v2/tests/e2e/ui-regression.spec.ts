@@ -1,24 +1,26 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
 const routes = [
-  { path: "/", nav: "Dashboard", heading: /Veeva RIM Command Center|Dashboard/ },
-  { path: "/truth/", nav: "Delivery Signals", heading: /Delivery Signals/ },
-  { path: "/reports/", nav: "Reports", heading: /Reports/ },
-  { path: "/setup/", nav: "New Project", heading: /Project Discovery|Project Setup|Review & Create/ },
-  { path: "/worklist/", nav: "Worklist", heading: /Worklist/ },
-  { path: "/my-items/", nav: "My Items", heading: /My Items/ },
-  { path: "/readiness/", nav: "Readiness Gates", heading: /Readiness Gates/ },
-  { path: "/plan/", nav: "Plan", heading: /Plan/ },
-  { path: "/governance/", nav: "Governance", heading: /Governance/ },
-  { path: "/charter/", nav: "Charter", heading: /Project Charter/ },
-  { path: "/milestones/", nav: "Milestones", heading: /Milestones/ },
-  { path: "/tasks/", nav: "Tasks", heading: /Tasks/ },
-  { path: "/risks/", nav: "Risks", heading: /Risks/ },
-  { path: "/documents/", nav: "Documents", heading: /Documents/ },
-  { path: "/costs/", nav: "Costs", heading: /Costs/ },
-  { path: "/resources/", nav: "People & Meetings", heading: /People|Meetings|Resources/ },
-  { path: "/projects/", nav: "Manage Projects", heading: /Projects/ },
-  { path: "/settings/", nav: "Rules & Settings", heading: /Rules|Settings/ },
+  { path: "/", nav: "Dashboard", tab: "Command", heading: /Veeva RIM Command Center|Dashboard/ },
+  { path: "/truth/", nav: "Delivery Signals", tab: "Command", heading: /Delivery Signals/ },
+  { path: "/reports/", nav: "Reports", tab: "Command", heading: /Reports/ },
+  { path: "/setup/", nav: "New Project", tab: "Plan", heading: /Project Discovery|Project Setup|Review & Create/ },
+  { path: "/worklist/", nav: "Worklist", tab: "Plan", heading: /Worklist/ },
+  { path: "/my-items/", nav: "My Items", tab: "Plan", heading: /My Items/ },
+  { path: "/readiness/", nav: "Readiness Gates", tab: "Plan", heading: /Readiness Gates/ },
+  { path: "/plan/", nav: "Plan", tab: "Plan", heading: /Plan/ },
+  { path: "/governance/", nav: "Governance", tab: "Governance", heading: /Governance/ },
+  { path: "/charter/", nav: "Charter", tab: "Governance", heading: /Project Charter/ },
+  { path: "/decisions/", nav: "Decisions", tab: "Governance", heading: /Decisions/ },
+  { path: "/issues/", nav: "Issues", tab: "Governance", heading: /Issues/ },
+  { path: "/milestones/", nav: "Milestones", tab: "Plan", heading: /Milestones/ },
+  { path: "/tasks/", nav: "Tasks", tab: "Plan", heading: /Tasks/ },
+  { path: "/risks/", nav: "Risks", tab: "Governance", heading: /Risks/ },
+  { path: "/documents/", nav: "Documents", tab: "Governance", heading: /Documents/ },
+  { path: "/costs/", nav: "Costs", tab: "Finance", heading: /Costs/ },
+  { path: "/resources/", nav: "Resources", tab: "People", heading: /People|Meetings|Resources/ },
+  { path: "/projects/", nav: "Manage Projects", tab: "Command", heading: /Projects/ },
+  { path: "/settings/", nav: "Rules & Settings", tab: "Command", heading: /Rules|Settings/ },
 ];
 
 const appBase = "/pharmapm-command-center/v2";
@@ -83,15 +85,25 @@ test("all primary routes load without blank pages or horizontal overflow", async
   }
 });
 
-test("sidebar navigation covers every main product area", async ({ page, isMobile }) => {
+test("tab and contextual rail navigation covers every main product area", async ({ page, isMobile }) => {
   for (const route of routes) {
     await gotoApp(page, "/");
-    if (isMobile) await page.getByRole("button", { name: /open menu/i }).click();
-    await page.getByRole("link", { name: new RegExp(route.nav, "i") }).first().click();
+    await navigateByShell(page, isMobile, route);
     await expect(page).toHaveURL(new RegExp(`${escapeRegex(appBase + route.path)}$`));
     await expect(page.locator("body")).toContainText(route.heading);
     await assertNoHorizontalOverflow(page);
   }
+});
+
+test("deep links highlight the matching primary tab and contextual rail item", async ({ page, isMobile }) => {
+  await gotoApp(page, "/risks/?focus=r3");
+
+  await expect(page.getByLabel("Primary navigation").getByRole("link", { name: /^Governance$/ })).toHaveAttribute("data-active", "true");
+  if (isMobile) {
+    await page.getByRole("button", { name: /open menu/i }).click();
+  }
+  await expect(page.getByRole("link", { name: /^Risks/i }).first()).toHaveClass(/nav-item--active/);
+  await expect(page.locator(".crumbs")).toContainText(/Governance · Risks/);
 });
 
 test("topbar search, theme, notifications, and project switcher are usable", async ({ page, isMobile }) => {
@@ -319,9 +331,49 @@ async function expectTaskRowDue(page: Page, taskName: string, dueText: string) {
 }
 
 async function navigateBySidebar(page: Page, isMobile: boolean, navName: string, pathPattern: RegExp) {
-  if (isMobile) await page.getByRole("button", { name: /open menu/i }).click();
+  if (isMobile) {
+    await page.getByRole("button", { name: /open menu/i }).click();
+  } else {
+    const tabByNav: Record<string, string> = {
+      Tasks: "Plan",
+      Documents: "Governance",
+      Risks: "Governance",
+    };
+    const tab = tabByNav[navName];
+    if (tab) await page.getByLabel("Primary navigation").getByRole("link", { name: new RegExp(`^${tab}$`, "i") }).click();
+  }
   await page.getByRole("link", { name: new RegExp(navName, "i") }).first().click();
   await expect(page).toHaveURL(pathPattern);
+}
+
+async function navigateByShell(
+  page: Page,
+  isMobile: boolean,
+  route: { nav: string; tab: string; path: string }
+) {
+  if (route.nav === "New Project") {
+    if (isMobile) await page.getByRole("button", { name: /open menu/i }).click();
+    await page.getByRole("link", { name: /^New Project$/i }).first().click();
+    return;
+  }
+
+  if (route.nav === "Manage Projects" || route.nav === "Rules & Settings") {
+    if (isMobile) {
+      await page.getByRole("button", { name: /open menu/i }).click();
+      await page.getByRole("link", { name: new RegExp(route.nav, "i") }).first().click();
+    } else {
+      await page.getByRole("button", { name: /open admin menu/i }).click();
+      await page.getByRole("link", { name: new RegExp(route.nav, "i") }).click();
+    }
+    return;
+  }
+
+  if (isMobile) {
+    await page.getByRole("button", { name: /open menu/i }).click();
+  } else {
+    await page.getByRole("link", { name: new RegExp(`^${route.tab}$`, "i") }).click();
+  }
+  await page.getByRole("link", { name: new RegExp(`^${route.nav}`, "i") }).first().click();
 }
 
 async function gotoApp(page: Page, path: string) {
