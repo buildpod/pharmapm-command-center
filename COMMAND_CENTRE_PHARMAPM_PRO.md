@@ -101,6 +101,20 @@ Saved templates are prototype-only browser `localStorage` in `v2/lib/templates/c
 10. Release work must run the full verification gate before push.
 11. One financial truth (Phase-2, 2026-06-11): the EVM snapshot (lib/domain/evm.ts, shared via useProjectEvm) is the single measurement layer for confidence and cost pressure across the dashboard verdict and Delivery Signals. Delivery-truth signals are the explanation layer (sources, why-it-matters, decisions). The deduction-score heuristic survives only as the no-EVM fallback. Sample data is opt-in and badged (CX-7); templates declare an honesty tier (CX-4).
 
+## Tone Semantics (ported from the original repo — tone-discipline skill enforces this)
+
+Color states outcome, never decoration. Applies to pills, toasts, card accents, icons, chart strokes.
+
+| Tone | Used for | When |
+|---|---|---|
+| rose | Blocking violation, hard error, missed deadline | Needs action to clear (overdue, breach, blocked) |
+| amber | Soft conflict, needs consideration | At-risk, due-soon, approaching threshold |
+| blue | Informational, opportunity, awareness | Slack created, headroom found, metadata. NOT for warnings |
+| emerald | Success, resolved, on-track | Complete, approved, all-clear empty states |
+| slate | Neutral, no signal | Draft, unscheduled, supporting metadata |
+
+Never mix tones in one message. A success that left a problem behind is surfaced in the impact/drawer view, not as two competing toasts.
+
 ## Quality And Release Gate
 
 Default release verification from `v2`:
