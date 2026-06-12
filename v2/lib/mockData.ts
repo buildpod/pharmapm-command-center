@@ -252,6 +252,213 @@ export const risks: Risk[] = [
   { id: "r6", title: "Key SME availability during UAT",              category: "Resource",      probability: 3, impact: 3, score: 9,  status: "open",      owner: "VP", mitigation: "Reserve SME calendars 8 weeks ahead", projectId: "proj-veeva-rim" },
 ];
 
+// ─── Issues register (M24) ───────────────────────────────────────────────────
+//
+// Issues track CURRENT problems affecting the project (vs Risks which are
+// potential FUTURE events). Every regulated-industry project requires an
+// issues log for audit / inspection trails. Lifecycle: Open → In Progress →
+// Resolved (or Won't Fix). Severity drives prioritisation, not probability×impact
+// (the Risk model — Issues are certain, not probabilistic).
+
+export type IssueSeverity = "Critical" | "High" | "Medium" | "Low";
+export type IssueStatus   = "Open" | "In Progress" | "Resolved" | "Won't Fix";
+
+export type Issue = {
+  id: string;
+  title: string;
+  description: string;
+  raisedDate: string;                  // ISO yyyy-mm-dd
+  severity: IssueSeverity;
+  status: IssueStatus;
+  owner: string;                       // initials
+  resolutionPlan?: string;             // free-text
+  resolvedDate?: string;               // ISO; required when status = Resolved or Won't Fix
+  milestoneId?: string;                // optional link to a milestone
+  taskId?: string;                     // optional link to a task
+  projectId: string;
+};
+
+export const issues: Issue[] = [
+  {
+    id: "i1",
+    title: "Vendor delivered source-data extract with 12% missing metadata",
+    description: "Documentum 7.3 extract for the first 3,200 dossiers shows 12% of records missing dossier-status metadata required for Veeva RIM ingestion. Vendor (Iron Mountain) was scoped to deliver ≥99% complete extracts.",
+    raisedDate: "2026-05-04",
+    severity: "Critical",
+    status: "In Progress",
+    owner: "AR",
+    resolutionPlan: "Escalated to Iron Mountain account team. Mitigation: parallel internal re-extract from source DB via read-only replica; expected by 2026-05-14.",
+    milestoneId: "m8",
+    projectId: "proj-veeva-rim",
+  },
+  {
+    id: "i2",
+    title: "UAT environment provisioning delayed by 9 days",
+    description: "Veeva Professional Services confirmed UAT sandbox provisioning slipped from 2026-05-15 to 2026-05-24 due to capacity constraints on the EU cluster. Impacts UAT kickoff date.",
+    raisedDate: "2026-05-10",
+    severity: "High",
+    status: "Open",
+    owner: "KM",
+    resolutionPlan: "Awaiting Veeva confirmation of 2026-05-24 commitment in writing. Backup: parallel use of dev sandbox for non-validation UAT scenarios.",
+    taskId: "t9",
+    projectId: "proj-veeva-rim",
+  },
+  {
+    id: "i3",
+    title: "Training deck pending legal review (GDPR screenshots)",
+    description: "End-user training deck has 8 screenshots showing test-data with placeholder names that fail Legal's GDPR-compliance review. Need redactions before training kickoff.",
+    raisedDate: "2026-05-08",
+    severity: "Medium",
+    status: "In Progress",
+    owner: "HR",
+    resolutionPlan: "Redactions in progress; expected back from design team 2026-05-19. Legal re-review scheduled 2026-05-22.",
+    milestoneId: "m11",
+    projectId: "proj-veeva-rim",
+  },
+  {
+    id: "i4",
+    title: "IQ protocol section 4.3 references retired SOP",
+    description: "Draft IQ protocol section 4.3 references SOP-QA-014 which was superseded by SOP-QA-014-Rev3 in 2026-Q1. QA flagged in pre-review.",
+    raisedDate: "2026-05-12",
+    severity: "Medium",
+    status: "Resolved",
+    owner: "QA",
+    resolutionPlan: "Updated all references to SOP-QA-014-Rev3 throughout the document. Re-circulated for QA approval.",
+    resolvedDate: "2026-05-15",
+    taskId: "t5",
+    projectId: "proj-veeva-rim",
+  },
+  {
+    id: "i5",
+    title: "Submission workspace template missing approver field",
+    description: "Per Veeva config, submission workspaces require an explicit Approver field separate from Reviewer. Current template only has Reviewer.",
+    raisedDate: "2026-04-22",
+    severity: "Low",
+    status: "Resolved",
+    owner: "KM",
+    resolutionPlan: "Added Approver picklist + workflow rule; tested in dev; UAT validation pending.",
+    resolvedDate: "2026-05-02",
+    taskId: "t2",
+    projectId: "proj-veeva-rim",
+  },
+];
+
+// ─── Decisions register (M25) ────────────────────────────────────────────────
+//
+// Pharma audits and SteerCo reviews ask "show me the decision log" — every
+// material project decision recorded with what was decided, when, by whom,
+// what alternatives were considered, what the rationale was, and what (if
+// anything) this decision supersedes. Named DecisionRecord to avoid collision
+// with the existing Decision value type on document RACI rows.
+
+export type DecisionRecordStatus = "Pending" | "Approved" | "Rejected" | "Superseded";
+
+export type DecisionRecord = {
+  id: string;
+  title: string;
+  context: string;                  // why the decision was needed
+  decidedDate: string;              // ISO yyyy-mm-dd
+  decidedBy: string;                // initials of the decision-maker
+  alternatives: string[];           // options that were considered
+  chosenOption: string;             // which one won
+  rationale: string;                // why this option, not the others
+  status: DecisionRecordStatus;
+  supersedesId?: string;            // id of a prior DecisionRecord this overrides
+  linkedMilestoneId?: string;
+  linkedRiskId?: string;
+  linkedIssueId?: string;
+  projectId: string;
+};
+
+export const decisionRecords: DecisionRecord[] = [
+  {
+    id: "d1",
+    title: "Selected Iron Mountain as data-extraction vendor",
+    context: "Migration of 14,200 dossiers from Documentum 7.3 requires a vendor with proven GxP-validated extraction. Three vendors quoted: Iron Mountain, Crown Records Management, and an in-house build.",
+    decidedDate: "2026-02-12",
+    decidedBy: "VP",
+    alternatives: [
+      "Iron Mountain — fixed price $0.35M, 6-week delivery, GxP track record",
+      "Crown Records Management — $0.28M, 8 weeks, weaker GxP references",
+      "In-house build via internal data team — $0.22M, 12 weeks, capacity risk",
+    ],
+    chosenOption: "Iron Mountain",
+    rationale: "GxP track record on 4 prior Veeva implementations; 6-week delivery preserves UAT runway; $70k premium over Crown is justified by reduced compliance risk and faster delivery.",
+    status: "Approved",
+    linkedMilestoneId: "m8",
+    projectId: "proj-veeva-rim",
+  },
+  {
+    id: "d2",
+    title: "Validation methodology: GAMP 5 Category 4 (configured product)",
+    context: "Veeva RIM is a configured COTS product. Validation category drives the depth of IQ/OQ/PQ documentation and review effort. Discussed at QA SteerCo 2026-01-20.",
+    decidedDate: "2026-01-22",
+    decidedBy: "QA",
+    alternatives: [
+      "GAMP 5 Category 4 (configured product) — standard for vendor SaaS",
+      "GAMP 5 Category 5 (custom application) — over-engineered for configuration-only work",
+      "Vendor-supplied validation kit only — insufficient for inspection readiness",
+    ],
+    chosenOption: "GAMP 5 Category 4",
+    rationale: "Veeva's own classification + EMA / FDA precedent on similar vendor-hosted GxP systems. Category 5 would add 6 weeks of redundant documentation. Category 4 strikes the right balance.",
+    status: "Approved",
+    linkedMilestoneId: "m9",
+    projectId: "proj-veeva-rim",
+  },
+  {
+    id: "d3",
+    title: "Training delivery: hybrid (recorded modules + 2 live workshops)",
+    context: "60 RA users across EU + US + APAC. Initial plan was live-only training; cost + scheduling concerns raised at PMO review 2026-03-08.",
+    decidedDate: "2026-03-10",
+    decidedBy: "HR",
+    alternatives: [
+      "Hybrid: recorded modules + 2 live workshops per region",
+      "Live-only training — 6 workshops, $80k more, scheduling conflicts with quarter-close",
+      "Recorded-only training — saves $50k, but adoption risk per L&D benchmarks",
+    ],
+    chosenOption: "Hybrid",
+    rationale: "Recorded modules absorb the routine onboarding; live workshops handle edge cases + Q&A. Best adoption-cost trade-off per L&D research from prior Veeva projects.",
+    status: "Approved",
+    linkedMilestoneId: "m11",
+    projectId: "proj-veeva-rim",
+  },
+  {
+    id: "d4",
+    title: "Initial Go-Live target: 2026-07-15 (later superseded)",
+    context: "First Go-Live plan was Q3 2026, before discovery of full data-migration scope. Approved at project kickoff 2026-01-10 by sponsor.",
+    decidedDate: "2026-01-10",
+    decidedBy: "VP",
+    alternatives: [
+      "2026-07-15 (Q3 2026)",
+      "2026-09-15 (Q3-late 2026, more buffer for migration)",
+      "2026-12-01 (Q4 2026, full conservative)",
+    ],
+    chosenOption: "2026-07-15",
+    rationale: "Aligned with Q4 submission deadlines; sponsor wanted minimum business disruption window. Superseded after Data Migration discovery widened scope (see d5).",
+    status: "Superseded",
+    linkedMilestoneId: "m12",
+    projectId: "proj-veeva-rim",
+  },
+  {
+    id: "d5",
+    title: "Revised Go-Live target: 2026-09-02",
+    context: "Data-migration scope finalized at 14,200 dossiers (up from initial 9,500 estimate) + Iron Mountain delivery confirmed at 6 weeks. Re-baselined at SteerCo 2026-03-18.",
+    decidedDate: "2026-03-18",
+    decidedBy: "VP",
+    alternatives: [
+      "2026-09-02 — 7-week shift; preserves Q4 submission window",
+      "2026-08-15 — original-adjacent; high schedule risk per migration vendor",
+      "2026-10-15 — full conservative; misses Q4 window, slips to Q1 2027",
+    ],
+    chosenOption: "2026-09-02",
+    rationale: "Restores realistic validation runway given confirmed scope. Preserves Q4 submission deadlines (critical SteerCo constraint). Supersedes d4.",
+    status: "Approved",
+    supersedesId: "d4",
+    linkedMilestoneId: "m12",
+    projectId: "proj-veeva-rim",
+  },
+];
+
 // ─── Documents ────────────────────────────────────────────────────────────────
 
 export type DecisionStatus = "approved" | "rejected" | "pending";

@@ -58,6 +58,8 @@ Current v2 routes include:
 - Risks
 - Documents
 - Costs
+- Decisions
+- Issues
 - People & Meetings
 - Manage Projects
 - Rules & Settings

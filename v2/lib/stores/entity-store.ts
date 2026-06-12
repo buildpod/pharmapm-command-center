@@ -22,9 +22,11 @@ import {
   recurringMeetings as seedMeetings,
   absences as seedAbsences,
   charters as seedCharters,
+  issues as seedIssues,
+  decisionRecords as seedDecisions,
   type Milestone, type Task, type Risk, type Document,
   type CostLine, type TeamMember, type RecurringMeeting, type Absence,
-  type Charter,
+  type Charter, type Issue, type DecisionRecord,
 } from "@/lib/mockData";
 import { LocalStorageRepository } from "@/lib/repositories/entity-repository";
 import { appendAudit, buildAction, type Source, type EntityKind } from "./audit";
@@ -41,6 +43,8 @@ const repos = {
   meeting:    new LocalStorageRepository<RecurringMeeting>("aivello_meetings_v1", seedMeetings),
   absence:    new LocalStorageRepository<Absence>("aivello_absences_v1", seedAbsences),
   charter:    new LocalStorageRepository<Charter>("aivello_charters_v1", seedCharters),
+  issue:      new LocalStorageRepository<Issue>("aivello_issues_v1", seedIssues),
+  decision:   new LocalStorageRepository<DecisionRecord>("aivello_decisions_v1", seedDecisions),
 };
 
 // ─── Per-action options ──────────────────────────────────────────────────────
@@ -62,6 +66,8 @@ interface State {
   meetings: RecurringMeeting[];
   absences: Absence[];
   charters: Charter[];
+  issues: Issue[];
+  decisionRecords: DecisionRecord[];
 
   hydrate(): Promise<void>;
 
@@ -69,6 +75,16 @@ interface State {
   updateCharter(c: Charter, opts?: ActionOpts): void;
   deleteCharter(id: string, opts?: ActionOpts): void;
   replaceAllCharters(items: Charter[], opts?: ActionOpts): void;
+
+  addIssue(i: Issue, opts?: ActionOpts): void;
+  updateIssue(i: Issue, opts?: ActionOpts): void;
+  deleteIssue(id: string, opts?: ActionOpts): void;
+  replaceAllIssues(items: Issue[], opts?: ActionOpts): void;
+
+  addDecisionRecord(d: DecisionRecord, opts?: ActionOpts): void;
+  updateDecisionRecord(d: DecisionRecord, opts?: ActionOpts): void;
+  deleteDecisionRecord(id: string, opts?: ActionOpts): void;
+  replaceAllDecisionRecords(items: DecisionRecord[], opts?: ActionOpts): void;
 
   addMilestone(m: Milestone, opts?: ActionOpts): void;
   updateMilestone(m: Milestone, opts?: ActionOpts): void;
@@ -196,15 +212,18 @@ export const useEntityStore = create<State>((set, get) => ({
   meetings:    seedMeetings,
   absences:    seedAbsences,
   charters:    seedCharters,
+  issues:      seedIssues,
+  decisionRecords: seedDecisions,
 
   async hydrate() {
     if (get().hydrated) return;
-    const [milestones, tasks, risks, documents, costLines, teamMembers, meetings, absences, charters] = await Promise.all([
+    const [milestones, tasks, risks, documents, costLines, teamMembers, meetings, absences, charters, issues, decisionRecords] = await Promise.all([
       repos.milestone.list(),  repos.task.list(), repos.risk.list(),
       repos.document.list(),   repos.costLine.list(), repos.teamMember.list(),
       repos.meeting.list(),    repos.absence.list(), repos.charter.list(),
+      repos.issue.list(),      repos.decision.list(),
     ]);
-    set({ milestones, tasks, risks, documents, costLines, teamMembers, meetings, absences, charters, hydrated: true });
+    set({ milestones, tasks, risks, documents, costLines, teamMembers, meetings, absences, charters, issues, decisionRecords, hydrated: true });
   },
 
   // ── Milestones ──
@@ -256,6 +275,17 @@ export const useEntityStore = create<State>((set, get) => ({
   replaceAllAbsences: (items, o) => set({ absences: runReplaceAll(items, "absence", repos.absence, o) }),
 
   // ── Charters (M22) ──
+  // ── Issues + Decision records (ported from pharmapm-pro M24/M25) ──
+  addIssue:        (i, o) => set({ issues: runAdd(get().issues, i, "issue", repos.issue, o) }),
+  updateIssue:     (i, o) => set({ issues: runUpdate(get().issues, i, "issue", repos.issue, o) }),
+  deleteIssue:     (id, o) => set({ issues: runDelete(get().issues, id, "issue", repos.issue, o) }),
+  replaceAllIssues: (items, o) => set({ issues: runReplaceAll(items, "issue", repos.issue, o) }),
+
+  addDecisionRecord:        (d, o) => set({ decisionRecords: runAdd(get().decisionRecords, d, "decision", repos.decision, o) }),
+  updateDecisionRecord:     (d, o) => set({ decisionRecords: runUpdate(get().decisionRecords, d, "decision", repos.decision, o) }),
+  deleteDecisionRecord:     (id, o) => set({ decisionRecords: runDelete(get().decisionRecords, id, "decision", repos.decision, o) }),
+  replaceAllDecisionRecords: (items, o) => set({ decisionRecords: runReplaceAll(items, "decision", repos.decision, o) }),
+
   addCharter:        (c, o) => set({ charters: runAdd(get().charters, c, "charter", repos.charter, o) }),
   updateCharter:     (c, o) => set({ charters: runUpdate(get().charters, c, "charter", repos.charter, o) }),
   deleteCharter:     (id, o) => set({ charters: runDelete(get().charters, id, "charter", repos.charter, o) }),
