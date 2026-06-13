@@ -186,7 +186,7 @@ function MiniTimeline({
 // one go-live headline → why (chain) → true cost → confidence. Tone is amber
 // for a governed tradeoff (a slip you're choosing), emerald when absorbed —
 // never rose. Honest blanks: a figure that can't be defended says so (C7).
-function ConsequenceStory({
+export function ConsequenceStory({
   c, assumptions, onAssumptionsChange,
 }: {
   c: ConsequenceProjection;

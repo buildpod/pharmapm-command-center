@@ -9,6 +9,11 @@ import { useProject } from "@/components/projects/project-provider";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { cn } from "@/lib/utils";
 import { useFocusRow } from "@/lib/hooks/use-focus-row";
+import { ConsequenceModal } from "@/components/ui/consequence-modal";
+import { type ImpactAssumptions } from "@/components/ui/impact-drawer";
+import { projectConsequence, resolveGoLiveMilestone } from "@/lib/domain/consequence";
+import { useProjectEvm } from "@/lib/hooks/use-project-evm";
+import { appendAudit, buildAction } from "@/lib/stores/audit";
 
 const TOTAL_BUDGET_K = 2000;
 
@@ -80,16 +85,69 @@ function KpiCard({
 type CostDrawerState = { mode: "closed" } | { mode: "new" } | { mode: "edit"; line: CostLine };
 
 export function CostsGrid() {
-  const { activeProjectId } = useProject();
+  const { activeProjectId, activeProject } = useProject();
   useFocusRow();
   const costLines       = useEntityStore((s) => s.costLines);
+  const liveMilestones  = useEntityStore((s) => s.milestones);
   const addCostLine     = useEntityStore((s) => s.addCostLine);
   const updateCostLine  = useEntityStore((s) => s.updateCostLine);
   const deleteCostLineAction = useEntityStore((s) => s.deleteCostLine);
+  const { evm } = useProjectEvm();
   const [drawer, setDrawer]       = useState<CostDrawerState>({ mode: "closed" });
+
+  // Impact Engine trigger — model a vendor over-charge on a cost line.
+  const [ocLine, setOcLine] = useState<CostLine | null>(null);
+  const [ocOverK, setOcOverK] = useState(0);
+  const [ocAssumptions, setOcAssumptions] = useState<ImpactAssumptions>({ freezeApplies: true });
 
   const projectCostLines = costLines.filter((c) => c.projectId === activeProjectId);
   const knownCategories  = Array.from(new Set(projectCostLines.map((c) => c.category)));
+
+  function openOverCharge(line: CostLine) {
+    setOcLine(line);
+    setOcOverK(Math.max(1, Math.round(line.budgetK * 0.15))); // default: 15% over
+    setOcAssumptions({ freezeApplies: true });
+  }
+
+  // Project the consequence of the modelled over-charge (pure cost — no schedule arm).
+  const projMilestones = liveMilestones.filter((m) => m.projectId === activeProjectId);
+  const goLiveId = resolveGoLiveMilestone(
+    projMilestones.map((m) => ({ id: m.id, name: m.name, phase: m.phase, plannedDate: m.plannedDate })),
+    activeProject.goLiveDate,
+  );
+  const ocGoLiveMs = projMilestones.find((m) => m.id === goLiveId);
+  const ocProjection = ocLine && goLiveId
+    ? projectConsequence({
+        perturbation: { kind: "cost-overcharge", lineName: ocLine.description, overAmount: ocOverK * 1000 },
+        schedule: null,
+        baseline: {
+          committedGoLive: activeProject.goLiveDate,
+          projectStart: activeProject.startDate,
+          goLiveMilestoneId: goLiveId,
+          goLiveName: ocGoLiveMs?.name,
+          goLiveLocked: ocGoLiveMs?.locked ?? false,
+        },
+        costLines: projectCostLines.map((c) => ({ budgetK: c.budgetK, contractType: c.contractType })),
+        snapshot: evm?.snapshot ?? null,
+      })
+    : null;
+
+  function recordOverCharge() {
+    if (!ocLine || !ocProjection) return;
+    const cq = ocProjection;
+    const parts = [`${ocLine.description}: +$${ocOverK}k over budget`];
+    if (cq.confidence.moves && cq.confidence.before != null) parts.push(`confidence ${cq.confidence.before}→${cq.confidence.after}`);
+    appendAudit(buildAction({
+      type: "update",
+      entityKind: "costLine",
+      entityId: ocLine.id,
+      source: "user-edit",
+      projectId: activeProjectId,
+      note: `Modelled over-charge — ${parts.join(" · ")}`,
+    }));
+    toast.success("Over-charge impact recorded", { description: ocLine.description });
+    setOcLine(null);
+  }
 
   function handleDrawerSave(c: CostLine) {
     const withProj: CostLine = { ...c, projectId: c.projectId || activeProjectId };
@@ -196,6 +254,7 @@ export function CostsGrid() {
               <th className="w-24 px-3 py-2.5 text-right">Budget</th>
               <th className="w-24 px-3 py-2.5 text-right">Actual</th>
               <th className="w-44 px-5 py-2.5 text-left">Burn</th>
+              <th className="w-28 px-3 py-2.5 text-center">Impact</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -236,6 +295,15 @@ export function CostsGrid() {
                   <td className="px-5 py-3.5">
                     <BurnBar pct={pct} warn={warn} danger={danger} />
                   </td>
+                  <td className="px-3 py-3.5 text-center">
+                    <button
+                      onClick={() => openOverCharge(c)}
+                      className="rounded-md border border-border bg-card px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-muted"
+                      title="Model a vendor over-charge on this line and see the impact"
+                    >
+                      Over-charge…
+                    </button>
+                  </td>
                 </tr>
               );
             })}
@@ -255,6 +323,7 @@ export function CostsGrid() {
               <td className="px-5 py-3.5">
                 <BurnBar pct={totalBurnPct} warn={totalBurnPct > 60 && totalBurnPct <= 85} danger={totalBurnPct > 85} />
               </td>
+              <td className="px-3 py-3.5" />
             </tr>
           </tfoot>
         </table>
@@ -268,6 +337,32 @@ export function CostsGrid() {
         onSave={handleDrawerSave}
         onDelete={handleDrawerDelete}
         onClose={() => setDrawer({ mode: "closed" })}
+      />
+
+      <ConsequenceModal
+        open={!!ocLine}
+        title="Vendor over-charge — impact"
+        subtitle={ocLine ? `Modelling extra spend on "${ocLine.description}".` : undefined}
+        projection={ocProjection}
+        assumptions={ocAssumptions}
+        onAssumptionsChange={setOcAssumptions}
+        primaryControl={
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs">
+            <span className="font-medium text-foreground">Over budget by</span>
+            <span className="text-muted-foreground">$</span>
+            <input
+              type="number"
+              min={0}
+              value={ocOverK}
+              onChange={(e) => setOcOverK(Math.max(0, Number(e.target.value) || 0))}
+              className="w-24 rounded border border-border bg-background px-1.5 py-0.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+            <span className="text-muted-foreground">k</span>
+          </div>
+        }
+        recordLabel="Record this over-charge"
+        onRecord={recordOverCharge}
+        onClose={() => setOcLine(null)}
       />
 
       {/* Monthly burn trend */}
