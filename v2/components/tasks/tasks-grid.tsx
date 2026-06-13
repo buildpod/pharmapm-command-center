@@ -32,6 +32,7 @@ function msStrToNum(id: string): number { return parseInt(id.replace("m", "")); 
 function msNumToStr(id: number): string { return `m${id}`; }
 import { ImpactDrawer, type ImpactSummary, type ImpactSection } from "@/components/ui/impact-drawer";
 import { projectConsequence, resolveGoLiveMilestone } from "@/lib/domain/consequence";
+import { criticalChainToGoLive } from "@/lib/domain/critical-path";
 import { useProjectEvm } from "@/lib/hooks/use-project-evm";
 import { cn } from "@/lib/utils";
 
@@ -759,6 +760,49 @@ export function TasksGrid() {
                 };
               }
 
+              // M20.3 — task → milestone push. Compute against the cascaded
+              // task state (r.tasks). Default-checked (PM must opt out per
+              // Vineet's confirmed preference for schedule integrity).
+              // M20.5 — now transitive (PL-2) and with +1WD gate buffer (PL-4).
+              const msPushes = previewTaskToMilestonePush(
+                r.tasks, scheduleMilestones, msNumToStr,
+                { workingDays: settings.workingDays, holidays: settings.holidays }
+              );
+
+              // Impact Engine step 2 — which shifts actually THREATEN go-live.
+              // Compute the unlocked go-live projection (where go-live would land
+              // if its own lock were ignored) and the binding chain that drives it.
+              const goLiveMilestoneId = resolveGoLiveMilestone(
+                projMilestones.map((m) => ({ id: m.id, name: m.name, phase: m.phase, plannedDate: m.plannedDate })),
+                activeProject.goLiveDate,
+              );
+              const goLiveMs = projMilestones.find((m) => m.id === goLiveMilestoneId);
+              const glNum = goLiveMilestoneId ? msStrToNum(goLiveMilestoneId) : -1;
+              const msPushesUnlocked = previewTaskToMilestonePush(
+                r.tasks,
+                scheduleMilestones.map((m) => (m.id === glNum ? { ...m, lockDate: false } : m)),
+                msNumToStr,
+                { workingDays: settings.workingDays, holidays: settings.holidays },
+              );
+              const goLiveProjectedUnlocked =
+                msPushesUnlocked.find((p) => p.milestoneId === goLiveMilestoneId)?.proposedNewDate ?? null;
+              // Projected milestone dates (post-cascade, unlocked) for the binding trace.
+              const projectedMsDate = new Map(projMilestones.map((m) => [m.id, m.plannedDate]));
+              msPushesUnlocked.forEach((p) => projectedMsDate.set(p.milestoneId, p.proposedNewDate));
+              const critical = goLiveMilestoneId
+                ? criticalChainToGoLive({
+                    tasks: r.tasks.map((t) => ({
+                      id: t.id, dueDate: t.dueDate, dependsOn: t.dependsOn, milestoneId: t.milestoneId,
+                    })),
+                    milestones: projMilestones.map((m) => ({
+                      id: m.id,
+                      plannedDate: projectedMsDate.get(m.id) ?? m.plannedDate,
+                      predecessor: m.predecessor,
+                    })),
+                    goLiveMilestoneId,
+                  })
+                : { taskIds: new Set<string>(), milestoneIds: new Set<string>() };
+
               // M20.6 — pass workstream as `group` for collapsible sub-sections in the drawer
               const taskById = new Map(projTasks.map((t) => [t.id, t]));
               const tasksSection: ImpactSection = {
@@ -769,17 +813,10 @@ export function TasksGrid() {
                   oldDate: a.oldDue, newDate: a.newDue,
                   daysShifted: a.daysShifted,
                   group: taskById.get(a.id)?.workstream,
+                  isCritical: critical.taskIds.has(a.id),
                 })),
               };
 
-              // M20.3 — task → milestone push. Compute against the cascaded
-              // task state (r.tasks). Default-checked (PM must opt out per
-              // Vineet's confirmed preference for schedule integrity).
-              // M20.5 — now transitive (PL-2) and with +1WD gate buffer (PL-4).
-              const msPushes = previewTaskToMilestonePush(
-                r.tasks, scheduleMilestones, msNumToStr,
-                { workingDays: settings.workingDays, holidays: settings.holidays }
-              );
               // M20.6 — surface PL-2 transitive ancestry as a caption on each row
               const milestonesSection: ImpactSection = {
                 kind: "milestones",
@@ -791,6 +828,7 @@ export function TasksGrid() {
                   ancestry: p.transitive
                     ? `${p.drivenByTaskId.toUpperCase()} (via predecessor chain)`
                     : p.drivenByTaskId.toUpperCase(),
+                  isCritical: critical.milestoneIds.has(p.milestoneId),
                 })),
               };
 
@@ -830,41 +868,26 @@ export function TasksGrid() {
               } : null;
 
               // Impact Engine — project the true consequence (go-live / cost /
-              // confidence vs. the frozen commitment). Measured against the
-              // project's committed go-live; cost only on T&M lines; confidence
-              // only via the real cost mechanism. Rendered as the story header.
-              const goLiveMilestoneId = resolveGoLiveMilestone(
-                projMilestones.map((m) => ({ id: m.id, name: m.name, phase: m.phase, plannedDate: m.plannedDate })),
-                activeProject.goLiveDate,
-              );
-              const goLiveMs = projMilestones.find((m) => m.id === goLiveMilestoneId);
-              // Unlocked projection (Impact Engine): re-run the milestone push with
-              // go-live's lock removed, so we learn where go-live WOULD land. This
-              // distinguishes genuine slack (go-live unaffected) from a locked-date
-              // collision (go-live can't move on paper but the work overruns it).
-              const glNum = goLiveMilestoneId ? msStrToNum(goLiveMilestoneId) : -1;
-              const unlockedMs = scheduleMilestones.map((m) =>
-                m.id === glNum ? { ...m, lockDate: false } : m,
-              );
-              const msPushesUnlocked = previewTaskToMilestonePush(
-                r.tasks, unlockedMs, msNumToStr,
-                { workingDays: settings.workingDays, holidays: settings.holidays },
-              );
-              const goLiveProjectedUnlocked =
-                msPushesUnlocked.find((p) => p.milestoneId === goLiveMilestoneId)?.proposedNewDate ?? null;
+              // confidence vs. the frozen commitment) using the hoisted go-live
+              // resolution + unlocked projection computed above.
               const consequence = goLiveMilestoneId
                 ? projectConsequence({
-                    editedTaskName: cascadePreview!.editedTask.name,
-                    editWorkingDaysShift: cascadePreview!.summary.daysShifted,
-                    affected: r.affected,
-                    milestonePushes: msPushes,
+                    perturbation: {
+                      kind: "task-date",
+                      taskName: cascadePreview!.editedTask.name,
+                      workingDaysShift: cascadePreview!.summary.daysShifted,
+                    },
+                    schedule: {
+                      affected: r.affected,
+                      milestonePushes: msPushes,
+                      goLiveProjectedUnlocked,
+                    },
                     baseline: {
                       committedGoLive: activeProject.goLiveDate,
                       projectStart: activeProject.startDate,
                       goLiveMilestoneId,
                       goLiveName: goLiveMs?.name,
                       goLiveLocked: goLiveMs?.locked ?? false,
-                      goLiveProjectedUnlocked,
                     },
                     costLines: costLines
                       .filter((c) => c.projectId === activeProjectId)
@@ -874,6 +897,29 @@ export function TasksGrid() {
                     holidays: settings.holidays,
                   })
                 : undefined;
+
+              // Phase-level named chain for the story: the slip flows through
+              // PHASES to go-live. Pick the binding (latest) critical milestone
+              // per phase so the PM reads ~3 named hops — e.g. "Vault
+              // Configuration → UAT Sign-off → Go-Live" — not 9 raw IDs.
+              if (consequence && !consequence.goLive.absorbed && goLiveMilestoneId) {
+                const repByPhase = new Map<string, { id: string; name: string; date: string }>();
+                projMilestones
+                  .filter((m) => critical.milestoneIds.has(m.id) && m.id !== goLiveMilestoneId)
+                  .forEach((m) => {
+                    const date = projectedMsDate.get(m.id) ?? m.plannedDate;
+                    const cur = repByPhase.get(m.phase);
+                    if (!cur || date.localeCompare(cur.date) > 0) {
+                      repByPhase.set(m.phase, { id: m.id, name: m.name, date });
+                    }
+                  });
+                const hops = Array.from(repByPhase.values()).sort((a, b) => a.date.localeCompare(b.date));
+                consequence.chain = [
+                  { id: cascadePreview!.editedTask.id, name: cascadePreview!.editedTask.name, kind: "task" },
+                  ...hops.map((h) => ({ id: h.id, name: h.name, kind: "milestone" as const })),
+                  { id: goLiveMilestoneId, name: goLiveMs?.name ?? "Go-Live", kind: "milestone" as const },
+                ];
+              }
 
               return {
                 consequence,

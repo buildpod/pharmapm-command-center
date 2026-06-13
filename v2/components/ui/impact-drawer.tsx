@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   X, ArrowRight, AlertTriangle, Info, Milestone as MilestoneIcon, CheckSquare, Search,
+  ChevronDown, ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type {
@@ -178,26 +179,33 @@ function MiniTimeline({
 // for a governed tradeoff (a slip you're choosing), emerald when absorbed —
 // never rose. Honest blanks: a figure that can't be defended says so (C7).
 function ConsequenceStory({ c }: { c: ConsequenceProjection }) {
-  const absorbed = c.goLive.absorbed;
+  // Tone keys off `benign` (truly nothing wrong), NOT `absorbed` — a vendor
+  // over-charge holds go-live but still costs money, so it stays amber.
+  const benign = c.benign;
 
   return (
     <div
       className={cn(
         "mb-4 rounded-lg border p-3",
-        absorbed ? "border-emerald-200 bg-emerald-50/60" : "border-amber-200 bg-amber-50/60",
+        benign ? "border-emerald-200 bg-emerald-50/60" : "border-amber-200 bg-amber-50/60",
       )}
     >
       {/* Causal sentence — read this first */}
-      <p className={cn("text-sm font-medium", absorbed ? "text-emerald-950" : "text-amber-950")}>
+      <p className={cn("text-sm font-medium", benign ? "text-emerald-950" : "text-amber-950")}>
         {c.summary}
       </p>
 
-      {!absorbed && (
+      {!benign && (
         <>
           {/* The three consequences */}
           <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
             <Stat label="Go-live">
-              {c.goLive.lockedBreach ? (
+              {c.goLive.absorbed ? (
+                <span className="tabular-nums font-semibold text-foreground">
+                  {c.goLive.committed}
+                  <span className="ml-1.5 text-[11px] font-medium text-emerald-700">holds</span>
+                </span>
+              ) : c.goLive.lockedBreach ? (
                 <>
                   <span className="tabular-nums font-semibold text-foreground">{c.goLive.committed}</span>
                   <span className="ml-1.5 rounded bg-amber-100 px-1 py-0.5 text-[10px] font-semibold text-amber-900">
@@ -318,6 +326,10 @@ export function ImpactDrawer({
 }) {
   const [excludeIds, setExcludeIds] = useState<Set<string>>(new Set());
   const [overrides,  setOverrides]  = useState<Record<string, string>>({});
+  // Decision-first: when there's a consequence story to lead with, the full
+  // editable cascade collapses behind a disclosure (closed by default). With no
+  // story to lead with, details stay open so the drawer is never empty.
+  const [showDetails, setShowDetails] = useState(false);
 
   // Reset state on open (in case the drawer is re-used across edits)
   useEffect(() => { if (open) { setExcludeIds(new Set()); setOverrides({}); } }, [open]);
@@ -354,6 +366,8 @@ export function ImpactDrawer({
     .flatMap((s) => s.rows);
   const includedShifts = shiftRows.filter((r) => !excludeIds.has(r.id)).length;
   const totalShifts = shiftRows.length;
+  // Step 2 — how many of the shifts are on the binding path to go-live.
+  const criticalShifts = shiftRows.filter((r) => r.isCritical).length;
 
   // M20.6 — compute timeline range across the originator + every shift row so
   // each row's mini-timeline bar is scaled to the same axis. Falls back to a
@@ -492,6 +506,11 @@ export function ImpactDrawer({
                   : `${includedShifts} of ${totalShifts} included`}
               </span>
             )}
+            {criticalShifts > 0 && (
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 font-semibold text-amber-700">
+                {criticalShifts} of {totalShifts} drive go-live
+              </span>
+            )}
             {totalWarnings > 0 && (
               <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 font-semibold text-rose-700">
                 {totalWarnings} to review
@@ -513,17 +532,27 @@ export function ImpactDrawer({
         {/* Body */}
         <div className="impact-modal-body">
           {consequence && <ConsequenceStory c={consequence} />}
-          {totalShifts === 0 && totalWarnings === 0 && totalInfo === 0 && !hasCallout ? (
-            <div className="rounded-lg border border-dashed border-border bg-muted/20 py-8 text-center">
-              <Info className="mx-auto mb-2 h-5 w-5 text-muted-foreground/50" />
-              <p className="text-sm font-medium text-foreground">Nothing else will change</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Save to apply this change. No other tasks or milestones are affected.
-              </p>
-            </div>
-          ) : (
-            sections.map((section, sIdx) => {
-              // Callouts render even with no items; other kinds skip when empty
+          {(() => {
+            const nothingElse = totalShifts === 0 && totalWarnings === 0 && totalInfo === 0 && !hasCallout;
+            // With a consequence story, the story already states the outcome —
+            // don't repeat it with an empty-state box.
+            if (nothingElse) {
+              if (consequence) return null;
+              return (
+                <div className="rounded-lg border border-dashed border-border bg-muted/20 py-8 text-center">
+                  <Info className="mx-auto mb-2 h-5 w-5 text-muted-foreground/50" />
+                  <p className="text-sm font-medium text-foreground">Nothing else will change</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Save to apply this change. No other tasks or milestones are affected.
+                  </p>
+                </div>
+              );
+            }
+
+            // Decision-first: lead with the story; the editable cascade lives
+            // behind a disclosure. With no story to lead with, keep it open.
+            const detailsOpen = showDetails || !consequence;
+            const renderedSections = sections.map((section, sIdx) => {
               if (
                 section.kind !== "callout" &&
                 section.kind !== "dependency-workbench" &&
@@ -542,8 +571,27 @@ export function ImpactDrawer({
                   tMax={tMax}
                 />
               );
-            })
-          )}
+            });
+
+            return (
+              <>
+                {consequence && (
+                  <button
+                    onClick={() => setShowDetails((v) => !v)}
+                    className="mb-2 flex w-full items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                  >
+                    {detailsOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                    {detailsOpen ? "Hide details" : "Review & adjust details"}
+                    <span className="ml-auto text-[11px] text-muted-foreground tabular-nums">
+                      {totalShifts} change{totalShifts === 1 ? "" : "s"}
+                      {totalWarnings > 0 ? ` · ${totalWarnings} to review` : ""}
+                    </span>
+                  </button>
+                )}
+                {detailsOpen && renderedSections}
+              </>
+            );
+          })()}
         </div>
 
         {/* Footer */}
@@ -766,9 +814,12 @@ function renderShiftRow(row: ImpactRow, kind: "milestones" | "tasks", deps: Shif
           <p className="truncate text-xs font-medium text-foreground">
             <span className="font-mono text-[10px] font-bold text-muted-foreground">{row.id.toUpperCase()}</span>
             {row.name && <> · {row.name}</>}
-            {kind === "milestones" && row.isCritical && (
-              <span className="ml-1.5 rounded-full border border-rose-200 bg-rose-50 px-1.5 text-[9px] font-bold text-rose-700">
-                CP
+            {row.isCritical && (
+              <span
+                className="ml-1.5 rounded-full border border-amber-200 bg-amber-50 px-1.5 text-[9px] font-bold text-amber-700"
+                title="On the path that determines the go-live date"
+              >
+                go-live path
               </span>
             )}
           </p>
