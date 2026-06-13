@@ -1,3 +1,4 @@
+import { GuidedWorkPanel } from "@/components/guidance/guided-work-panel";
 import { CostsGrid } from "@/components/costs/costs-grid";
 
 export default function CostsPage() {
@@ -9,6 +10,7 @@ export default function CostsPage() {
           Budget versus actual spend across all cost categories. Per-line burn bars surface anything approaching its budget ceiling.
         </p>
       </header>
+      <GuidedWorkPanel route="/costs" compact />
       <CostsGrid />
     </div>
   );

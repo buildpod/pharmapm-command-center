@@ -1,3 +1,4 @@
+import { GuidedWorkPanel } from "@/components/guidance/guided-work-panel";
 import { TasksGrid } from "@/components/tasks/tasks-grid";
 
 export default function TasksPage() {
@@ -9,6 +10,7 @@ export default function TasksPage() {
           Grouped by workstream. Click a status badge to advance, click a progress bar to edit. Upstream dependency tags flag what each task is waiting on.
         </p>
       </header>
+      <GuidedWorkPanel route="/tasks" compact />
       <TasksGrid />
     </div>
   );

@@ -1,3 +1,4 @@
+import { GuidedWorkPanel } from "@/components/guidance/guided-work-panel";
 import { MilestonesGrid } from "@/components/milestones/milestones-grid";
 
 export default function MilestonesPage() {
@@ -9,6 +10,7 @@ export default function MilestonesPage() {
           Interactive schedule with dependency-aware impact review. Click a planned date to edit — downstream impact is shown before you commit.
         </p>
       </header>
+      <GuidedWorkPanel route="/milestones" compact />
       <MilestonesGrid />
     </div>
   );

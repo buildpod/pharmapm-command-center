@@ -14,6 +14,7 @@ import { useEffect, useMemo, useState } from "react";
 import "@/app/styles/dashboard.css";
 import { getKpis, budgetTrend, riskTrend } from "@/lib/mockData";
 import { useProject } from "@/components/projects/project-provider";
+import { GuidedWorkPanel } from "@/components/guidance/guided-work-panel";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { useProjectEvm } from "@/lib/hooks/use-project-evm";
 import { calculateDeliveryTruth, calculateForecastDate, type DeliveryTruthSource } from "@/lib/domain/delivery-truth";
@@ -200,6 +201,8 @@ export default function DashboardPage() {
           <span className="card-link-hint">See the evidence →</span>
         </span>
       </Link>
+
+      <GuidedWorkPanel route="/" showChecklist />
 
       <section className="what-now" data-tour-id="dashboard-what-now">
         <div className="what-now__header">

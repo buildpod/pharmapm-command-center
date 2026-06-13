@@ -1354,3 +1354,257 @@ a.kpi:hover, a.executive-verdict:hover {
   color: var(--color-accent-700);
   white-space: nowrap;
 }
+
+/* ─── Native guided-work DAP ───────────────────────────────────── */
+
+.guidance-role {
+  display: none;
+  align-items: center;
+  gap: var(--space-2);
+  height: 36px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunk);
+  color: var(--color-ink-700);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+.guidance-role span {
+  color: var(--color-ink-500);
+}
+.guidance-role select {
+  border: 0;
+  background: transparent;
+  color: var(--color-ink-900);
+  font: inherit;
+  outline: none;
+}
+.guidance-role:focus-within {
+  box-shadow: var(--focus-ring);
+}
+
+.guided-work {
+  border: 1px solid var(--color-line-soft);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-card);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+.guided-work__summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  width: 100%;
+  gap: var(--space-3);
+  border: 0;
+  background: transparent;
+  padding: var(--space-4) var(--space-5);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.guided-work__summary strong {
+  display: block;
+  color: var(--color-ink-900);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semi);
+  line-height: var(--leading-snug);
+}
+.guided-work__summary em {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-ink-500);
+  font-size: var(--text-sm);
+  font-style: normal;
+  line-height: var(--leading-snug);
+}
+.guided-work__icon,
+.guided-work__tone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-50);
+  color: var(--color-accent-700);
+}
+.guided-work__icon svg,
+.guided-work__tone svg {
+  width: 16px;
+  height: 16px;
+}
+.guided-work__mode {
+  border: 1px solid var(--color-line-soft);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface-sunk);
+  padding: 2px 8px;
+  color: var(--color-ink-700);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+.guided-work__chevron--open {
+  transform: rotate(180deg);
+}
+.guided-work__body {
+  display: grid;
+  gap: var(--space-4);
+  padding: 0 var(--space-5) var(--space-5);
+}
+.guided-work__card {
+  border: 1px solid var(--color-line-soft);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-page);
+  padding: var(--space-4);
+}
+.guided-work__card--checklist {
+  background: var(--color-surface-card);
+}
+.guided-work__card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.guided-work__card-head h2 {
+  margin: 2px 0 0;
+  color: var(--color-ink-900);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semi);
+  line-height: var(--leading-tight);
+}
+.guided-work__eyebrow {
+  color: var(--color-accent-700);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semi);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+.guided-work__checklist,
+.guided-work__nudge-list {
+  display: grid;
+  gap: var(--space-2);
+}
+.guided-work__item,
+.guided-work__nudge {
+  display: grid;
+  align-items: center;
+  gap: var(--space-3);
+  border: 1px solid var(--color-line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-card);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
+}
+.guided-work__item {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  padding: var(--space-3);
+}
+.guided-work__nudge {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  padding: var(--space-3);
+}
+.guided-work__item:hover,
+.guided-work__nudge:hover {
+  border-color: var(--color-accent-600);
+  background: var(--color-accent-50);
+}
+.guided-work__item strong,
+.guided-work__nudge strong {
+  display: block;
+  color: var(--color-ink-900);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semi);
+}
+.guided-work__item em,
+.guided-work__nudge em,
+.guided-work__quiet {
+  display: block;
+  color: var(--color-ink-500);
+  font-size: var(--text-sm);
+  font-style: normal;
+  line-height: var(--leading-snug);
+}
+.guided-work__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--color-accent-700);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semi);
+  white-space: nowrap;
+}
+.guided-work__cta svg,
+.guided-work__nudge > svg {
+  width: 14px;
+  height: 14px;
+}
+.guided-work__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.guided-work__actions span {
+  border: 1px solid var(--color-line-soft);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface-sunk);
+  padding: 4px 8px;
+  color: var(--color-ink-700);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+.guided-work__tone--ok {
+  background: var(--color-status-ok-bg);
+  color: var(--color-status-ok-fg);
+}
+.guided-work__tone--warn {
+  background: var(--color-status-warn-bg);
+  color: var(--color-status-warn-fg);
+}
+.guided-work__tone--risk {
+  background: var(--color-status-risk-bg);
+  color: var(--color-status-risk-fg);
+}
+.guided-work__tone--info {
+  background: var(--color-status-info-bg);
+  color: var(--color-status-info-fg);
+}
+.guided-work__tone--neutral {
+  background: var(--color-status-neutral-bg);
+  color: var(--color-status-neutral-fg);
+}
+
+@media (min-width: 1024px) {
+  .guidance-role {
+    display: inline-flex;
+  }
+  .guided-work__body {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  }
+  .guided-work__card--checklist {
+    grid-row: span 2;
+  }
+  .guided-work__actions {
+    align-content: start;
+  }
+}
+
+@media (max-width: 720px) {
+  .guided-work__summary {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .guided-work__mode {
+    display: none;
+  }
+  .guided-work__item,
+  .guided-work__nudge {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .guided-work__cta,
+  .guided-work__nudge > svg {
+    display: none;
+  }
+}

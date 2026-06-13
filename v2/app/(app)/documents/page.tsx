@@ -1,3 +1,4 @@
+import { GuidedWorkPanel } from "@/components/guidance/guided-work-panel";
 import { DocumentsList } from "@/components/documents/documents-list";
 
 export default function DocumentsPage() {
@@ -9,6 +10,7 @@ export default function DocumentsPage() {
           GxP-aligned lifecycle artefacts. Cards are grouped by validation phase. Click a person chip to record their decision — document status auto-derives.
         </p>
       </header>
+      <GuidedWorkPanel route="/documents" compact />
       <DocumentsList />
     </div>
   );

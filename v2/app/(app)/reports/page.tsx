@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { FileText, Users, Layers } from "lucide-react";
+import { GuidedWorkPanel } from "@/components/guidance/guided-work-panel";
 import { WeeklyReport } from "@/components/reports/weekly-report";
 import { SteerCoReport } from "@/components/reports/steerco-report";
 import { WorkstreamReport } from "@/components/reports/workstream-report";
@@ -26,6 +27,10 @@ export default function ReportsPage() {
           Pick a report type. Each one can be printed (or saved as PDF) and exported to a multi-sheet Excel workbook.
         </p>
       </header>
+
+      <div className="print:hidden">
+        <GuidedWorkPanel route="/reports" compact />
+      </div>
 
       {/* Tab bar */}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 print:hidden" data-tour-id="reports-picker">

@@ -14,6 +14,7 @@ import {
   Target,
 } from "lucide-react";
 import { useMemo } from "react";
+import { GuidedWorkPanel } from "@/components/guidance/guided-work-panel";
 import { useProject } from "@/components/projects/project-provider";
 import { Badge } from "@/components/ui/badge";
 import { StatusPill, statusToneClasses } from "@/components/ui/status-pill";
@@ -114,6 +115,8 @@ export default function DeliveryTruthPage() {
           Open governance view <ChevronRight className="h-4 w-4" />
         </Link>
       </header>
+
+      <GuidedWorkPanel route="/truth" compact />
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <div className={cn("rounded-xl border p-5 shadow-sm", statusToneClasses[confidenceTone].panel)} data-tour-id="truth-score">

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { CalendarClock, CheckSquare, ChevronRight, GitBranch, Milestone, ScrollText } from "lucide-react";
+import { GuidedWorkPanel } from "@/components/guidance/guided-work-panel";
 import { useProject } from "@/components/projects/project-provider";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { cn } from "@/lib/utils";
@@ -73,6 +74,8 @@ export default function PlanPage() {
           What is the project shape? Charter, milestone gates, task counts, and dependency links for {activeProject.name}.
         </p>
       </header>
+
+      <GuidedWorkPanel route="/plan" compact />
 
       <section className="grid grid-cols-1 gap-3 md:grid-cols-4">
         <PlanCard title="Charter" value={charter ? charter.status : "Missing"} description="Purpose, scope, objectives, assumptions, and sponsor approval." href="/charter" icon={ScrollText} tone={charter?.status === "approved" ? "emerald" : "amber"} />
