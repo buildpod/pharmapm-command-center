@@ -31,6 +31,8 @@ import { avatarColor } from "@/lib/ui/avatar-color";
 function msStrToNum(id: string): number { return parseInt(id.replace("m", "")); }
 function msNumToStr(id: number): string { return `m${id}`; }
 import { ImpactDrawer, type ImpactSummary, type ImpactSection } from "@/components/ui/impact-drawer";
+import { projectConsequence, resolveGoLiveMilestone } from "@/lib/domain/consequence";
+import { useProjectEvm } from "@/lib/hooks/use-project-evm";
 import { cn } from "@/lib/utils";
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -371,9 +373,12 @@ interface TaskCascadePreviewState {
 }
 
 export function TasksGrid() {
-  const { activeProjectId } = useProject();
+  const { activeProjectId, activeProject } = useProject();
   useFocusRow();
   const { settings } = useSettings();
+  // Impact Engine — live EVM snapshot + cost lines feed the consequence story.
+  const { evm } = useProjectEvm();
+  const costLines         = useEntityStore((s) => s.costLines);
   const tasks             = useEntityStore((s) => s.tasks);
   const addTask           = useEntityStore((s) => s.addTask);
   const updateTask        = useEntityStore((s) => s.updateTask);
@@ -824,7 +829,54 @@ export function TasksGrid() {
                 })),
               } : null;
 
+              // Impact Engine — project the true consequence (go-live / cost /
+              // confidence vs. the frozen commitment). Measured against the
+              // project's committed go-live; cost only on T&M lines; confidence
+              // only via the real cost mechanism. Rendered as the story header.
+              const goLiveMilestoneId = resolveGoLiveMilestone(
+                projMilestones.map((m) => ({ id: m.id, name: m.name, phase: m.phase, plannedDate: m.plannedDate })),
+                activeProject.goLiveDate,
+              );
+              const goLiveMs = projMilestones.find((m) => m.id === goLiveMilestoneId);
+              // Unlocked projection (Impact Engine): re-run the milestone push with
+              // go-live's lock removed, so we learn where go-live WOULD land. This
+              // distinguishes genuine slack (go-live unaffected) from a locked-date
+              // collision (go-live can't move on paper but the work overruns it).
+              const glNum = goLiveMilestoneId ? msStrToNum(goLiveMilestoneId) : -1;
+              const unlockedMs = scheduleMilestones.map((m) =>
+                m.id === glNum ? { ...m, lockDate: false } : m,
+              );
+              const msPushesUnlocked = previewTaskToMilestonePush(
+                r.tasks, unlockedMs, msNumToStr,
+                { workingDays: settings.workingDays, holidays: settings.holidays },
+              );
+              const goLiveProjectedUnlocked =
+                msPushesUnlocked.find((p) => p.milestoneId === goLiveMilestoneId)?.proposedNewDate ?? null;
+              const consequence = goLiveMilestoneId
+                ? projectConsequence({
+                    editedTaskName: cascadePreview!.editedTask.name,
+                    editWorkingDaysShift: cascadePreview!.summary.daysShifted,
+                    affected: r.affected,
+                    milestonePushes: msPushes,
+                    baseline: {
+                      committedGoLive: activeProject.goLiveDate,
+                      projectStart: activeProject.startDate,
+                      goLiveMilestoneId,
+                      goLiveName: goLiveMs?.name,
+                      goLiveLocked: goLiveMs?.locked ?? false,
+                      goLiveProjectedUnlocked,
+                    },
+                    costLines: costLines
+                      .filter((c) => c.projectId === activeProjectId)
+                      .map((c) => ({ budgetK: c.budgetK, contractType: c.contractType })),
+                    snapshot: evm?.snapshot ?? null,
+                    workingDays: settings.workingDays,
+                    holidays: settings.holidays,
+                  })
+                : undefined;
+
               return {
+                consequence,
                 sections: [
                   tasksSection,
                   ...(milestonesSection.rows.length > 0 ? [milestonesSection] : []),

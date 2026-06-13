@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   X, ArrowRight, AlertTriangle, Info, Milestone as MilestoneIcon, CheckSquare, Search,
 } from "lucide-react";
@@ -10,6 +10,7 @@ import type {
   DependencyRepairEdge,
   DependencyRepairPlan,
 } from "@/lib/domain/scheduling";
+import type { ConsequenceProjection } from "@/lib/domain/consequence";
 
 // M20: Universal selective-cascade impact review.
 // - Holds local state for per-row exclusions + date overrides
@@ -97,6 +98,10 @@ export interface ImpactSummary {
 // the cascade engine with the new opts and returns fresh sections.
 export interface RecomputeResult {
   sections: ImpactSection[];
+  // Impact Engine — the consequence story (go-live / cost / confidence vs. the
+  // frozen commitment). Rendered ABOVE the evidence sections: causal sentence
+  // first, evidence underneath. Optional — absent for non-date originators.
+  consequence?: ConsequenceProjection;
 }
 
 // ─── Mini-timeline (M20.6) ──────────────────────────────────────────────────
@@ -166,6 +171,134 @@ function MiniTimeline({
   );
 }
 
+// ─── Consequence story (Impact Engine) ───────────────────────────────────────
+//
+// The narrative spine, top of the drawer: what you did → does it matter → the
+// one go-live headline → why (chain) → true cost → confidence. Tone is amber
+// for a governed tradeoff (a slip you're choosing), emerald when absorbed —
+// never rose. Honest blanks: a figure that can't be defended says so (C7).
+function ConsequenceStory({ c }: { c: ConsequenceProjection }) {
+  const absorbed = c.goLive.absorbed;
+
+  return (
+    <div
+      className={cn(
+        "mb-4 rounded-lg border p-3",
+        absorbed ? "border-emerald-200 bg-emerald-50/60" : "border-amber-200 bg-amber-50/60",
+      )}
+    >
+      {/* Causal sentence — read this first */}
+      <p className={cn("text-sm font-medium", absorbed ? "text-emerald-950" : "text-amber-950")}>
+        {c.summary}
+      </p>
+
+      {!absorbed && (
+        <>
+          {/* The three consequences */}
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <Stat label="Go-live">
+              {c.goLive.lockedBreach ? (
+                <>
+                  <span className="tabular-nums font-semibold text-foreground">{c.goLive.committed}</span>
+                  <span className="ml-1.5 rounded bg-amber-100 px-1 py-0.5 text-[10px] font-semibold text-amber-900">
+                    locked
+                  </span>
+                  <span className="mt-0.5 block text-[11px] text-amber-700">
+                    work overruns by +{c.goLive.workingDaysSlip} working days
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="tabular-nums">
+                    <span className="text-muted-foreground line-through">{c.goLive.committed}</span>
+                    <span className="px-1">→</span>
+                    <span className="font-semibold text-foreground">{c.goLive.projected}</span>
+                  </span>
+                  <span className="mt-0.5 block text-[11px] text-amber-700">
+                    +{c.goLive.workingDaysSlip} working days
+                  </span>
+                </>
+              )}
+            </Stat>
+
+            <Stat label="Confidence">
+              {c.confidence.before === null ? (
+                <span className="text-xs text-muted-foreground">Not computed yet</span>
+              ) : c.confidence.moves ? (
+                <span className="tabular-nums">
+                  <span className="text-muted-foreground">{c.confidence.before}</span>
+                  <span className="px-1">→</span>
+                  <span className="font-semibold text-amber-800">{c.confidence.after}</span>
+                </span>
+              ) : (
+                <span className="tabular-nums font-semibold text-foreground">{c.confidence.before}</span>
+              )}
+              {!c.confidence.moves && c.confidence.before !== null && (
+                <span className="mt-0.5 block text-[11px] text-muted-foreground">unchanged</span>
+              )}
+            </Stat>
+
+            <Stat label="Forecast cost">
+              {c.cost.estimable ? (
+                c.cost.addedCost > 0 ? (
+                  <span className="font-semibold text-amber-800 tabular-nums">
+                    +{formatMoney(c.cost.addedCost)}
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted-foreground">No added cost</span>
+                )
+              ) : (
+                <span className="text-xs text-muted-foreground">Not estimable</span>
+              )}
+            </Stat>
+          </div>
+
+          {/* Why — the traceable chain */}
+          {c.chain.length > 0 && (
+            <p className="mt-3 flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
+              {c.chain.map((node, i) => (
+                <span key={`${node.kind}-${node.id}`} className="flex items-center gap-1">
+                  {i > 0 && <ArrowRight className="h-3 w-3 shrink-0 opacity-50" />}
+                  <span
+                    className={cn(
+                      "rounded px-1.5 py-0.5 font-medium",
+                      node.kind === "milestone"
+                        ? "bg-amber-100 text-amber-900"
+                        : "bg-card text-foreground border border-border",
+                    )}
+                  >
+                    {node.name ?? node.id.toUpperCase()}
+                  </span>
+                </span>
+              ))}
+            </p>
+          )}
+
+          {/* Honest note when confidence holds despite the breach */}
+          {!c.confidence.moves && c.confidence.before !== null && (
+            <p className="mt-2 text-[11px] text-amber-800">{c.confidence.note}</p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function Stat({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="rounded-md border border-border bg-card px-2.5 py-1.5">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+      <div className="mt-0.5 text-sm">{children}</div>
+    </div>
+  );
+}
+
+function formatMoney(dollars: number): string {
+  if (dollars >= 1_000_000) return `$${(dollars / 1_000_000).toFixed(2)}M`;
+  if (dollars >= 1_000) return `$${Math.round(dollars / 1_000)}k`;
+  return `$${dollars}`;
+}
+
 // ─── Main component ─────────────────────────────────────────────────────────
 
 export function ImpactDrawer({
@@ -204,7 +337,7 @@ export function ImpactDrawer({
   }, [open]);
 
   // Recompute on every state change. Memoised on (excludeIds, overrides).
-  const { sections } = useMemo(
+  const { sections, consequence } = useMemo(
     () => recompute(excludeIds, overrides),
     // reason: recompute is captured from props; we intentionally re-run only on state
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -379,6 +512,7 @@ export function ImpactDrawer({
 
         {/* Body */}
         <div className="impact-modal-body">
+          {consequence && <ConsequenceStory c={consequence} />}
           {totalShifts === 0 && totalWarnings === 0 && totalInfo === 0 && !hasCallout ? (
             <div className="rounded-lg border border-dashed border-border bg-muted/20 py-8 text-center">
               <Info className="mx-auto mb-2 h-5 w-5 text-muted-foreground/50" />
