@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { ChevronDown, ChevronRight, Milestone, ArrowRight, Plus } from "lucide-react";
 import {
@@ -31,8 +31,10 @@ import { avatarColor } from "@/lib/ui/avatar-color";
 function msStrToNum(id: string): number { return parseInt(id.replace("m", "")); }
 function msNumToStr(id: number): string { return `m${id}`; }
 import { ImpactDrawer, type ImpactSummary, type ImpactSection } from "@/components/ui/impact-drawer";
-import { projectConsequence, resolveGoLiveMilestone } from "@/lib/domain/consequence";
+import { projectConsequence, resolveGoLiveMilestone, type ConsequenceProjection } from "@/lib/domain/consequence";
 import { criticalChainToGoLive } from "@/lib/domain/critical-path";
+import { SAMPLE_HARD_WINDOWS } from "@/lib/domain/hard-windows";
+import { appendAudit, buildAction } from "@/lib/stores/audit";
 import { useProjectEvm } from "@/lib/hooks/use-project-evm";
 import { cn } from "@/lib/utils";
 
@@ -389,6 +391,9 @@ export function TasksGrid() {
   const liveMilestones    = useEntityStore((s) => s.milestones);
   const replaceAllMilestones = useEntityStore((s) => s.replaceAllMilestones);
   const [cascadePreview, setCascadePreview]     = useState<TaskCascadePreviewState | null>(null);
+  // Step 7 — the consequence the PM is about to accept, captured on each
+  // recompute so onApply can write an acceptance record (the slack ledger seed).
+  const lastConsequenceRef = useRef<ConsequenceProjection | null>(null);
   const [filterPriority, setFilterPriority]     = useState<TaskPriority | "All">("All");
   const [filterStatus, setFilterStatus]         = useState<TaskStatus | "All">("All");
   const [filterWorkstream, setFilterWorkstream] = useState<string>("All");
@@ -893,6 +898,10 @@ export function TasksGrid() {
                       .filter((c) => c.projectId === activeProjectId)
                       .map((c) => ({ budgetK: c.budgetK, contractType: c.contractType })),
                     snapshot: evm?.snapshot ?? null,
+                    // Step 6 — hard windows (freeze / absence / roll-off). Seeded
+                    // for the sample project; real projects have none until there
+                    // is UI to author them.
+                    hardWindows: activeProject.isSample ? SAMPLE_HARD_WINDOWS : [],
                     workingDays: settings.workingDays,
                     holidays: settings.holidays,
                   })
@@ -921,6 +930,7 @@ export function TasksGrid() {
                 ];
               }
 
+              lastConsequenceRef.current = consequence ?? null;
               return {
                 consequence,
                 sections: [
@@ -990,6 +1000,37 @@ export function TasksGrid() {
                     : cascadePreview!.summary.originatorName,
                 }
               );
+
+              // Step 7 — acceptance record. When the PM accepts a change that
+              // breaches the committed go-live, write the TRUE cost they just
+              // accepted to the audit log (the slack-ledger seed): go-live slip,
+              // forecast cost, confidence drop. Absorbed changes aren't recorded
+              // (nothing was traded away).
+              const cq = lastConsequenceRef.current;
+              if (cq && cq.commitmentBreach) {
+                const parts: string[] = [];
+                parts.push(
+                  cq.goLive.lockedBreach
+                    ? `committed go-live ${cq.goLive.committed} breached by +${cq.goLive.workingDaysSlip} working days`
+                    : `go-live ${cq.goLive.committed} → ${cq.goLive.projected} (+${cq.goLive.workingDaysSlip} working days)`,
+                );
+                if (cq.cost.estimable && cq.cost.addedCost > 0) {
+                  parts.push(`+$${Math.round(cq.cost.addedCost / 1000)}k forecast cost`);
+                }
+                if (cq.confidence.moves && cq.confidence.before != null) {
+                  parts.push(`confidence ${cq.confidence.before}→${cq.confidence.after}`);
+                }
+                if (cq.windowCollision) parts.push(`lands in ${cq.windowCollision.label}`);
+                appendAudit(buildAction({
+                  type: "cascade-apply",
+                  entityKind: "milestone",
+                  entityId: cascadePreview!.editedTask.id,
+                  source: "cascade",
+                  projectId: activeProjectId,
+                  note: `Accepted impact — ${parts.join(" · ")}`,
+                }));
+              }
+
               setCascadePreview(null);
             }}
             onCancel={() => setCascadePreview(null)}

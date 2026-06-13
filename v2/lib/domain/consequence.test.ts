@@ -11,6 +11,7 @@ import {
   type Perturbation,
 } from "./consequence";
 import type { EvmSnapshot } from "./evm";
+import { compare } from "./dates";
 
 // A behind-on-cost snapshot: CPI < 1 so extra burn visibly lowers confidence.
 function snapshot(over: Partial<EvmSnapshot> = {}): EvmSnapshot {
@@ -212,6 +213,25 @@ describe("scope-add — direct cost plus optional schedule arm", () => {
     expect(r.commitmentBreach).toBe(true);
     expect(r.confidence.after!).toBeLessThanOrEqual(r.confidence.before!);
     expect(r.summary).toMatch(/Extra integration/);
+  });
+});
+
+describe("step 6 — hard windows enlarge the slip and are reported", () => {
+  it("a go-live landing in a freeze is pushed to the next clear date", () => {
+    const r = projectConsequence(base({
+      baseline: baseline(),  // unlocked → go-live can move
+      hardWindows: [{ id: "f", label: "Q3 freeze", kind: "freeze", start: "2026-09-10", end: "2026-09-30" }],
+    }));
+    // raw projected 2026-09-16 is inside the freeze → pushed past 2026-09-30
+    expect(r.windowCollision).not.toBeNull();
+    expect(r.windowCollision!.label).toBe("Q3 freeze");
+    expect(compare(r.goLive.projected, "2026-09-30")).toBe(1);
+    expect(r.summary).toMatch(/Q3 freeze/);
+  });
+
+  it("no windows → no collision, slip unchanged", () => {
+    const r = projectConsequence(base());
+    expect(r.windowCollision).toBeNull();
   });
 });
 

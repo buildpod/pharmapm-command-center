@@ -28,6 +28,7 @@
 
 import { workingDaysBetween, daysBetween, compare } from "./dates";
 import type { EvmSnapshot } from "./evm";
+import { clearOfWindows, type HardWindow } from "./hard-windows";
 
 // ─── Perturbations (the unifying input) ────────────────────────────────────────
 
@@ -102,6 +103,10 @@ export interface ProjectConsequenceInput {
   baseline: ConsequenceBaseline;
   costLines: ConsequenceCostLine[];
   snapshot: EvmSnapshot | null;     // current EVM snapshot, or null (no coverage)
+  // Step 6 — organisational walls (freeze periods, absence, roll-off). A
+  // projected go-live landing inside one jumps to the next clear date, so the
+  // real slip is bigger than the dependency math says.
+  hardWindows?: HardWindow[];
   workingDays?: number[];
   holidays?: string[];
 }
@@ -123,6 +128,9 @@ export interface ConsequenceProjection {
     calendarDaysSlip: number;   // paired with working days (C6)
     pctOfPlan: number;
   };
+  // Set when the projected go-live collided with a hard window and was pushed
+  // to the next clear date (step 6). null when no window was hit.
+  windowCollision: { label: string; nextClear: string } | null;
   chain: { id: string; name?: string; kind: "task" | "milestone" }[];
   cost: {
     estimable: boolean;
@@ -185,7 +193,20 @@ export function projectConsequence(input: ProjectConsequenceInput): ConsequenceP
   //      • overruns, not locked     → go-live SLIPS to the projected date
   //      • overruns, locked         → LOCKED BREACH: date can't move on paper,
   //        so the work overruns it — miss or compress.
-  const projUnlocked = sched?.goLiveProjectedUnlocked ?? null;
+  // Apply hard windows (step 6): a projected go-live landing in a freeze /
+  // absence / roll-off jumps to the next clear date, so the effective slip is
+  // bigger than the dependency math. A window can even flip an otherwise-fitting
+  // date into an overrun.
+  const rawProjected = sched?.goLiveProjectedUnlocked ?? null;
+  let windowCollision: ConsequenceProjection["windowCollision"] = null;
+  let projUnlocked = rawProjected;
+  if (rawProjected != null && input.hardWindows && input.hardWindows.length > 0) {
+    const res = clearOfWindows(rawProjected, input.hardWindows, wd, hols);
+    projUnlocked = res.effectiveDate;
+    if (res.collisions.length > 0) {
+      windowCollision = { label: res.collisions[0].window.label, nextClear: res.effectiveDate };
+    }
+  }
   const overruns = projUnlocked != null && compare(projUnlocked, baseline.committedGoLive) > 0;
   const absorbed = !overruns;
   const lockedBreach = overruns && !!baseline.goLiveLocked;
@@ -258,6 +279,7 @@ export function projectConsequence(input: ProjectConsequenceInput): ConsequenceP
     kind: perturbation.kind,
     benign,
     goLive: { absorbed, lockedBreach, committed: baseline.committedGoLive, projected, workingDaysSlip, calendarDaysSlip, pctOfPlan },
+    windowCollision,
     chain,
     cost,
     confidence,
@@ -272,6 +294,7 @@ export function projectConsequence(input: ProjectConsequenceInput): ConsequenceP
       projected,
       cost,
       confidence,
+      windowCollision,
     }),
   };
 }
@@ -343,6 +366,7 @@ interface SummaryState {
   projected: string;
   cost: ConsequenceProjection["cost"];
   confidence: ConsequenceProjection["confidence"];
+  windowCollision: ConsequenceProjection["windowCollision"];
 }
 
 function buildSummary(p: Perturbation, s: SummaryState): string {
@@ -351,7 +375,11 @@ function buildSummary(p: Perturbation, s: SummaryState): string {
     ? s.cost.addedCost > 0 ? `, adding about ${money(s.cost.addedCost)} in forecast cost` : ""
     : ` (cost impact not estimable — ${s.cost.reason})`;
   const confSuffix = s.confidence.moves ? ` Confidence ${s.confidence.before} → ${s.confidence.after}.` : "";
+  const windowSuffix = s.windowCollision
+    ? ` It also lands inside the ${s.windowCollision.label} — the next clear date is ${s.windowCollision.nextClear}.`
+    : "";
 
+  const base = ((): string => {
   switch (p.kind) {
     case "cost-overcharge": {
       // Pure-cost: no schedule movement. Lead with the money + confidence.
@@ -381,6 +409,9 @@ function buildSummary(p: Perturbation, s: SummaryState): string {
       return `${moved} and is on the path to go-live: it slips ${wd} (≈ ${calWeeks(s.calendarDaysSlip)}) to ${s.projected}${costSuffix}.`;
     }
   }
+  })();
+  // The freeze/absence wall applies on top of whatever the dependency math said.
+  return s.absorbed && !s.windowCollision ? base : base + windowSuffix;
 }
 
 function calWeeks(days: number): string {

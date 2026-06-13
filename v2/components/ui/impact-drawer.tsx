@@ -261,6 +261,16 @@ function ConsequenceStory({ c }: { c: ConsequenceProjection }) {
             </Stat>
           </div>
 
+          {/* Hard-window collision — the organisational wall the cascade can't see */}
+          {c.windowCollision && (
+            <p className="mt-3 flex items-start gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] font-medium text-amber-900">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>
+                Lands inside the <strong>{c.windowCollision.label}</strong> — next clear date {c.windowCollision.nextClear}.
+              </span>
+            </p>
+          )}
+
           {/* Why — the traceable chain */}
           {c.chain.length > 0 && (
             <p className="mt-3 flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
