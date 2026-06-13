@@ -713,7 +713,7 @@ export function TasksGrid() {
           <ImpactDrawer
             open
             summary={cascadePreview.summary}
-            recompute={(excludeIds, overrides) => {
+            recompute={(excludeIds, overrides, assumptions) => {
               const r = runCascade(excludeIds, overrides);
 
               // M21-DrawerRewrite — engine returns an error (only realistic
@@ -900,8 +900,14 @@ export function TasksGrid() {
                     snapshot: evm?.snapshot ?? null,
                     // Step 6 — hard windows (freeze / absence / roll-off). Seeded
                     // for the sample project; real projects have none until there
-                    // is UI to author them.
-                    hardWindows: activeProject.isSample ? SAMPLE_HARD_WINDOWS : [],
+                    // is UI to author them. The PM can toggle a freeze off if they
+                    // know an exception (trust & adjust).
+                    hardWindows:
+                      activeProject.isSample && assumptions.freezeApplies !== false
+                        ? SAMPLE_HARD_WINDOWS
+                        : [],
+                    // Trust & adjust — PM-supplied T&M day-rate re-flows the cost.
+                    tmDayRateOverride: assumptions.tmDayRateOverride,
                     workingDays: settings.workingDays,
                     holidays: settings.holidays,
                   })

@@ -216,6 +216,26 @@ describe("scope-add — direct cost plus optional schedule arm", () => {
   });
 });
 
+describe("trust & adjust — overridable T&M day-rate re-flows the cost", () => {
+  it("exposes the implied rate and derivation fields", () => {
+    const r = projectConsequence(base());
+    expect(r.cost.tmDayRateImplied).toBeGreaterThan(0);
+    expect(r.cost.tmDayRate).toBe(r.cost.tmDayRateImplied);
+    expect(r.cost.committedDurationDays).toBeGreaterThan(0);
+    expect(r.cost.overrunDays).toBe(r.goLive.workingDaysSlip);
+    expect(r.cost.rateOverridden).toBe(false);
+  });
+
+  it("a higher PM-supplied rate raises the extension cost and is flagged", () => {
+    const base0 = projectConsequence(base());
+    const override = projectConsequence(base({ tmDayRateOverride: base0.cost.tmDayRateImplied * 3 }));
+    expect(override.cost.rateOverridden).toBe(true);
+    expect(override.cost.tmExtensionCost).toBeGreaterThan(base0.cost.tmExtensionCost);
+    // C1 still holds — more cost can only lower or hold confidence
+    expect(override.confidence.after!).toBeLessThanOrEqual(base0.confidence.after!);
+  });
+});
+
 describe("step 6 — hard windows enlarge the slip and are reported", () => {
   it("a go-live landing in a freeze is pushed to the next clear date", () => {
     const r = projectConsequence(base({

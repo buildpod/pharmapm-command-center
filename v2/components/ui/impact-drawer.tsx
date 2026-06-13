@@ -97,6 +97,14 @@ export interface ImpactSummary {
 // What the parent provides on every recompute(). The drawer calls this
 // whenever the user toggles include / edits a newDate, so the parent re-runs
 // the cascade engine with the new opts and returns fresh sections.
+// Trust & adjust — fact assumptions the PM can override; changing them re-flows
+// the impact. Confidence is deliberately NOT here: a computed-not-hand-set score
+// is the trust guarantee.
+export interface ImpactAssumptions {
+  tmDayRateOverride?: number | null;  // $/working day; null = implied
+  freezeApplies?: boolean;            // default true; false = ignore hard windows
+}
+
 export interface RecomputeResult {
   sections: ImpactSection[];
   // Impact Engine — the consequence story (go-live / cost / confidence vs. the
@@ -178,10 +186,17 @@ function MiniTimeline({
 // one go-live headline → why (chain) → true cost → confidence. Tone is amber
 // for a governed tradeoff (a slip you're choosing), emerald when absorbed —
 // never rose. Honest blanks: a figure that can't be defended says so (C7).
-function ConsequenceStory({ c }: { c: ConsequenceProjection }) {
+function ConsequenceStory({
+  c, assumptions, onAssumptionsChange,
+}: {
+  c: ConsequenceProjection;
+  assumptions: ImpactAssumptions;
+  onAssumptionsChange: (next: ImpactAssumptions) => void;
+}) {
   // Tone keys off `benign` (truly nothing wrong), NOT `absorbed` — a vendor
   // over-charge holds go-live but still costs money, so it stays amber.
   const benign = c.benign;
+  const [showRationale, setShowRationale] = useState(false);
 
   return (
     <div
@@ -296,6 +311,18 @@ function ConsequenceStory({ c }: { c: ConsequenceProjection }) {
           {!c.confidence.moves && c.confidence.before !== null && (
             <p className="mt-2 text-[11px] text-amber-800">{c.confidence.note}</p>
           )}
+
+          {/* Trust & adjust — full rationale, with editable fact assumptions */}
+          <button
+            onClick={() => setShowRationale((v) => !v)}
+            className="mt-3 flex items-center gap-1 text-[11px] font-medium text-amber-800 hover:underline"
+          >
+            {showRationale ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            {showRationale ? "Hide how this is calculated" : "How is this calculated?"}
+          </button>
+          {showRationale && (
+            <RationalePanel c={c} assumptions={assumptions} onAssumptionsChange={onAssumptionsChange} />
+          )}
         </>
       )}
     </div>
@@ -317,6 +344,102 @@ function formatMoney(dollars: number): string {
   return `$${dollars}`;
 }
 
+// Trust & adjust — the full derivation. Facts the PM owns (T&M day-rate, whether
+// a freeze applies) are editable and re-flow the impact; the confidence formula
+// is shown but not editable, because a hand-set score is a score no one trusts.
+function RationalePanel({
+  c, assumptions, onAssumptionsChange,
+}: {
+  c: ConsequenceProjection;
+  assumptions: ImpactAssumptions;
+  onAssumptionsChange: (next: ImpactAssumptions) => void;
+}) {
+  const cost = c.cost;
+  return (
+    <div className="mt-2 space-y-3 rounded-md border border-border bg-card/60 p-3 text-[11px] text-foreground">
+      {/* Go-live */}
+      <div>
+        <p className="font-semibold uppercase tracking-wider text-muted-foreground">Go-live</p>
+        <p className="mt-1 text-muted-foreground">
+          Projected from the latest task feeding each gate, plus a 1 working-day gate buffer, then
+          carried down the binding path to go-live.
+        </p>
+        {c.windowCollision && (
+          <label className="mt-1.5 flex items-center gap-1.5 text-foreground">
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5 rounded border-border accent-primary"
+              checked={assumptions.freezeApplies !== false}
+              onChange={(e) => onAssumptionsChange({ ...assumptions, freezeApplies: e.target.checked })}
+            />
+            <span>
+              The <strong>{c.windowCollision.label}</strong> applies (pushes go-live to {c.windowCollision.nextClear})
+            </span>
+          </label>
+        )}
+      </div>
+
+      {/* Forecast cost — editable day-rate */}
+      <div>
+        <p className="font-semibold uppercase tracking-wider text-muted-foreground">Forecast cost</p>
+        {cost.directCost > 0 && (
+          <p className="mt-1 text-muted-foreground">Direct cost (added scope / over-charge): <strong>{formatMoney(cost.directCost)}</strong>.</p>
+        )}
+        {cost.estimable && cost.overrunDays > 0 ? (
+          <>
+            <p className="mt-1 text-muted-foreground">
+              <strong>${cost.tmDayRate.toLocaleString()}</strong>/day{" "}
+              {cost.rateOverridden
+                ? <>(you set · implied ${cost.tmDayRateImplied.toLocaleString()} = {formatMoney(cost.tmBudget)} T&M ÷ {cost.committedDurationDays} days)</>
+                : <>(T&M lines {formatMoney(cost.tmBudget)} ÷ {cost.committedDurationDays} working days)</>}
+              {" "}× {cost.overrunDays} overrun days = <strong>{formatMoney(cost.tmExtensionCost)}</strong>.
+            </p>
+            <div className="mt-1.5 flex items-center gap-2">
+              <span className="text-muted-foreground">T&M rate used:</span>
+              <span className="text-foreground">$</span>
+              <input
+                type="number"
+                min={0}
+                value={cost.tmDayRate}
+                onChange={(e) => {
+                  const v = e.target.value.trim();
+                  onAssumptionsChange({ ...assumptions, tmDayRateOverride: v === "" ? null : Math.max(0, Number(v)) });
+                }}
+                className="w-24 rounded border border-border bg-background px-1.5 py-0.5 text-[11px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <span className="text-muted-foreground">/day</span>
+              {cost.rateOverridden && (
+                <button
+                  onClick={() => onAssumptionsChange({ ...assumptions, tmDayRateOverride: null })}
+                  className="text-blue-700 hover:underline"
+                >
+                  reset to implied
+                </button>
+              )}
+            </div>
+          </>
+        ) : !cost.estimable ? (
+          <p className="mt-1 text-muted-foreground">{cost.reason}</p>
+        ) : (
+          <p className="mt-1 text-muted-foreground">No schedule extension — no duration-driven cost.</p>
+        )}
+      </div>
+
+      {/* Confidence — read-only by design */}
+      <div>
+        <p className="font-semibold uppercase tracking-wider text-muted-foreground">Confidence</p>
+        <p className="mt-1 text-muted-foreground">
+          Computed: 40% cost-efficiency + 40% schedule-pace + 20% forecast-headroom.
+          {c.confidence.before !== null && (
+            <> {c.confidence.moves ? `Added cost moved it ${c.confidence.before} → ${c.confidence.after}.` : `Holds at ${c.confidence.before}.`}</>
+          )}
+        </p>
+        <p className="mt-1 italic text-muted-foreground">This score is computed, never hand-set — that is what makes it trustworthy.</p>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main component ─────────────────────────────────────────────────────────
 
 export function ImpactDrawer({
@@ -329,7 +452,7 @@ export function ImpactDrawer({
   open: boolean;
   summary: ImpactSummary;
   // Pure function; called on every state change.
-  recompute: (excludeIds: Set<string>, overrides: Record<string, string>) => RecomputeResult;
+  recompute: (excludeIds: Set<string>, overrides: Record<string, string>, assumptions: ImpactAssumptions) => RecomputeResult;
   // Called with the user's final selection on Apply.
   onApply: (excludeIds: Set<string>, overrides: Record<string, string>) => void;
   onCancel: () => void;
@@ -340,6 +463,8 @@ export function ImpactDrawer({
   // editable cascade collapses behind a disclosure (closed by default). With no
   // story to lead with, details stay open so the drawer is never empty.
   const [showDetails, setShowDetails] = useState(false);
+  // Trust & adjust — overridable fact assumptions; changing them re-flows the impact.
+  const [assumptions, setAssumptions] = useState<ImpactAssumptions>({ freezeApplies: true });
 
   // Reset state on open (in case the drawer is re-used across edits)
   useEffect(() => { if (open) { setExcludeIds(new Set()); setOverrides({}); } }, [open]);
@@ -360,10 +485,10 @@ export function ImpactDrawer({
 
   // Recompute on every state change. Memoised on (excludeIds, overrides).
   const { sections, consequence } = useMemo(
-    () => recompute(excludeIds, overrides),
+    () => recompute(excludeIds, overrides, assumptions),
     // reason: recompute is captured from props; we intentionally re-run only on state
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [excludeIds, overrides]
+    [excludeIds, overrides, assumptions]
   );
 
   if (!open) return null;
@@ -541,7 +666,9 @@ export function ImpactDrawer({
 
         {/* Body */}
         <div className="impact-modal-body">
-          {consequence && <ConsequenceStory c={consequence} />}
+          {consequence && (
+            <ConsequenceStory c={consequence} assumptions={assumptions} onAssumptionsChange={setAssumptions} />
+          )}
           {(() => {
             const nothingElse = totalShifts === 0 && totalWarnings === 0 && totalInfo === 0 && !hasCallout;
             // With a consequence story, the story already states the outcome —

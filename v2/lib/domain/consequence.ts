@@ -107,6 +107,10 @@ export interface ProjectConsequenceInput {
   // projected go-live landing inside one jumps to the next clear date, so the
   // real slip is bigger than the dependency math says.
   hardWindows?: HardWindow[];
+  // Trust & adjust (step "rationale"): the PM can override the implied T&M
+  // day-rate when they know the real burn. null/undefined → use the implied
+  // linear rate. The impact re-flows from whatever they enter.
+  tmDayRateOverride?: number | null;
   workingDays?: number[];
   holidays?: string[];
 }
@@ -139,6 +143,14 @@ export interface ConsequenceProjection {
     directCost: number;         // explicit cost from the perturbation (scope/overcharge)
     tmExtensionCost: number;    // duration-driven T&M burn from the overrun
     tmBudget: number;           // T&M budget the rate derives from
+    // Rationale fields — how tmExtensionCost was derived, so the PM can audit
+    // and override it. tmDayRate is what was used; tmDayRateImplied is the
+    // linear default (for a "reset" affordance); overrunDays × rate = extension.
+    tmDayRate: number;          // $/working day actually used
+    tmDayRateImplied: number;   // tmBudget ÷ committed duration (the default)
+    committedDurationDays: number;
+    overrunDays: number;
+    rateOverridden: boolean;    // true → the PM supplied tmDayRate
   };
   confidence: {
     moves: boolean;
@@ -246,12 +258,17 @@ export function projectConsequence(input: ProjectConsequenceInput): ConsequenceP
       .reduce((s, c) => s + c.budgetK, 0) * 1000;
   const directCost = directCostOf(perturbation);
 
+  // Implied linear day-rate; the PM can override it (trust & adjust).
+  const tmDayRateImplied = committedDuration > 0 ? Math.round(tmBudget / committedDuration) : 0;
+  const rateOverridden = input.tmDayRateOverride != null && input.tmDayRateOverride >= 0;
+  const tmDayRate = rateOverridden ? input.tmDayRateOverride! : tmDayRateImplied;
+
   let tmExtensionCost = 0;
   let estimable = true;
   let reason: string | undefined;
   if (overruns) {
-    if (tmBudget > 0) {
-      tmExtensionCost = Math.round((tmBudget / committedDuration) * workingDaysSlip);
+    if (tmBudget > 0 || rateOverridden) {
+      tmExtensionCost = Math.round(tmDayRate * workingDaysSlip);
     } else if (directCost === 0) {
       estimable = false;
       reason = "No time-&-materials cost lines — extension cost not estimable.";
@@ -265,6 +282,11 @@ export function projectConsequence(input: ProjectConsequenceInput): ConsequenceP
     directCost,
     tmExtensionCost,
     tmBudget,
+    tmDayRate,
+    tmDayRateImplied,
+    committedDurationDays: committedDuration,
+    overrunDays: workingDaysSlip,
+    rateOverridden,
   };
 
   // 4. Confidence — routes through the REAL cost mechanism. Extra cost raises AC
