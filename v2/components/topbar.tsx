@@ -60,11 +60,11 @@ export function Topbar() {
           </SheetContent>
         </Sheet>
 
-        {/* Breadcrumb — generated from the same route-to-tab map as tabs and rail */}
+        {/* Breadcrumb — shows WHERE you are (page context). Project identity
+            (name + phase) lives in the ProjectSwitcher beside it; repeating it
+            here just crammed and wrapped the header. */}
         <div className="crumbs">
           <strong>{tab.label} · {itemLabel}</strong>
-          <span>{activeProject.name}</span>
-          <span>{activeProject.phase}</span>
           {activeProject.isSample && (
             <Link
               href="/projects"
