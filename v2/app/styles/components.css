@@ -1411,6 +1411,16 @@ a.kpi:hover, a.executive-verdict:hover {
   font-weight: var(--weight-semi);
   line-height: var(--leading-snug);
 }
+.guided-work__summary small {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--color-accent-700);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semi);
+  letter-spacing: var(--tracking-label);
+  line-height: var(--leading-tight);
+  text-transform: uppercase;
+}
 .guided-work__summary em {
   display: block;
   margin-top: 2px;

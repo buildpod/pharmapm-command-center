@@ -47,7 +47,7 @@ export function GuidedWorkPanel({
   const issues = useEntityStore((s) => s.issues);
   const decisionRecords = useEntityStore((s) => s.decisionRecords);
   const [role, setRole] = useState<GuidanceRole>("pm");
-  const [collapsed, setCollapsed] = useState(compact);
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     setRole(readRole());
@@ -87,7 +87,7 @@ export function GuidedWorkPanel({
   const topNudges = guidance.nudges.slice(0, showChecklist ? 4 : 2);
 
   return (
-    <section className="guided-work" data-tour-id="guided-work">
+    <section className={compact ? "guided-work guided-work--compact" : "guided-work"} data-tour-id="guided-work">
       <button
         type="button"
         className="guided-work__summary"
@@ -96,10 +96,14 @@ export function GuidedWorkPanel({
       >
         <span className="guided-work__icon"><Sparkles /></span>
         <span>
+          <small>Guided work</small>
           <strong>{guidance.page.title}</strong>
           <em>{guidance.page.body}</em>
         </span>
-        <span className="guided-work__mode">{guidanceRoleLabel(role)}</span>
+        <span className="guided-work__mode">
+          {guidanceRoleLabel(role)}
+          {topNudges.length > 0 ? ` · ${topNudges.length} action${topNudges.length === 1 ? "" : "s"}` : " · clear"}
+        </span>
         <ChevronDown className={collapsed ? "" : "guided-work__chevron--open"} />
       </button>
 
