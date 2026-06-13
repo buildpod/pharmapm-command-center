@@ -10,13 +10,13 @@
 //   → .grid-2 (Risk + Budget charts) → .grid-2 (Milestones + Decisions)
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "@/app/styles/dashboard.css";
 import { getKpis, budgetTrend, riskTrend } from "@/lib/mockData";
 import { useProject } from "@/components/projects/project-provider";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { useProjectEvm } from "@/lib/hooks/use-project-evm";
-import { calculateForecastDate } from "@/lib/domain/delivery-truth";
+import { calculateDeliveryTruth, calculateForecastDate, type DeliveryTruthSource } from "@/lib/domain/delivery-truth";
 import { daysBetween } from "@/lib/domain/dates";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -24,6 +24,18 @@ import { daysBetween } from "@/lib/domain/dates";
 function formatDate(iso: string) {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function sourceHref(source?: DeliveryTruthSource) {
+  if (!source) return "/truth";
+  const route = {
+    milestone: "/milestones",
+    task: "/tasks",
+    risk: "/risks",
+    document: "/documents",
+    cost: "/costs",
+  }[source.kind];
+  return `${route}?focus=${encodeURIComponent(source.id)}`;
 }
 
 // Map task status → pill tone (used for milestone status across the dashboard)
@@ -60,6 +72,10 @@ export default function DashboardPage() {
   const kpis = getKpis(activeProjectId);
   const charters = useEntityStore((s) => s.charters);
   const milestones = useEntityStore((s) => s.milestones);
+  const tasks = useEntityStore((s) => s.tasks);
+  const risks = useEntityStore((s) => s.risks);
+  const documents = useEntityStore((s) => s.documents);
+  const costLines = useEntityStore((s) => s.costLines);
   const charter  = charters.find((c) => c.projectId === activeProjectId);
   const [showSetupReview, setShowSetupReview] = useState(false);
 
@@ -107,6 +123,15 @@ export default function DashboardPage() {
   // two surfaces cannot disagree. Coverage gate + status-date clamp live there.
   const { coverage, evm } = useProjectEvm();
   const coverageHint = `Add ${coverage.missing.join(" and ")} to activate the verdict.`;
+  const truth = useMemo(() => calculateDeliveryTruth({
+    project: activeProject,
+    milestones,
+    tasks,
+    risks,
+    documents,
+    costLines,
+    evm: evm?.snapshot,
+  }), [activeProject, milestones, tasks, risks, documents, costLines, evm]);
   const verdictPill = !evm
     ? "pill pill--neutral"
     : evm.verdict.level === "on-track" ? "pill pill--ok"
@@ -160,7 +185,7 @@ export default function DashboardPage() {
         </section>
       )}
 
-      <Link href="/truth" className="executive-verdict" aria-label="Executive verdict — open Delivery Signals">
+      <Link href="/truth" className="executive-verdict" aria-label="Executive verdict — open Delivery Signals" data-tour-id="dashboard-verdict">
         <div>
           <div className="executive-verdict__label">Executive Verdict</div>
           <div className="executive-verdict__title">{evm ? evm.verdict.headline : "Verdict pending"}</div>
@@ -176,8 +201,47 @@ export default function DashboardPage() {
         </span>
       </Link>
 
+      <section className="what-now" data-tour-id="dashboard-what-now">
+        <div className="what-now__header">
+          <div>
+            <div className="what-now__eyebrow">What needs attention</div>
+            <h2 className="what-now__title">Next actions from this project</h2>
+          </div>
+          <Link href="/truth" className="card-link-hint">Open Delivery Signals →</Link>
+        </div>
+        <div className="what-now__body">
+          {truth.signals.length > 0 ? (
+            truth.signals.slice(0, 3).map((signal) => {
+              const topSource = signal.sources[0];
+              return (
+                <Link key={signal.id} href={sourceHref(topSource)} className="what-now__row">
+                  <span className={`pill pill--${signal.severity === "high" || signal.severity === "critical" ? "risk" : signal.severity === "medium" ? "warn" : "info"}`}>
+                    {signal.metric?.value ?? signal.severity}
+                  </span>
+                  <span>
+                    <strong>{signal.nextAction}</strong>
+                    <em>{topSource ? `${topSource.kind}: ${topSource.label}` : "Open Delivery Signals for the evidence."}</em>
+                  </span>
+                </Link>
+              );
+            })
+          ) : !coverage.ready ? (
+            <div className="what-now__empty">
+              <strong>{coverageHint}</strong>
+              <Link href={coverage.missing.includes("budget lines") ? "/costs" : "/tasks"} className="btn btn--secondary">
+                {coverage.missing.includes("budget lines") ? "Add budget lines" : "Add tasks"}
+              </Link>
+            </div>
+          ) : (
+            <div className="what-now__empty">
+              <strong>No pressure signals — keep the next status cycle focused on the current path.</strong>
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* KPI grid */}
-      <div className="kpi-grid">
+      <div className="kpi-grid" data-tour-id="dashboard-kpis">
         <Link href="/milestones" className={`kpi ${scheduleKpiAccent}`}>
           <div className="kpi__label">Schedule Health</div>
           <div className="kpi__value-row">
@@ -246,7 +310,7 @@ export default function DashboardPage() {
 
       {/* Phase tracker + Project health */}
       <div className="grid-2">
-        <section className="card">
+        <section className="card" data-tour-id="dashboard-confidence">
           <div className="card__header">
             <div>
               <div className="t-card-title">

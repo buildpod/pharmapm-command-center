@@ -129,7 +129,7 @@ export function CostsGrid() {
   return (
     <div className="space-y-6">
       {/* KPI summary */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4" data-tour-id="costs-kpis">
         <KpiCard label="Total Budget"  value={`$${(totalBudgetK / 1000).toFixed(1)}M`} sub="project ceiling" Icon={Wallet} tone="neutral" />
         <KpiCard label="Spent to Date" value={`$${(totalActualK / 1000).toFixed(2)}M`}  sub={`${totalBurnPct}% utilised`}
           Icon={DollarSign} tone={totalBurnPct >= 85 ? "bad" : totalBurnPct >= 60 ? "warn" : "neutral"} />
@@ -139,7 +139,7 @@ export function CostsGrid() {
       </div>
 
       {/* Overall burn bar */}
-      <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+      <div className="rounded-xl border border-border bg-card p-5 shadow-sm" data-tour-id="costs-burn">
         <div className="mb-3 flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold text-foreground">Overall Budget Burn</p>
@@ -173,7 +173,7 @@ export function CostsGrid() {
       </div>
 
       {/* Cost breakdown */}
-      <div className="rounded-xl border border-border bg-card shadow-sm overflow-x-auto">
+      <div className="rounded-xl border border-border bg-card shadow-sm overflow-x-auto" data-tour-id="costs-lines">
         <div className="flex items-center justify-between border-b border-border bg-muted/30 px-5 py-3.5">
           <div>
             <p className="text-sm font-semibold text-foreground">Cost Breakdown by Category</p>

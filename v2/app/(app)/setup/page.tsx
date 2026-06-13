@@ -461,7 +461,7 @@ export default function GuidedSetupPage() {
     const hasSample = projects.some((p) => p.isSample);
     return (
       <div className="mx-auto max-w-3xl animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="mb-8 text-center">
+        <div className="mb-8 text-center" data-tour-id="setup-discovery">
           <h2 className="text-3xl font-bold tracking-tight text-foreground">Project Discovery</h2>
           <p className="mt-2 text-sm text-muted-foreground">Capture only the facts needed to recommend the right command-center setup.</p>
           {hasSample && (
@@ -674,7 +674,7 @@ export default function GuidedSetupPage() {
         <div className="rounded-2xl border border-border/50 bg-card/40 p-8 shadow-xl backdrop-blur-xl">
           {mode === "template" && (
             <div className="space-y-8">
-              <div className="space-y-4">
+              <div className="space-y-4" data-tour-id="setup-template">
                 <h3 className="text-sm font-semibold text-foreground">Recommended build template</h3>
                 <Field label="Template">
                   <select value={templateId} onChange={(event) => selectTemplate(event.target.value as ProjectTemplateId)} className={cn(inputCls, "bg-background/50 text-base py-2")}>
@@ -1098,7 +1098,7 @@ export default function GuidedSetupPage() {
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-2xl border border-border/50 bg-card/40 p-6 shadow-xl backdrop-blur-xl">
+          <div className="rounded-2xl border border-border/50 bg-card/40 p-6 shadow-xl backdrop-blur-xl" data-tour-id="setup-summary">
             <h3 className="text-lg font-semibold text-foreground">Project Identity</h3>
             <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
               <div>

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Menu, Sun, Moon, Plus, Settings } from "lucide-react";
+import { HelpCircle, Menu, Sun, Moon, Plus, Settings } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { SidebarContent } from "@/components/sidebar";
 import { CommandPaletteTrigger } from "@/components/command-palette";
@@ -12,16 +12,27 @@ import { ExportButton } from "@/components/projects/export-button";
 import { ProjectSwitcher } from "@/components/projects/project-switcher";
 import { useTheme } from "@/components/theme-provider";
 import { useProject } from "@/components/projects/project-provider";
-import { adminNavItems, appTabs, getRouteNavContext } from "@/lib/navigation";
+import { HelpDrawer } from "@/components/guidance/help-drawer";
+import { PageTour } from "@/components/guidance/page-tour";
+import { adminNavItems, appTabs, getRouteNavContext, isActiveRoute, routeToTabMap } from "@/lib/navigation";
+
+function normalizeHelpRoute(pathname: string) {
+  const normalizedPath = pathname.replace(/\/$/, "") || "/";
+  return Object.keys(routeToTabMap)
+    .sort((a, b) => b.length - a.length)
+    .find((route) => isActiveRoute(normalizedPath, route)) ?? "/";
+}
 
 export function Topbar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const adminRef = useRef<HTMLDivElement>(null);
   const { theme, toggle } = useTheme();
   const { activeProject } = useProject();
   const { tab, itemLabel } = getRouteNavContext(pathname);
+  const helpRoute = normalizeHelpRoute(pathname);
 
   useEffect(() => {
     function onClick(event: MouseEvent) {
@@ -83,6 +94,17 @@ export function Topbar() {
 
         <NotificationBell />
 
+        <button
+          type="button"
+          className="topbar-icon-button"
+          onClick={() => setHelpOpen(true)}
+          aria-label="How this page works"
+          title="How this page works"
+          data-tour-id="topbar-help"
+        >
+          <HelpCircle />
+        </button>
+
         <div className="hidden sm:flex">
           <ExportButton project={activeProject} />
         </div>
@@ -128,6 +150,8 @@ export function Topbar() {
           </Link>
         ))}
       </nav>
+      <HelpDrawer open={helpOpen} route={helpRoute} onClose={() => setHelpOpen(false)} />
+      <PageTour />
     </>
   );
 }

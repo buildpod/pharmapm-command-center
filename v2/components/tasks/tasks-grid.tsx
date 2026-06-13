@@ -523,7 +523,7 @@ export function TasksGrid() {
   return (
     <div className="space-y-4">
       {/* Summary bar */}
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm" data-tour-id="tasks-filters">
         <span className="text-sm font-medium text-foreground tabular-nums">
           {completeTasks} of {totalTasks} complete
         </span>
@@ -611,7 +611,7 @@ export function TasksGrid() {
           <p className="mt-1 text-xs text-muted-foreground">Try clearing the workstream, priority, or status filter.</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4" data-tour-id="tasks-register">
           {groups.map((g) => (
             <WorkstreamGroup
               key={g.name}

@@ -28,7 +28,7 @@ export default function ReportsPage() {
       </header>
 
       {/* Tab bar */}
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 print:hidden">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 print:hidden" data-tour-id="reports-picker">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = active === tab.id;
@@ -59,9 +59,11 @@ export default function ReportsPage() {
       </div>
 
       {/* Report content */}
-      {active === "weekly"     && <WeeklyReport />}
-      {active === "steerco"    && <SteerCoReport />}
-      {active === "workstream" && <WorkstreamReport />}
+      <div data-tour-id="reports-evidence">
+        {active === "weekly"     && <WeeklyReport />}
+        {active === "steerco"    && <SteerCoReport />}
+        {active === "workstream" && <WorkstreamReport />}
+      </div>
     </div>
   );
 }

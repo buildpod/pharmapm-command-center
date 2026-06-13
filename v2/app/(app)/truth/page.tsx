@@ -116,7 +116,7 @@ export default function DeliveryTruthPage() {
       </header>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-        <div className={cn("rounded-xl border p-5 shadow-sm", statusToneClasses[confidenceTone].panel)}>
+        <div className={cn("rounded-xl border p-5 shadow-sm", statusToneClasses[confidenceTone].panel)} data-tour-id="truth-score">
           <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider opacity-75">Is the promise still credible?</p>
@@ -177,7 +177,7 @@ export default function DeliveryTruthPage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm" data-tour-id="truth-actions">
           <div className="flex items-center gap-2">
             <Target className="h-4 w-4 text-muted-foreground" />
             <p className="text-sm font-semibold text-foreground">Decision Options</p>
@@ -223,7 +223,7 @@ export default function DeliveryTruthPage() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-border bg-card shadow-sm">
+      <section className="rounded-xl border border-border bg-card shadow-sm" data-tour-id="truth-trace">
         <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/30 px-5 py-3">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
