@@ -116,16 +116,17 @@ export function CostsGrid() {
     activeProject.goLiveDate,
   );
   const ocGoLiveMs = projMilestones.find((m) => m.id === goLiveId);
-  const ocProjection = ocLine && goLiveId
+  const ocProjection = ocLine
     ? projectConsequence({
         perturbation: { kind: "cost-overcharge", lineName: ocLine.description, overAmount: ocOverK * 1000 },
         schedule: null,
         baseline: {
           committedGoLive: activeProject.goLiveDate,
           projectStart: activeProject.startDate,
-          goLiveMilestoneId: goLiveId,
+          goLiveMilestoneId: goLiveId ?? "",
           goLiveName: ocGoLiveMs?.name,
           goLiveLocked: ocGoLiveMs?.locked ?? false,
+          goLiveAnchored: !!goLiveId,
         },
         costLines: projectCostLines.map((c) => ({ budgetK: c.budgetK, contractType: c.contractType })),
         snapshot: evm?.snapshot ?? null,

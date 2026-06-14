@@ -93,6 +93,10 @@ export interface ConsequenceBaseline {
   // A locked go-live cannot move on paper — when work overruns it the result is
   // a HARD breach (miss/compress), not absorption. Defaults to false.
   goLiveLocked?: boolean;
+  // False when there's no go-live milestone in the graph, so the projection is
+  // ESTIMATED (e.g. from the latest task vs. the setup go-live date) rather than
+  // computed from a dependency-connected gate. UI flags it as an estimate.
+  goLiveAnchored?: boolean;
 }
 
 export interface ProjectConsequenceInput {
@@ -125,6 +129,7 @@ export interface ConsequenceProjection {
   benign: boolean;
   goLive: {
     absorbed: boolean;          // true → work still fits before go-live (C3)
+    anchored: boolean;          // false → projection is estimated (no milestone)
     lockedBreach: boolean;      // true → go-live is locked but work overruns it
     committed: string;
     projected: string;          // where it lands (or would land, if locked)
@@ -300,7 +305,7 @@ export function projectConsequence(input: ProjectConsequenceInput): ConsequenceP
   return {
     kind: perturbation.kind,
     benign,
-    goLive: { absorbed, lockedBreach, committed: baseline.committedGoLive, projected, workingDaysSlip, calendarDaysSlip, pctOfPlan },
+    goLive: { absorbed, anchored: baseline.goLiveAnchored ?? true, lockedBreach, committed: baseline.committedGoLive, projected, workingDaysSlip, calendarDaysSlip, pctOfPlan },
     windowCollision,
     chain,
     cost,

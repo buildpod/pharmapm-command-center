@@ -246,6 +246,11 @@ export function ConsequenceStory({
                   </span>
                 </>
               )}
+              {!c.goLive.anchored && !c.goLive.absorbed && (
+                <span className="mt-0.5 block text-[10px] italic text-muted-foreground">
+                  estimated from latest task — link a Go-Live milestone for the exact date
+                </span>
+              )}
             </Stat>
 
             <Stat label="Confidence">

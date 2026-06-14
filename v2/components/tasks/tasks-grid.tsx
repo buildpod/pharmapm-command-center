@@ -789,8 +789,16 @@ export function TasksGrid() {
                 msNumToStr,
                 { workingDays: settings.workingDays, holidays: settings.holidays },
               );
-              const goLiveProjectedUnlocked =
-                msPushesUnlocked.find((p) => p.milestoneId === goLiveMilestoneId)?.proposedNewDate ?? null;
+              const goLiveProjectedUnlocked = goLiveMilestoneId
+                ? (msPushesUnlocked.find((p) => p.milestoneId === goLiveMilestoneId)?.proposedNewDate ?? null)
+                : (() => {
+                    // No milestone spine — anchor on the go-live date captured at
+                    // setup and estimate the projection from the latest cascaded
+                    // task. If work now finishes past the committed date, go-live
+                    // is at risk by that overrun (flagged as estimated, not exact).
+                    const latest = r.tasks.reduce((mx, t) => (t.dueDate > mx ? t.dueDate : mx), "");
+                    return latest && latest > activeProject.goLiveDate ? latest : null;
+                  })();
               // Projected milestone dates (post-cascade, unlocked) for the binding trace.
               const projectedMsDate = new Map(projMilestones.map((m) => [m.id, m.plannedDate]));
               msPushesUnlocked.forEach((p) => projectedMsDate.set(p.milestoneId, p.proposedNewDate));
@@ -875,8 +883,11 @@ export function TasksGrid() {
               // Impact Engine — project the true consequence (go-live / cost /
               // confidence vs. the frozen commitment) using the hoisted go-live
               // resolution + unlocked projection computed above.
-              const consequence = goLiveMilestoneId
-                ? projectConsequence({
+              // Always project the consequence — the committed go-live comes from
+              // setup (project.goLiveDate), not a milestone. The milestone only
+              // sharpens WHERE go-live lands; without one we estimate from the
+              // latest task (goLiveAnchored:false) rather than show nothing.
+              const consequence: ConsequenceProjection | undefined = projectConsequence({
                     perturbation: {
                       kind: "task-date",
                       taskName: cascadePreview!.editedTask.name,
@@ -890,9 +901,10 @@ export function TasksGrid() {
                     baseline: {
                       committedGoLive: activeProject.goLiveDate,
                       projectStart: activeProject.startDate,
-                      goLiveMilestoneId,
+                      goLiveMilestoneId: goLiveMilestoneId ?? "",
                       goLiveName: goLiveMs?.name,
                       goLiveLocked: goLiveMs?.locked ?? false,
+                      goLiveAnchored: !!goLiveMilestoneId,
                     },
                     costLines: costLines
                       .filter((c) => c.projectId === activeProjectId)
@@ -910,8 +922,7 @@ export function TasksGrid() {
                     tmDayRateOverride: assumptions.tmDayRateOverride,
                     workingDays: settings.workingDays,
                     holidays: settings.holidays,
-                  })
-                : undefined;
+                  });
 
               // Phase-level named chain for the story: the slip flows through
               // PHASES to go-live. Pick the binding (latest) critical milestone
@@ -937,16 +948,8 @@ export function TasksGrid() {
               }
 
               lastConsequenceRef.current = consequence ?? null;
-              // Honest coverage note when we can't anchor the consequence — no
-              // Go-Live milestone to measure against. Tells the PM why the full
-              // go-live/cost/confidence analysis isn't shown and what to add,
-              // instead of silently degrading to a bare cascade.
-              const coverageNote = !goLiveMilestoneId
-                ? "Go-live, cost, and confidence impact needs a Go-Live milestone to measure against (and budget lines for cost). This project has no milestones yet — showing the schedule changes below. Add a milestone spine to unlock the full impact analysis."
-                : undefined;
               return {
                 consequence,
-                coverageNote,
                 sections: [
                   tasksSection,
                   ...(milestonesSection.rows.length > 0 ? [milestonesSection] : []),
