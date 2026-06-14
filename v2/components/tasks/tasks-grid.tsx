@@ -937,8 +937,16 @@ export function TasksGrid() {
               }
 
               lastConsequenceRef.current = consequence ?? null;
+              // Honest coverage note when we can't anchor the consequence — no
+              // Go-Live milestone to measure against. Tells the PM why the full
+              // go-live/cost/confidence analysis isn't shown and what to add,
+              // instead of silently degrading to a bare cascade.
+              const coverageNote = !goLiveMilestoneId
+                ? "Go-live, cost, and confidence impact needs a Go-Live milestone to measure against (and budget lines for cost). This project has no milestones yet — showing the schedule changes below. Add a milestone spine to unlock the full impact analysis."
+                : undefined;
               return {
                 consequence,
+                coverageNote,
                 sections: [
                   tasksSection,
                   ...(milestonesSection.rows.length > 0 ? [milestonesSection] : []),

@@ -111,6 +111,10 @@ export interface RecomputeResult {
   // frozen commitment). Rendered ABOVE the evidence sections: causal sentence
   // first, evidence underneath. Optional — absent for non-date originators.
   consequence?: ConsequenceProjection;
+  // Honest coverage note when the full analysis can't be computed (e.g. the
+  // project has no Go-Live milestone to anchor to). Shown instead of silently
+  // falling back to a bare cascade, so the PM knows WHY and what to add.
+  coverageNote?: string;
 }
 
 // ─── Mini-timeline (M20.6) ──────────────────────────────────────────────────
@@ -344,6 +348,19 @@ function formatMoney(dollars: number): string {
   return `$${dollars}`;
 }
 
+// The CONFIRM zone — restates exactly what the PM is committing to, right above
+// the button, so accepting is a deliberate act, not a reflex. null when benign.
+function buildConfirmLine(c: ConsequenceProjection): string | null {
+  if (c.benign) return null;
+  const parts: string[] = [];
+  if (c.goLive.lockedBreach) parts.push(`go-live breached +${c.goLive.workingDaysSlip}d`);
+  else if (!c.goLive.absorbed) parts.push(`go-live → ${c.goLive.projected} (+${c.goLive.workingDaysSlip}d)`);
+  if (c.cost.estimable && c.cost.addedCost > 0) parts.push(`+${formatMoney(c.cost.addedCost)}`);
+  if (c.confidence.moves && c.confidence.before != null) parts.push(`confidence ${c.confidence.before}→${c.confidence.after}`);
+  if (c.windowCollision) parts.push(`in ${c.windowCollision.label}`);
+  return parts.length ? parts.join(" · ") : null;
+}
+
 // Trust & adjust — the full derivation. Facts the PM owns (T&M day-rate, whether
 // a freeze applies) are editable and re-flow the impact; the confidence formula
 // is shown but not editable, because a hand-set score is a score no one trusts.
@@ -484,7 +501,7 @@ export function ImpactDrawer({
   }, [open]);
 
   // Recompute on every state change. Memoised on (excludeIds, overrides).
-  const { sections, consequence } = useMemo(
+  const { sections, consequence, coverageNote } = useMemo(
     () => recompute(excludeIds, overrides, assumptions),
     // reason: recompute is captured from props; we intentionally re-run only on state
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -669,6 +686,12 @@ export function ImpactDrawer({
           {consequence && (
             <ConsequenceStory c={consequence} assumptions={assumptions} onAssumptionsChange={setAssumptions} />
           )}
+          {!consequence && coverageNote && (
+            <div className="mb-4 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50/60 p-3 text-[12px] text-blue-900">
+              <Info className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{coverageNote}</span>
+            </div>
+          )}
           {(() => {
             const nothingElse = totalShifts === 0 && totalWarnings === 0 && totalInfo === 0 && !hasCallout;
             // With a consequence story, the story already states the outcome —
@@ -731,31 +754,39 @@ export function ImpactDrawer({
           })()}
         </div>
 
-        {/* Footer */}
+        {/* Footer — the CONFIRM zone: restate what's being accepted, then commit */}
         <footer className="impact-modal-footer">
-          <div className="flex items-center justify-end gap-2">
-            <button
-              onClick={onCancel}
-              className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
-            >
-              Discard changes
-            </button>
-            <button
-              onClick={() => onApply(excludeIds, overrides)}
-              className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
-            >
-              {/* M21-DrawerRewrite — Save semantics. Drops "Apply edit"
-                  jargon (per ui-string-audit skill). Drops "shifts" in favor
-                  of "changes". Callout state (preview unavailable) reads as
-                  partial success — Save with quiet status indicator. */}
-              {hasCallout
-                ? "Save change"
-                : totalShifts === 0
-                  ? "Save"
-                  : includedShifts === 0
-                    ? "Save · this change only"
-                    : `Save · ${includedShifts + 1} change${(includedShifts + 1) === 1 ? "" : "s"}`}
-            </button>
+          <div className="flex flex-col gap-2">
+            {consequence && !consequence.benign && buildConfirmLine(consequence) && (
+              <p className="text-[11px] font-medium text-amber-900">
+                You&rsquo;re accepting: {buildConfirmLine(consequence)}
+                {consequence.commitmentBreach ? " — recorded to the audit log." : "."}
+              </p>
+            )}
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={onCancel}
+                className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+              >
+                Discard changes
+              </button>
+              <button
+                onClick={() => onApply(excludeIds, overrides)}
+                className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+              >
+                {/* When the change carries a real consequence, the button names
+                    the commitment ("Accept & record"); otherwise plain Save. */}
+                {consequence && !consequence.benign && consequence.commitmentBreach
+                  ? "Accept & record"
+                  : hasCallout
+                    ? "Save change"
+                    : totalShifts === 0
+                      ? "Save"
+                      : includedShifts === 0
+                        ? "Save · this change only"
+                        : `Save · ${includedShifts + 1} change${(includedShifts + 1) === 1 ? "" : "s"}`}
+              </button>
+            </div>
           </div>
         </footer>
         </div>
