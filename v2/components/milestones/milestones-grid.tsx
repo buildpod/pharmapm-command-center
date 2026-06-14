@@ -27,7 +27,13 @@ import {
 } from "@/lib/domain/scheduling";
 import { addWorkingDays, workingDaysBetween } from "@/lib/domain/dates";
 import { tasks as initialTasks, type Task } from "@/lib/mockData";
-import { ImpactDrawer, type ImpactSummary, type ImpactSection } from "@/components/ui/impact-drawer";
+import { ImpactDrawer, type ImpactSummary, type ImpactSection, type ImpactAssumptions } from "@/components/ui/impact-drawer";
+import { ConsequenceModal } from "@/components/ui/consequence-modal";
+import { projectConsequence, resolveGoLiveMilestone } from "@/lib/domain/consequence";
+import { SAMPLE_HARD_WINDOWS } from "@/lib/domain/hard-windows";
+import { useProjectEvm } from "@/lib/hooks/use-project-evm";
+import { appendAudit, buildAction } from "@/lib/stores/audit";
+import { addDays } from "@/lib/domain/dates";
 import { useSettings } from "@/lib/settingsStore";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { useProject } from "@/components/projects/project-provider";
@@ -256,6 +262,21 @@ export function MilestonesGrid() {
   const [drawer, setDrawer] = useState<DrawerState>({ mode: "closed" });
   const [viewMode, setViewMode] = useState<"grid" | "gantt">("grid");
 
+  // Impact Engine — absence trigger: a gate's owner is unavailable until a date,
+  // so the gate can't complete before then. We force the gate to that date and
+  // project the consequence (schedule arm → go-live / cost / confidence).
+  const costLines = useEntityStore((s) => s.costLines);
+  const { evm } = useProjectEvm();
+  const [absMs, setAbsMs] = useState<Milestone | null>(null);
+  const [absUntil, setAbsUntil] = useState("");
+  const [absAssumptions, setAbsAssumptions] = useState<ImpactAssumptions>({ freezeApplies: true });
+
+  function openAbsence(m: Milestone) {
+    setAbsMs(m);
+    setAbsUntil(addDays(m.plannedDate, 21) ?? m.plannedDate); // default: back in ~3 weeks
+    setAbsAssumptions({ freezeApplies: true });
+  }
+
   // Live settings from M8 — pass through to every domain call so working days,
   // holidays, and RAG thresholds actually drive the schedule.
   const { settings } = useSettings();
@@ -264,6 +285,77 @@ export function MilestonesGrid() {
   // Scope to current project for cascade + dependency engine
   const projectMilestones = milestones.filter((m) => m.projectId === activeProjectId);
   const domainMilestones = projectMilestones.map(toScheduleMs);
+
+  // Impact Engine — project the consequence of the modelled absence. Force the
+  // owner's gate to the return date, cascade (go-live unlocked) to learn where
+  // go-live lands, then run the consequence (absence perturbation).
+  const goLiveId = resolveGoLiveMilestone(
+    projectMilestones.map((m) => ({ id: m.id, name: m.name, phase: m.phase, plannedDate: m.plannedDate })),
+    activeProject.goLiveDate,
+  );
+  const goLiveMs = projectMilestones.find((m) => m.id === goLiveId);
+  const absConsequence = absMs && absUntil && goLiveId
+    ? (() => {
+        const forcedNum = toId(absMs.id);
+        const glNum = toId(goLiveId);
+        // Hold the absent owner's gate AT the return date (lockDate so the
+        // cascade can't pull it back to its earliest-allowed slot), and unlock
+        // go-live so it's free to move off the forced gate.
+        const forced = domainMilestones.map((m) => {
+          if (m.id === forcedNum) return { ...m, plannedEnd: absUntil, lockDate: true };
+          if (m.id === glNum) return { ...m, lockDate: false };
+          return m;
+        });
+        const r = previewCascade(forced, { id: forcedNum, field: "plannedEnd", value: absUntil }, workingDays, holidays);
+        // Only the go-live shift drives the consequence; the chain reads
+        // "<gate> → Go-Live" (cosmetic compression of other gates is ignored).
+        const goLiveAfter = r.affected.find((a) => `m${a.id}` === goLiveId && (a.newEnd ?? "") > (a.oldEnd ?? ""));
+        const pushes = goLiveAfter
+          ? [{
+              milestoneId: goLiveId,
+              milestoneName: goLiveMs?.name,
+              oldPlannedDate: goLiveAfter.oldEnd ?? "",
+              proposedNewDate: goLiveAfter.newEnd ?? "",
+              drivenByTaskId: absMs.id,
+              drivenByTaskName: absMs.name,
+              daysShifted: goLiveAfter.daysShifted,
+            }]
+          : [];
+        const goLiveProjectedUnlocked = goLiveAfter?.newEnd ?? null;
+        return projectConsequence({
+          perturbation: { kind: "absence", who: `Owner ${absMs.owner}`, until: absUntil, gateName: absMs.name },
+          schedule: { affected: [], milestonePushes: pushes, goLiveProjectedUnlocked },
+          baseline: {
+            committedGoLive: activeProject.goLiveDate,
+            projectStart: activeProject.startDate,
+            goLiveMilestoneId: goLiveId,
+            goLiveName: goLiveMs?.name,
+            goLiveLocked: goLiveMs?.locked ?? false,
+          },
+          costLines: costLines
+            .filter((c) => c.projectId === activeProjectId)
+            .map((c) => ({ budgetK: c.budgetK, contractType: c.contractType })),
+          snapshot: evm?.snapshot ?? null,
+          hardWindows: activeProject.isSample && absAssumptions.freezeApplies !== false ? SAMPLE_HARD_WINDOWS : [],
+          tmDayRateOverride: absAssumptions.tmDayRateOverride,
+        });
+      })()
+    : null;
+
+  function recordAbsence() {
+    if (!absMs || !absConsequence) return;
+    const cq = absConsequence;
+    const parts = [`${absMs.owner} away until ${absUntil} (${absMs.name})`];
+    if (cq.commitmentBreach) parts.push(cq.goLive.lockedBreach ? `go-live breached +${cq.goLive.workingDaysSlip}d` : `go-live → ${cq.goLive.projected}`);
+    if (cq.confidence.moves && cq.confidence.before != null) parts.push(`confidence ${cq.confidence.before}→${cq.confidence.after}`);
+    appendAudit(buildAction({
+      type: "update", entityKind: "milestone", entityId: absMs.id,
+      source: "user-edit", projectId: activeProjectId,
+      note: `Modelled owner absence — ${parts.join(" · ")}`,
+    }));
+    toast.success("Absence impact recorded", { description: absMs.name });
+    setAbsMs(null);
+  }
 
   // Apply a planned-date change: M20 selective cascade flow.
   // Drawer's recompute() does the live re-cascade with PM's exclusions/overrides.
@@ -600,7 +692,18 @@ export function MilestonesGrid() {
                   >
                     {m.name}
                   </button>
-                  <p className="text-xs text-muted-foreground">Owner: {m.owner}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Owner: {m.owner}
+                    {m.status !== "complete" && m.id !== goLiveId && (
+                      <button
+                        onClick={() => openAbsence(m)}
+                        className="ml-2 text-[11px] font-medium text-amber-700 hover:underline"
+                        title="Model this gate's owner being unavailable and see the delivery impact"
+                      >
+                        Owner away…
+                      </button>
+                    )}
+                  </p>
                 </div>
 
                 {/* Phase */}
@@ -801,6 +904,29 @@ export function MilestonesGrid() {
         onSave={handleDrawerSave}
         onDelete={handleDrawerDelete}
         onClose={() => setDrawer({ mode: "closed" })}
+      />
+
+      <ConsequenceModal
+        open={!!absMs}
+        title="Owner unavailable — impact"
+        subtitle={absMs ? `If ${absMs.owner} can't sign off "${absMs.name}" until they return:` : undefined}
+        projection={absConsequence}
+        assumptions={absAssumptions}
+        onAssumptionsChange={setAbsAssumptions}
+        primaryControl={
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs">
+            <span className="font-medium text-foreground">Owner back on</span>
+            <input
+              type="date"
+              value={absUntil}
+              onChange={(e) => setAbsUntil(e.target.value)}
+              className="rounded border border-border bg-background px-1.5 py-0.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+        }
+        recordLabel="Record this absence"
+        onRecord={recordAbsence}
+        onClose={() => setAbsMs(null)}
       />
     </div>
   );
