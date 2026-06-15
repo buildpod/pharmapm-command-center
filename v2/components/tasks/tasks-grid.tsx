@@ -935,11 +935,11 @@ export function TasksGrid() {
 
               const newSection: ImpactSection = {
                 kind: "warnings",
-                title: `New constraint violations caused by your choices`,
+                title: `Tasks that would become out of order`,
                 rows: groupedNew.map((g) => ({
                   id: g.taskId,
                   name: g.taskName,
-                  message: `Due ${g.taskDue} but upstream${g.brokenDeps.length > 1 ? "s" : ""}: ${g.brokenDeps.map((d) => `${d.depId.toUpperCase()} ${d.depDue}`).join(", ")} (needs +${Math.max(...g.brokenDeps.map((d) => d.daysBehind))} working days)`,
+                  message: `This task is due ${g.taskDue}, but ${g.brokenDeps.length > 1 ? "upstream tasks finish" : "an upstream task finishes"} later: ${g.brokenDeps.map((d) => `${d.depId.toUpperCase()} on ${d.depDue}`).join(", ")}. Move it later, uncheck the upstream change, or save with a known planning issue. Needs +${Math.max(...g.brokenDeps.map((d) => d.daysBehind))} working days.`,
                 })),
               };
 
@@ -1062,12 +1062,19 @@ export function TasksGrid() {
               }
               const shiftedById: Record<string, string> = {};
               r.affected.forEach((a) => { shiftedById[a.id] = a.newDue; });
+              const shiftedNames = r.affected.map((a) => a.name);
+              const shiftedAuditList = shiftedNames.slice(0, 5).join("; ");
               const pendingTasks = tasks.map((x) => {
                 if (x.id === cascadePreview!.editedTask.id) return cascadePreview!.editedTask;
                 if (shiftedById[x.id]) return { ...x, dueDate: shiftedById[x.id] };
                 return x;
               });
-              replaceAllTasks(pendingTasks, { source: "cascade", note: "task cascade apply" });
+              replaceAllTasks(pendingTasks, {
+                source: "cascade",
+                note: shiftedNames.length > 0
+                  ? `schedule impact saved: shifted ${shiftedNames.length} downstream task${shiftedNames.length === 1 ? "" : "s"} (${shiftedAuditList}${shiftedNames.length > 5 ? `; +${shiftedNames.length - 5} more` : ""})`
+                  : "schedule impact saved: no downstream task shifted",
+              });
 
               // M20.3 — apply task → milestone pushes (default-checked, unless
               // the PM unchecked them in the drawer). M20.5: transitive + buffered.
@@ -1090,12 +1097,15 @@ export function TasksGrid() {
 
               const applied = r.affected.length;
               const msApplied = includedPushes.length;
+              const shiftedToast = shiftedNames.length > 0
+                ? `Shifted: ${shiftedNames.slice(0, 2).join("; ")}${shiftedNames.length > 2 ? `; +${shiftedNames.length - 2} more` : ""}.`
+                : "No downstream tasks shifted.";
               toast.success(
                 `${applied + 1} task${applied === 0 ? "" : "s"} updated`,
                 {
                   description: msApplied > 0
-                    ? `${cascadePreview!.summary.originatorName} · ${msApplied} milestone${msApplied === 1 ? "" : "s"} also shifted`
-                    : cascadePreview!.summary.originatorName,
+                    ? `${shiftedToast} ${msApplied} milestone${msApplied === 1 ? "" : "s"} also shifted.`
+                    : shiftedToast,
                 }
               );
 

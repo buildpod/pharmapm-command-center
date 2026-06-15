@@ -213,6 +213,11 @@ export function ConsequenceStory({
       <p className={cn("text-sm font-medium", benign ? "text-emerald-950" : "text-amber-950")}>
         {c.summary}
       </p>
+      {benign && (
+        <p className="mt-1 text-[11px] text-emerald-800">
+          Green means the changed work still fits before the committed go-live date.
+        </p>
+      )}
 
       {!benign && (
         <>
@@ -602,7 +607,7 @@ export function ImpactDrawer({
             <div className="min-w-0">
               <h2 className="impact-modal-header__title">Review Schedule Impact</h2>
               <p className="impact-modal-header__subtitle">
-                Review what will change. Uncheck a row to keep its date, or pick a different date inline.
+                This is a preview. Nothing is saved yet. Checked rows will move when you save.
               </p>
             </div>
             <button
@@ -773,7 +778,7 @@ export function ImpactDrawer({
                 onClick={onCancel}
                 className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
               >
-                Discard changes
+                Back without saving
               </button>
               <button
                 onClick={() => onApply(excludeIds, overrides)}
@@ -843,6 +848,16 @@ function Section({
     : section.kind === "milestones" ? MilestoneIcon
     : section.kind === "info" ? Info
     : CheckSquare;
+  const helper =
+    section.kind === "warnings" && /out of order/i.test(section.title)
+      ? "These tasks would finish before work they depend on. Review them before saving so the plan stays credible."
+      : section.kind === "warnings" && /pre-existing/i.test(section.title)
+        ? "These issues were already in the plan before this edit. They are shown for context."
+        : section.kind === "tasks"
+          ? "Checked rows will move when you save. Uncheck a row to keep its current date."
+          : section.kind === "milestones"
+            ? "These milestone dates move because linked task dates now land later."
+            : null;
 
   return (
     <section className={cn("rounded-lg border", sectionStyle)}>
@@ -855,6 +870,11 @@ function Section({
           {section.rows.length}
         </span>
       </div>
+      {helper && (
+        <p className="border-b border-inherit bg-card px-4 py-2 text-[11px] text-muted-foreground">
+          {helper}
+        </p>
+      )}
       <ul className="divide-y divide-border bg-card">
         {section.kind === "info"
           ? section.rows.map((row) => (
