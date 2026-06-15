@@ -30,11 +30,13 @@ import { avatarColor } from "@/lib/ui/avatar-color";
 // to "m6" resolves to the milestone whose id is 6 in the engine.
 function msStrToNum(id: string): number { return parseInt(id.replace("m", "")); }
 function msNumToStr(id: number): string { return `m${id}`; }
-import { ImpactDrawer, type ImpactSummary, type ImpactSection } from "@/components/ui/impact-drawer";
+import { ImpactDrawer, type ImpactSummary, type ImpactSection, type ImpactAssumptions } from "@/components/ui/impact-drawer";
+import { ConsequenceModal } from "@/components/ui/consequence-modal";
 import { projectConsequence, resolveGoLiveMilestone, type ConsequenceProjection } from "@/lib/domain/consequence";
 import { criticalChainToGoLive } from "@/lib/domain/critical-path";
 import { SAMPLE_HARD_WINDOWS } from "@/lib/domain/hard-windows";
 import { appendAudit, buildAction } from "@/lib/stores/audit";
+import { addWorkingDays } from "@/lib/domain/dates";
 import { useProjectEvm } from "@/lib/hooks/use-project-evm";
 import { cn } from "@/lib/utils";
 
@@ -400,8 +402,74 @@ export function TasksGrid() {
   const [filterMine, setFilterMine]             = useState(false);
   const [drawer, setDrawer]                     = useState<TaskDrawerState>({ mode: "closed" });
 
+  // Impact Engine — scope-add trigger: model new work (scope creep) and see its
+  // cost + (optional) go-live impact before committing to it.
+  const [scopeOpen, setScopeOpen]       = useState(false);
+  const [scopeName, setScopeName]       = useState("");
+  const [scopeBudgetK, setScopeBudgetK] = useState(0);
+  const [scopeDelayDays, setScopeDelayDays] = useState(0);
+  const [scopeAssumptions, setScopeAssumptions] = useState<ImpactAssumptions>({ freezeApplies: true });
+
+  function openScope() {
+    setScopeName("");
+    setScopeBudgetK(50);
+    setScopeDelayDays(0);
+    setScopeAssumptions({ freezeApplies: true });
+    setScopeOpen(true);
+  }
+
   const projectTasks   = tasks.filter((t) => t.projectId === activeProjectId);
   const allWorkstreams = Array.from(new Set(projectTasks.map((t) => t.workstream)));
+
+  // Scope-add consequence: direct cost (its budget) + an optional schedule push
+  // when the PM says it delays the finish by N working days past the committed
+  // go-live (captured at setup). Reuses the shared ConsequenceModal.
+  const scopeProjMilestones = liveMilestones.filter((m) => m.projectId === activeProjectId);
+  const scopeGoLiveId = resolveGoLiveMilestone(
+    scopeProjMilestones.map((m) => ({ id: m.id, name: m.name, phase: m.phase, plannedDate: m.plannedDate })),
+    activeProject.goLiveDate,
+  );
+  const scopeGoLiveMs = scopeProjMilestones.find((m) => m.id === scopeGoLiveId);
+  const scopeProjectedGoLive = scopeDelayDays > 0
+    ? (addWorkingDays(activeProject.goLiveDate, scopeDelayDays, settings.workingDays, settings.holidays) ?? null)
+    : null;
+  const scopeConsequence: ConsequenceProjection | null = scopeOpen
+    ? projectConsequence({
+        perturbation: { kind: "scope-add", itemName: scopeName.trim() || "New scope", addedBudget: scopeBudgetK * 1000 },
+        schedule: { affected: [], milestonePushes: [], goLiveProjectedUnlocked: scopeProjectedGoLive },
+        baseline: {
+          committedGoLive: activeProject.goLiveDate,
+          projectStart: activeProject.startDate,
+          goLiveMilestoneId: scopeGoLiveId ?? "",
+          goLiveName: scopeGoLiveMs?.name,
+          goLiveLocked: scopeGoLiveMs?.locked ?? false,
+          goLiveAnchored: true, // schedule impact is PM-specified, not estimated
+        },
+        costLines: costLines
+          .filter((c) => c.projectId === activeProjectId)
+          .map((c) => ({ budgetK: c.budgetK, contractType: c.contractType })),
+        snapshot: evm?.snapshot ?? null,
+        hardWindows: activeProject.isSample && scopeAssumptions.freezeApplies !== false ? SAMPLE_HARD_WINDOWS : [],
+        tmDayRateOverride: scopeAssumptions.tmDayRateOverride,
+        workingDays: settings.workingDays,
+        holidays: settings.holidays,
+      })
+    : null;
+
+  function recordScope() {
+    if (!scopeConsequence) return;
+    const cq = scopeConsequence;
+    const parts = [`${scopeName.trim() || "New scope"} (+$${scopeBudgetK}k)`];
+    if (cq.commitmentBreach) parts.push(`go-live → ${cq.goLive.projected} (+${cq.goLive.workingDaysSlip}d)`);
+    if (cq.confidence.moves && cq.confidence.before != null) parts.push(`confidence ${cq.confidence.before}→${cq.confidence.after}`);
+    appendAudit(buildAction({
+      type: "add", entityKind: "task", entityId: `scope-${Date.now()}`,
+      source: "user-edit", projectId: activeProjectId,
+      note: `Modelled added scope — ${parts.join(" · ")}`,
+    }));
+    toast.success("Scope impact recorded", { description: scopeName.trim() || "New scope" });
+    setScopeOpen(false);
+  }
 
   function handleDrawerSave(t: Task) {
     const withProj: Task = { ...t, projectId: t.projectId || activeProjectId };
@@ -590,6 +658,14 @@ export function TasksGrid() {
           <option value="All">All statuses</option>
           {allStatuses.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
+
+        <button
+          onClick={openScope}
+          className="flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+          title="Model added scope (scope creep) and see its cost + go-live impact before committing"
+        >
+          Model scope…
+        </button>
 
         <button
           onClick={() => setDrawer({ mode: "new" })}
@@ -1065,6 +1141,47 @@ export function TasksGrid() {
         onSave={handleDrawerSave}
         onDelete={handleDrawerDelete}
         onClose={() => setDrawer({ mode: "closed" })}
+      />
+
+      <ConsequenceModal
+        open={scopeOpen}
+        title="Added scope — impact"
+        subtitle="Model new work and see what it costs before you commit to it."
+        projection={scopeConsequence}
+        assumptions={scopeAssumptions}
+        onAssumptionsChange={setScopeAssumptions}
+        primaryControl={
+          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-3 py-2 text-xs">
+            <input
+              type="text"
+              value={scopeName}
+              onChange={(e) => setScopeName(e.target.value)}
+              placeholder="What's being added?"
+              className="min-w-[12rem] flex-1 rounded border border-border bg-background px-1.5 py-0.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+            <span className="flex items-center gap-1">
+              <span className="text-muted-foreground">Budget $</span>
+              <input
+                type="number" min={0} value={scopeBudgetK}
+                onChange={(e) => setScopeBudgetK(Math.max(0, Number(e.target.value) || 0))}
+                className="w-20 rounded border border-border bg-background px-1.5 py-0.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <span className="text-muted-foreground">k</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="text-muted-foreground">Delays finish by</span>
+              <input
+                type="number" min={0} value={scopeDelayDays}
+                onChange={(e) => setScopeDelayDays(Math.max(0, Number(e.target.value) || 0))}
+                className="w-16 rounded border border-border bg-background px-1.5 py-0.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <span className="text-muted-foreground">working days (0 = parallel)</span>
+            </span>
+          </div>
+        }
+        recordLabel="Record this scope"
+        onRecord={recordScope}
+        onClose={() => setScopeOpen(false)}
       />
     </div>
   );
