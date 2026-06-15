@@ -1384,6 +1384,40 @@ a.kpi:hover, a.executive-verdict:hover {
   box-shadow: var(--focus-ring);
 }
 
+.dap-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 36px;
+  border: 1px solid var(--color-line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunk);
+  padding: 0 var(--space-3);
+  color: var(--color-ink-600);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+.dap-toggle span {
+  color: var(--color-ink-500);
+}
+.dap-toggle strong {
+  color: var(--color-ink-800);
+  font-weight: var(--weight-semi);
+}
+.dap-toggle--on {
+  border-color: var(--color-accent-300);
+  background: var(--color-accent-50);
+}
+.dap-toggle--on strong {
+  color: var(--color-accent-700);
+}
+.dap-toggle:focus-visible {
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
 .guided-work {
   border: 1px solid var(--color-line-soft);
   border-radius: var(--radius-md);

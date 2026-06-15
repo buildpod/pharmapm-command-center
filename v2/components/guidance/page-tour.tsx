@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useDapEnabled } from "@/components/guidance/dap-settings";
 import { Coachmark } from "@/components/ui/coachmark";
 import { TOUR_STORAGE_KEY, toursByRoute, type TourStep } from "@/lib/guidance/tours";
 
@@ -35,6 +36,7 @@ function targetSelector(step: TourStep) {
 
 export function PageTour() {
   const pathname = usePathname();
+  const dapEnabled = useDapEnabled();
   const route = useMemo(() => normalizeRoute(pathname), [pathname]);
   const steps = toursByRoute[route] ?? [];
   const [active, setActive] = useState(false);
@@ -46,7 +48,7 @@ export function PageTour() {
   }, [route]);
 
   useEffect(() => {
-    if (!steps.length) {
+    if (!dapEnabled || !steps.length) {
       setActive(false);
       return;
     }
@@ -57,12 +59,13 @@ export function PageTour() {
     } else {
       setActive(false);
     }
-  }, [route, steps.length]);
+  }, [dapEnabled, route, steps.length]);
 
   useEffect(() => {
     function replay(event: Event) {
       const detail = (event as CustomEvent<{ route?: string }>).detail;
       if (detail?.route && detail.route !== route) return;
+      if (!dapEnabled) return;
       if (!steps.length) return;
       setIndex(0);
       setActive(true);
@@ -78,7 +81,7 @@ export function PageTour() {
       window.removeEventListener("aivello:replay-tour", replay);
       window.removeEventListener("keydown", onKey);
     };
-  }, [active, dismiss, route, steps.length]);
+  }, [active, dapEnabled, dismiss, route, steps.length]);
 
   useEffect(() => {
     if (!active || !step) return;

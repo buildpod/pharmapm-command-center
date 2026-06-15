@@ -14,6 +14,7 @@ import { useTheme } from "@/components/theme-provider";
 import { useProject } from "@/components/projects/project-provider";
 import { HelpDrawer } from "@/components/guidance/help-drawer";
 import { PageTour } from "@/components/guidance/page-tour";
+import { DapToggle } from "@/components/guidance/dap-toggle";
 import { RoleSelector } from "@/components/guidance/role-selector";
 import { adminNavItems, appTabs, getRouteNavContext, isActiveRoute, routeToTabMap } from "@/lib/navigation";
 
@@ -94,6 +95,8 @@ export function Topbar() {
         </button>
 
         <NotificationBell />
+
+        <DapToggle />
 
         <RoleSelector />
 

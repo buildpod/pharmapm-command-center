@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, ChevronDown, ChevronRight, ListChecks, Sparkles } from "lucide-react";
 import { useProject } from "@/components/projects/project-provider";
+import { useDapEnabled } from "@/components/guidance/dap-settings";
 import { GUIDANCE_ROLE_EVENT, GUIDANCE_ROLE_KEY } from "@/components/guidance/role-selector";
 import {
   buildGuidedWork,
@@ -48,6 +49,7 @@ export function GuidedWorkPanel({
   const decisionRecords = useEntityStore((s) => s.decisionRecords);
   const [role, setRole] = useState<GuidanceRole>("pm");
   const [collapsed, setCollapsed] = useState(false);
+  const dapEnabled = useDapEnabled();
 
   useEffect(() => {
     setRole(readRole());
@@ -85,6 +87,8 @@ export function GuidedWorkPanel({
 
   const doneCount = guidance.readiness.filter((item) => item.status === "done").length;
   const topNudges = guidance.nudges.slice(0, showChecklist ? 4 : 2);
+
+  if (!dapEnabled) return null;
 
   return (
     <section className={compact ? "guided-work guided-work--compact" : "guided-work"} data-tour-id="guided-work">

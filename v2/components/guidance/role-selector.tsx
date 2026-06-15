@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useDapEnabled } from "@/components/guidance/dap-settings";
 import type { GuidanceRole } from "@/lib/guidance/guided-work";
 import { guidanceRoleLabel } from "@/lib/guidance/guided-work";
 
@@ -20,6 +21,7 @@ function readRole(): GuidanceRole {
 
 export function RoleSelector() {
   const [role, setRole] = useState<GuidanceRole>("pm");
+  const dapEnabled = useDapEnabled();
 
   useEffect(() => {
     setRole(readRole());
@@ -32,6 +34,8 @@ export function RoleSelector() {
       window.dispatchEvent(new CustomEvent(GUIDANCE_ROLE_EVENT, { detail: nextRole }));
     } catch {}
   }
+
+  if (!dapEnabled) return null;
 
   return (
     <label className="guidance-role" title="Guidance mode">
