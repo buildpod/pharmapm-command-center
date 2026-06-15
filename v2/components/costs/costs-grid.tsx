@@ -14,6 +14,7 @@ import { type ImpactAssumptions } from "@/components/ui/impact-drawer";
 import { projectConsequence, resolveGoLiveMilestone } from "@/lib/domain/consequence";
 import { useProjectEvm } from "@/lib/hooks/use-project-evm";
 import { appendAudit, buildAction } from "@/lib/stores/audit";
+import { ensureCommitment } from "@/lib/stores/baseline-store";
 
 const TOTAL_BUDGET_K = 2000;
 
@@ -101,6 +102,8 @@ export function CostsGrid() {
   const [ocAssumptions, setOcAssumptions] = useState<ImpactAssumptions>({ freezeApplies: true });
 
   const projectCostLines = costLines.filter((c) => c.projectId === activeProjectId);
+  // F2 — frozen committed go-live; impact measures against the promise, not the live date.
+  const committedGoLive = ensureCommitment(activeProjectId, activeProject.goLiveDate).committedGoLive;
   const knownCategories  = Array.from(new Set(projectCostLines.map((c) => c.category)));
 
   function openOverCharge(line: CostLine) {
@@ -121,7 +124,7 @@ export function CostsGrid() {
         perturbation: { kind: "cost-overcharge", lineName: ocLine.description, overAmount: ocOverK * 1000 },
         schedule: null,
         baseline: {
-          committedGoLive: activeProject.goLiveDate,
+          committedGoLive,
           projectStart: activeProject.startDate,
           goLiveMilestoneId: goLiveId ?? "",
           goLiveName: ocGoLiveMs?.name,

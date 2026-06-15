@@ -33,6 +33,7 @@ import { projectConsequence, resolveGoLiveMilestone } from "@/lib/domain/consequ
 import { SAMPLE_HARD_WINDOWS } from "@/lib/domain/hard-windows";
 import { useProjectEvm } from "@/lib/hooks/use-project-evm";
 import { appendAudit, buildAction } from "@/lib/stores/audit";
+import { ensureCommitment } from "@/lib/stores/baseline-store";
 import { addDays } from "@/lib/domain/dates";
 import { useSettings } from "@/lib/settingsStore";
 import { useEntityStore } from "@/lib/stores/entity-store";
@@ -285,6 +286,8 @@ export function MilestonesGrid() {
   // Scope to current project for cascade + dependency engine
   const projectMilestones = milestones.filter((m) => m.projectId === activeProjectId);
   const domainMilestones = projectMilestones.map(toScheduleMs);
+  // F2 — frozen committed go-live (see baseline-store); impact measures against it.
+  const committedGoLive = ensureCommitment(activeProjectId, activeProject.goLiveDate).committedGoLive;
 
   // Impact Engine — project the consequence of the modelled absence. Force the
   // owner's gate to the return date, cascade (go-live unlocked) to learn where
@@ -326,7 +329,7 @@ export function MilestonesGrid() {
           perturbation: { kind: "absence", who: `Owner ${absMs.owner}`, until: absUntil, gateName: absMs.name },
           schedule: { affected: [], milestonePushes: pushes, goLiveProjectedUnlocked },
           baseline: {
-            committedGoLive: activeProject.goLiveDate,
+            committedGoLive,
             projectStart: activeProject.startDate,
             goLiveMilestoneId: goLiveId,
             goLiveName: goLiveMs?.name,

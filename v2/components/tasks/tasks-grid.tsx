@@ -36,6 +36,7 @@ import { projectConsequence, resolveGoLiveMilestone, type ConsequenceProjection 
 import { criticalChainToGoLive } from "@/lib/domain/critical-path";
 import { SAMPLE_HARD_WINDOWS } from "@/lib/domain/hard-windows";
 import { appendAudit, buildAction } from "@/lib/stores/audit";
+import { ensureCommitment } from "@/lib/stores/baseline-store";
 import { addWorkingDays } from "@/lib/domain/dates";
 import { useProjectEvm } from "@/lib/hooks/use-project-evm";
 import { cn } from "@/lib/utils";
@@ -420,6 +421,10 @@ export function TasksGrid() {
 
   const projectTasks   = tasks.filter((t) => t.projectId === activeProjectId);
   const allWorkstreams = Array.from(new Set(projectTasks.map((t) => t.workstream)));
+  // F2 — impact measures against the FROZEN committed go-live, not the live
+  // (editable) project date. Frozen once on first sighting; a quietly-moved
+  // date can no longer erase a slip.
+  const committedGoLive = ensureCommitment(activeProjectId, activeProject.goLiveDate).committedGoLive;
 
   // Scope-add consequence: direct cost (its budget) + an optional schedule push
   // when the PM says it delays the finish by N working days past the committed
@@ -438,7 +443,7 @@ export function TasksGrid() {
         perturbation: { kind: "scope-add", itemName: scopeName.trim() || "New scope", addedBudget: scopeBudgetK * 1000 },
         schedule: { affected: [], milestonePushes: [], goLiveProjectedUnlocked: scopeProjectedGoLive },
         baseline: {
-          committedGoLive: activeProject.goLiveDate,
+          committedGoLive,
           projectStart: activeProject.startDate,
           goLiveMilestoneId: scopeGoLiveId ?? "",
           goLiveName: scopeGoLiveMs?.name,
@@ -975,7 +980,7 @@ export function TasksGrid() {
                       goLiveProjectedUnlocked,
                     },
                     baseline: {
-                      committedGoLive: activeProject.goLiveDate,
+                      committedGoLive,
                       projectStart: activeProject.startDate,
                       goLiveMilestoneId: goLiveMilestoneId ?? "",
                       goLiveName: goLiveMs?.name,
