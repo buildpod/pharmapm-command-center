@@ -6,6 +6,7 @@ import {
   previewOwnersToTeamMembers,
   previewTasksToTasks,
   previewToMilestones,
+  previewToCostLines,
   recordsFromMatrix,
   detectHeaders,
   guessColumnMap,
@@ -143,6 +144,23 @@ Build,KM,2026-08-01,foo`, { lenient: true });
     expect(guess.name).toBe("task name");
     expect(guess.owner).toBe("owner");
     expect(guess.due).toBe("finish");
+  });
+
+  it("rolls a cost/budget column into cost lines per workstream (gives a BAC)", () => {
+    const text =
+`Task Name,Workstream,Finish,Cost,Actual Cost
+Build A,Config,2026-07-01,"$120,000","$40,000"
+Build B,Config,2026-07-10,80000,20000
+Test C,Validation,2026-08-01,50000,0`;
+    const preview = buildImportPreview(parseDelimitedTable(text, { lenient: true }));
+    expect(preview.stats.importedBudgetK).toBe(250); // (120k+80k+50k)/1000
+    const config = preview.costLines.find((l) => l.category === "Config");
+    expect(config?.budgetK).toBe(200);
+    expect(config?.actualK).toBe(60);
+    const lines = previewToCostLines("proj-x", preview);
+    expect(lines).toHaveLength(2);
+    expect(lines[0].contractType).toBe("T&M");
+    expect(lines[0].projectId).toBe("proj-x");
   });
 
   it("chains milestone → milestone predecessors and emits engine-ready ids", () => {

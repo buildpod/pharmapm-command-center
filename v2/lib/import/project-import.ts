@@ -1,4 +1,4 @@
-import type { Task, TaskPriority, TaskStatus, TeamMember, Milestone, MilestoneStatus } from "@/lib/mockData";
+import type { Task, TaskPriority, TaskStatus, TeamMember, Milestone, MilestoneStatus, CostLine } from "@/lib/mockData";
 
 export type ImportCell = string | number | boolean | Date | null | undefined;
 export type ImportRecord = Record<string, ImportCell>;
@@ -36,10 +36,19 @@ export type ImportPreviewMilestone = {
   predecessorSourceKey?: string; // resolved to another milestone row, if any
 };
 
+// Cost rolled up per workstream from a cost/budget column — gives the imported
+// project a BAC so the confidence verdict computes instead of coverage-gating.
+export type ImportPreviewCostLine = {
+  category: string;
+  budgetK: number;
+  actualK: number;
+};
+
 export type ImportPreview = {
   sourceKind: ImportSourceKind;
   tasks: ImportPreviewTask[];
   milestones: ImportPreviewMilestone[];
+  costLines: ImportPreviewCostLine[];
   workstreams: string[];
   owners: Array<{ name: string; initials: string; workstream: string }>;
   warnings: string[];
@@ -47,6 +56,7 @@ export type ImportPreview = {
     totalRows: number;
     importedTasks: number;
     importedMilestones: number;
+    importedBudgetK: number;
     linkedDependencies: number;
     unresolvedDependencies: number;
   };
@@ -86,6 +96,16 @@ const PREDECESSOR_KEYS = ["predecessors", "predecessor", "depends on", "dependen
 const MILESTONE_FLAG_KEYS = ["milestone", "is milestone"];
 const DURATION_KEYS = ["duration", "dur"];
 const TYPE_KEYS = ["type", "task type", "item type"];
+const COST_KEYS = ["cost", "budget", "baseline cost", "total cost", "planned cost", "budget ($)"];
+const ACTUAL_COST_KEYS = ["actual cost", "actuals", "actual spend", "spent", "spend to date"];
+
+// Parse a currency/number cell: "$1,200.50" → 1200.5. Returns 0 when blank/NaN.
+function parseCurrency(value: string): number {
+  if (!value) return 0;
+  const cleaned = value.replace(/[^0-9.\-]/g, "");
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : 0;
+}
 
 // A row is a milestone when the plan says so: an explicit Milestone=Yes flag,
 // a type of "milestone", or zero duration (the MS Project convention).
@@ -115,7 +135,8 @@ function mapMilestoneStatus(status: TaskStatus): MilestoneStatus {
 
 export type ImportField =
   | "name" | "workstream" | "owner" | "start" | "due"
-  | "status" | "priority" | "progress" | "predecessors" | "milestone";
+  | "status" | "priority" | "progress" | "predecessors" | "milestone"
+  | "cost" | "actualCost";
 
 export type ColumnMap = Partial<Record<ImportField, string>>;
 
@@ -130,6 +151,8 @@ const FIELD_SYNONYMS: Record<ImportField, string[]> = {
   progress: PROGRESS_KEYS,
   predecessors: PREDECESSOR_KEYS,
   milestone: MILESTONE_FLAG_KEYS,
+  cost: COST_KEYS,
+  actualCost: ACTUAL_COST_KEYS,
 };
 
 // Read a field: the PM's explicit mapping wins; otherwise synonym auto-match.
@@ -212,6 +235,7 @@ export function buildImportPreview(records: ImportRecord[], options: BuildImport
   const columnMap = options.columnMap;
   const tasks: ImportPreviewTask[] = [];
   const milestones: ImportPreviewMilestone[] = [];
+  const costByWorkstream = new Map<string, { budget: number; actual: number }>();
   const warnings: string[] = [];
 
   records.forEach((record, rowIndex) => {
@@ -221,6 +245,16 @@ export function buildImportPreview(records: ImportRecord[], options: BuildImport
     const sourceKey = getFirst(record, SOURCE_ID_KEYS) || String(rowIndex + 1);
     const workstream = getField(record, "workstream", columnMap) || defaultWorkstream;
     const ownerName = cleanOwnerName(getField(record, "owner", columnMap) || defaultOwnerName);
+
+    // Roll cost up per workstream (when a cost/budget column is mapped) → BAC.
+    const rowBudget = parseCurrency(getField(record, "cost", columnMap));
+    const rowActual = parseCurrency(getField(record, "actualCost", columnMap));
+    if (rowBudget > 0 || rowActual > 0) {
+      const bucket = costByWorkstream.get(workstream) ?? { budget: 0, actual: 0 };
+      bucket.budget += rowBudget;
+      bucket.actual += rowActual;
+      costByWorkstream.set(workstream, bucket);
+    }
     const startDate = parseDate(getField(record, "start", columnMap));
     const dueDate = parseDate(getField(record, "due", columnMap)) ?? startDate ?? fallbackDueDate;
     const status = mapStatus(getField(record, "status", columnMap), getField(record, "progress", columnMap));
@@ -302,6 +336,14 @@ export function buildImportPreview(records: ImportRecord[], options: BuildImport
     warnings.push("No recognizable task table was found. Use a Microsoft Project or Planner export, or a CSV with Task Name plus Start/Finish or Due Date.");
   }
 
+  // Roll the per-workstream cost buckets into cost lines (stored in $k).
+  const costLines: ImportPreviewCostLine[] = Array.from(costByWorkstream.entries()).map(([category, v]) => ({
+    category,
+    budgetK: Math.round(v.budget / 1000),
+    actualK: Math.round(v.actual / 1000),
+  }));
+  const importedBudgetK = costLines.reduce((sum, line) => sum + line.budgetK, 0);
+
   const workstreams = unique([...tasks.map((task) => task.workstream), ...milestones.map((m) => m.phase)]);
   const owners = uniqueBy(
     tasks.map((task) => ({
@@ -316,6 +358,7 @@ export function buildImportPreview(records: ImportRecord[], options: BuildImport
     sourceKind,
     tasks,
     milestones,
+    costLines,
     workstreams,
     owners,
     warnings,
@@ -323,6 +366,7 @@ export function buildImportPreview(records: ImportRecord[], options: BuildImport
       totalRows: records.length,
       importedTasks: tasks.length,
       importedMilestones: milestones.length,
+      importedBudgetK,
       linkedDependencies,
       unresolvedDependencies,
     },
@@ -367,6 +411,19 @@ export function previewToMilestones(projectId: string, preview: ImportPreview): 
     duration: 1,
     predecessor: m.predecessorSourceKey ? sourceKeyToId.get(m.predecessorSourceKey) : undefined,
     lag: 0,
+    projectId,
+  }));
+}
+
+export function previewToCostLines(projectId: string, preview: ImportPreview): CostLine[] {
+  return preview.costLines.map((line, index) => ({
+    id: `${projectId}-cost-${index + 1}`,
+    category: line.category,
+    description: `${line.category} (imported)`,
+    budgetK: line.budgetK,
+    actualK: line.actualK,
+    contractType: "T&M",
+    owner: "PM",
     projectId,
   }));
 }

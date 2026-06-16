@@ -26,6 +26,7 @@ import {
   previewOwnersToTeamMembers,
   previewTasksToTasks,
   previewToMilestones,
+  previewToCostLines,
   recordsFromMatrix,
   detectHeaders,
   guessColumnMap,
@@ -464,6 +465,13 @@ export default function GuidedSetupPage() {
         note: "Created from guided setup",
       }));
       tasks.forEach((task) => addTask(task, {
+        source: "import",
+        note: "Created from guided setup",
+      }));
+      // Apply imported cost lines so the project has a BAC and the confidence
+      // verdict computes instead of staying coverage-gated.
+      const importedCostLines = previewToCostLines(created.id, preview);
+      importedCostLines.forEach((line) => addCostLine(line, {
         source: "import",
         note: "Created from guided setup",
       }));
@@ -1633,6 +1641,8 @@ const MAP_FIELDS: { field: ImportField; label: string; required?: boolean }[] = 
   { field: "progress", label: "% complete" },
   { field: "predecessors", label: "Predecessors / depends on" },
   { field: "milestone", label: "Milestone flag" },
+  { field: "cost", label: "Cost / budget" },
+  { field: "actualCost", label: "Actual cost / spend" },
 ];
 
 // Interactive column mapper — the PM points their file's columns at our fields.
