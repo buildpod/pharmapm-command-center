@@ -5,6 +5,7 @@ import {
   parseDelimitedTable,
   previewOwnersToTeamMembers,
   previewTasksToTasks,
+  previewToMilestones,
   recordsFromMatrix,
 } from "./project-import";
 
@@ -84,5 +85,42 @@ describe("project import parser", () => {
     expect(tasks[1].dependsOn).toEqual(["proj-imported-task-1"]);
     expect(team.map((member) => member.initials)).toEqual(["VP", "CA"]);
     expect(team[1].role).toBe("Agent Workstream");
+  });
+});
+
+describe("milestone extraction (import fidelity)", () => {
+  it("pulls milestone rows out as a gate spine, not tasks", () => {
+    const records = parseDelimitedTable(
+`Task ID,Task Name,Milestone,Duration,Finish,Status,Predecessors,Resource Names
+1,Build config,No,10 days,2026-03-01,In Progress,,KM
+2,Config Complete,Yes,0,2026-03-05,Not Started,1,KM
+3,UAT Sign-off,Yes,0 days,2026-05-01,Not Started,2,QA`);
+    const preview = buildImportPreview(records);
+    expect(preview.stats.importedTasks).toBe(1);
+    expect(preview.stats.importedMilestones).toBe(2);
+    expect(preview.milestones.map((m) => m.name)).toEqual(["Config Complete", "UAT Sign-off"]);
+  });
+
+  it("detects milestones by zero duration when there is no flag", () => {
+    const records = parseDelimitedTable(
+`Task Name,Duration,Finish,Status,Predecessors
+Design,15 days,2026-02-01,Complete,
+Design Approved,0 days,2026-02-03,Complete,1`);
+    const preview = buildImportPreview(records);
+    expect(preview.stats.importedMilestones).toBe(1);
+    expect(preview.milestones[0].name).toBe("Design Approved");
+    expect(preview.milestones[0].status).toBe("complete");
+  });
+
+  it("chains milestone → milestone predecessors and emits engine-ready ids", () => {
+    const records = parseDelimitedTable(
+`Task ID,Task Name,Milestone,Finish,Predecessors,Resource Names
+10,Gate A,Yes,2026-03-05,,KM
+20,Gate B,Yes,2026-05-01,10,QA`);
+    const milestones = previewToMilestones("proj-x", buildImportPreview(records));
+    expect(milestones.map((m) => m.id)).toEqual(["m1", "m2"]);
+    expect(milestones[1].predecessor).toBe("m1"); // Gate B → Gate A, by source key
+    expect(milestones[0].owner).toBe("KM");
+    expect(milestones[0].locked).toBe(false);
   });
 });

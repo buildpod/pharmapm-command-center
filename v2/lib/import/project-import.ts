@@ -1,4 +1,4 @@
-import type { Task, TaskPriority, TaskStatus, TeamMember } from "@/lib/mockData";
+import type { Task, TaskPriority, TaskStatus, TeamMember, Milestone, MilestoneStatus } from "@/lib/mockData";
 
 export type ImportCell = string | number | boolean | Date | null | undefined;
 export type ImportRecord = Record<string, ImportCell>;
@@ -21,15 +21,32 @@ export type ImportPreviewTask = {
   warnings: string[];
 };
 
+// A milestone row detected in the plan (MS Project flags these via a
+// Milestone=Yes column and/or zero duration). Extracting these gives the
+// imported project a real gate spine, so the impact engine anchors on actual
+// milestones instead of estimating from the latest task.
+export type ImportPreviewMilestone = {
+  sourceKey: string;
+  name: string;
+  phase: string;
+  ownerInitials: string;
+  plannedDate: string;
+  status: MilestoneStatus;
+  predecessorKeys: string[];
+  predecessorSourceKey?: string; // resolved to another milestone row, if any
+};
+
 export type ImportPreview = {
   sourceKind: ImportSourceKind;
   tasks: ImportPreviewTask[];
+  milestones: ImportPreviewMilestone[];
   workstreams: string[];
   owners: Array<{ name: string; initials: string; workstream: string }>;
   warnings: string[];
   stats: {
     totalRows: number;
     importedTasks: number;
+    importedMilestones: number;
     linkedDependencies: number;
     unresolvedDependencies: number;
   };
@@ -63,6 +80,27 @@ const STATUS_KEYS = ["status", "progress state", "state"];
 const PRIORITY_KEYS = ["priority", "importance"];
 const PROGRESS_KEYS = ["% complete", "percent complete", "complete", "progress", "percentage complete"];
 const PREDECESSOR_KEYS = ["predecessors", "predecessor", "depends on", "dependencies", "blocked by"];
+const MILESTONE_FLAG_KEYS = ["milestone", "is milestone"];
+const DURATION_KEYS = ["duration", "dur"];
+const TYPE_KEYS = ["type", "task type", "item type"];
+
+// A row is a milestone when the plan says so: an explicit Milestone=Yes flag,
+// a type of "milestone", or zero duration (the MS Project convention).
+function isMilestoneRow(record: ImportRecord): boolean {
+  const flag = getFirst(record, MILESTONE_FLAG_KEYS).toLowerCase();
+  if (["yes", "true", "1", "y", "x"].includes(flag)) return true;
+  if (/milestone/.test(getFirst(record, TYPE_KEYS).toLowerCase())) return true;
+  const dur = getFirst(record, DURATION_KEYS);
+  if (dur && /^0(\s*(d|day|days|h|hr|hrs|hour|hours))?$/i.test(dur.trim())) return true;
+  return false;
+}
+
+function mapMilestoneStatus(status: TaskStatus): MilestoneStatus {
+  if (status === "Complete") return "complete";
+  if (status === "In Progress") return "in-progress";
+  if (status === "Blocked" || status === "On Hold") return "at-risk";
+  return "pending";
+}
 
 export function parseDelimitedTable(text: string): ImportRecord[] {
   const trimmed = text.trim();
@@ -105,7 +143,7 @@ export function buildImportPreview(records: ImportRecord[], options: BuildImport
   const defaultOwnerName = options.defaultOwnerName ?? "Project Manager";
 
   const tasks: ImportPreviewTask[] = [];
-  const sourceKeyToIndex = new Map<string, number>();
+  const milestones: ImportPreviewMilestone[] = [];
   const warnings: string[] = [];
 
   records.forEach((record, rowIndex) => {
@@ -118,11 +156,25 @@ export function buildImportPreview(records: ImportRecord[], options: BuildImport
     const startDate = parseDate(getFirst(record, START_KEYS));
     const dueDate = parseDate(getFirst(record, DUE_KEYS)) ?? startDate ?? fallbackDueDate;
     const status = mapStatus(getFirst(record, STATUS_KEYS), getFirst(record, PROGRESS_KEYS));
+    const predecessorKeys = parsePredecessors(getFirst(record, PREDECESSOR_KEYS));
+
+    // Milestone rows become the gate spine, not tasks.
+    if (isMilestoneRow(record)) {
+      milestones.push({
+        sourceKey,
+        name,
+        phase: workstream,
+        ownerInitials: initialsFor(ownerName),
+        plannedDate: dueDate,
+        status: mapMilestoneStatus(status),
+        predecessorKeys,
+      });
+      return;
+    }
+
     const priority = mapPriority(getFirst(record, PRIORITY_KEYS));
     const progress = mapProgress(getFirst(record, PROGRESS_KEYS), status);
-    const predecessorKeys = parsePredecessors(getFirst(record, PREDECESSOR_KEYS));
     const taskWarnings: string[] = [];
-
     if (!parseDate(getFirst(record, DUE_KEYS)) && !startDate) {
       taskWarnings.push("No date found; using project fallback date.");
     }
@@ -130,7 +182,6 @@ export function buildImportPreview(records: ImportRecord[], options: BuildImport
       taskWarnings.push("No owner found; assigning to project manager.");
     }
 
-    sourceKeyToIndex.set(normalizeDependencyKey(sourceKey), tasks.length);
     tasks.push({
       sourceKey,
       name,
@@ -169,14 +220,21 @@ export function buildImportPreview(records: ImportRecord[], options: BuildImport
     });
   }
 
-  if (tasks.length === 0 && records.length > 0) {
+  // Milestone → milestone predecessor: link to the first predecessor that is
+  // itself a milestone, so the gate spine chains (drives go-live in the engine).
+  const milestoneSourceKeys = new Set(milestones.map((m) => normalizeDependencyKey(m.sourceKey)));
+  for (const ms of milestones) {
+    ms.predecessorSourceKey = ms.predecessorKeys.find((key) => milestoneSourceKeys.has(normalizeDependencyKey(key)));
+  }
+
+  if (tasks.length === 0 && milestones.length === 0 && records.length > 0) {
     warnings.push("No task title column was found. Map a column to Task Name, Task Title, Name, or Title.");
   }
   if (records.length === 0) {
     warnings.push("No recognizable task table was found. Use a Microsoft Project or Planner export, or a CSV with Task Name plus Start/Finish or Due Date.");
   }
 
-  const workstreams = unique(tasks.map((task) => task.workstream));
+  const workstreams = unique([...tasks.map((task) => task.workstream), ...milestones.map((m) => m.phase)]);
   const owners = uniqueBy(
     tasks.map((task) => ({
       name: task.ownerName,
@@ -189,12 +247,14 @@ export function buildImportPreview(records: ImportRecord[], options: BuildImport
   return {
     sourceKind,
     tasks,
+    milestones,
     workstreams,
     owners,
     warnings,
     stats: {
       totalRows: records.length,
       importedTasks: tasks.length,
+      importedMilestones: milestones.length,
       linkedDependencies,
       unresolvedDependencies,
     },
@@ -217,6 +277,28 @@ export function previewTasksToTasks(projectId: string, preview: ImportPreview): 
     owner: task.ownerInitials,
     dueDate: task.dueDate,
     dependsOn: task.dependsOn.map((id) => keyMap.get(id)).filter(Boolean) as string[],
+    projectId,
+  }));
+}
+
+export function previewToMilestones(projectId: string, preview: ImportPreview): Milestone[] {
+  // Ids are "m1".."mN" so the schedule engine's id parsing (parseInt after "m")
+  // resolves them; scoped per project, so reuse across projects is harmless.
+  const sourceKeyToId = new Map<string, string>();
+  preview.milestones.forEach((m, index) => sourceKeyToId.set(m.sourceKey, `m${index + 1}`));
+
+  return preview.milestones.map((m, index) => ({
+    id: `m${index + 1}`,
+    name: m.name,
+    phase: m.phase,
+    plannedDate: m.plannedDate,
+    forecastDate: m.plannedDate,
+    status: m.status,
+    locked: false,
+    owner: m.ownerInitials,
+    duration: 1,
+    predecessor: m.predecessorSourceKey ? sourceKeyToId.get(m.predecessorSourceKey) : undefined,
+    lag: 0,
     projectId,
   }));
 }

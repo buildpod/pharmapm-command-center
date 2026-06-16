@@ -25,6 +25,7 @@ import {
   parseDelimitedTable,
   previewOwnersToTeamMembers,
   previewTasksToTasks,
+  previewToMilestones,
   recordsFromMatrix,
   type ImportPreview,
 } from "@/lib/import/project-import";
@@ -423,10 +424,16 @@ export default function GuidedSetupPage() {
       toast.success("Project created from saved template", {
         description: `${model.tasks.length} tasks, ${model.milestones.length} milestones, and ${model.teamMembers.length} roles reused.`,
       });
-    } else if (preview && preview.tasks.length > 0) {
+    } else if (preview && (preview.tasks.length > 0 || preview.milestones.length > 0)) {
       const teamMembers = previewOwnersToTeamMembers(created.id, preview);
       const tasks = previewTasksToTasks(created.id, preview);
+      const importedMilestones = previewToMilestones(created.id, preview);
       teamMembers.forEach((member) => addTeamMember(member, {
+        source: "import",
+        note: "Created from guided setup",
+      }));
+      // Apply the imported gate spine so the project anchors the impact engine.
+      importedMilestones.forEach((milestone) => addMilestone(milestone, {
         source: "import",
         note: "Created from guided setup",
       }));
@@ -435,7 +442,7 @@ export default function GuidedSetupPage() {
         note: "Created from guided setup",
       }));
       toast.success("Project setup created", {
-        description: `${preview.tasks.length} tasks and ${preview.owners.length} owners prepared.`,
+        description: `${preview.tasks.length} tasks, ${importedMilestones.length} milestones, and ${preview.owners.length} owners prepared.`,
       });
     } else {
       toast.success("Project shell created", {
