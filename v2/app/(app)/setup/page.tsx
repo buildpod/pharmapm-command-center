@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -58,9 +58,11 @@ import {
   type SetupIntake,
 } from "@/lib/setup/project-intake";
 import { isIsoDate } from "@/lib/validation";
+import type { CostLine, Document, Milestone, Risk, Task, TeamMember } from "@/lib/mockData";
 
 type SetupMode = "template" | "import" | "saved" | "blank";
 type ImportSource = "planner" | "project" | "excel" | "manual";
+type ReviewPreviewTab = "milestones" | "tasks" | "documents" | "risks" | "team" | "costs" | "scope";
 
 const SAMPLE_IMPORT = `ID,Task Name,Workstream,Start,Finish,Resource Names,Priority,% Complete,Predecessors
 1,Confirm project charter,Project Mgmt,2026-06-01,2026-06-03,Vineet Pathak,High,50%,
@@ -129,6 +131,7 @@ export default function GuidedSetupPage() {
   const addTeamMember = useEntityStore((s) => s.addTeamMember);
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [reviewPreviewTab, setReviewPreviewTab] = useState<ReviewPreviewTab>("milestones");
 
   const [mode, setMode] = useState<SetupMode>("template");
   const [templateId, setTemplateId] = useState<ProjectTemplateId>("veeva-rim");
@@ -1071,6 +1074,15 @@ export default function GuidedSetupPage() {
   }
 
   function renderStep4() {
+    const generatedMilestones = templateModel?.milestones ?? customTemplateModel?.milestones ?? [];
+    const generatedTasks = templateModel?.tasks ?? customTemplateModel?.tasks ?? (preview ? previewTasksToTasks("preview-project", preview) : []);
+    const generatedDocuments = templateModel?.documents ?? customTemplateModel?.documents ?? [];
+    const generatedRisks = templateModel?.risks ?? customTemplateModel?.risks ?? [];
+    const generatedTeamMembers = templateModel?.teamMembers ?? customTemplateModel?.teamMembers ?? (preview ? previewOwnersToTeamMembers("preview-project", preview) : []);
+    const generatedCostLines = templateModel?.costLines ?? customTemplateModel?.costLines ?? [];
+    const generatedOutOfScope = templateModel?.charter?.outOfScope ?? customTemplateModel?.charter?.outOfScope ?? [];
+    const generatedOperatingNotes = templateModel?.operatingNotes ?? [];
+
     const summaryTasks = templateModel?.tasks.length ?? customTemplateModel?.tasks.length ?? preview?.stats.importedTasks ?? 0;
     const summaryMilestones = templateModel?.milestones.length ?? customTemplateModel?.milestones.length ?? 0;
     const summaryOwners = templateModel?.teamMembers.length ?? customTemplateModel?.teamMembers.length ?? preview?.owners.length ?? 0;
@@ -1091,7 +1103,7 @@ export default function GuidedSetupPage() {
     if (summaryCostLines === 0) coverageWarnings.push("No budget lines yet — cost confidence and the executive verdict stay pending until a budget exists.");
 
     return (
-      <div className="mx-auto max-w-3xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="mx-auto max-w-5xl animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="mb-8 text-center">
           <h2 className="text-3xl font-bold tracking-tight text-foreground">Review & Create</h2>
           <p className="mt-2 text-sm text-muted-foreground">Verify the architecture before finalizing the command center.</p>
@@ -1177,6 +1189,23 @@ export default function GuidedSetupPage() {
               </div>
             )}
           </div>
+
+          <OperatingModelPreview
+            activeTab={reviewPreviewTab}
+            onTabChange={setReviewPreviewTab}
+            data={{
+              milestones: generatedMilestones,
+              tasks: generatedTasks,
+              documents: generatedDocuments,
+              risks: generatedRisks,
+              teamMembers: generatedTeamMembers,
+              costLines: generatedCostLines,
+              outOfScope: generatedOutOfScope,
+              operatingNotes: generatedOperatingNotes,
+              importWarnings: preview?.warnings ?? [],
+            }}
+            mode={mode}
+          />
         </div>
 
         <div className={cn(setupActionRowCls, "justify-between")}>
@@ -1231,6 +1260,235 @@ export default function GuidedSetupPage() {
 }
 
 // ==== SUBCOMPONENTS ====
+
+type OperatingModelPreviewData = {
+  milestones: Milestone[];
+  tasks: Task[];
+  documents: Document[];
+  risks: Risk[];
+  teamMembers: TeamMember[];
+  costLines: CostLine[];
+  outOfScope: string[];
+  operatingNotes: string[];
+  importWarnings: string[];
+};
+
+function OperatingModelPreview({
+  activeTab,
+  onTabChange,
+  data,
+  mode,
+}: {
+  activeTab: ReviewPreviewTab;
+  onTabChange: (tab: ReviewPreviewTab) => void;
+  data: OperatingModelPreviewData;
+  mode: SetupMode;
+}) {
+  const tabs: Array<{ id: ReviewPreviewTab; label: string; count: number }> = [
+    { id: "milestones", label: "Milestones", count: data.milestones.length },
+    { id: "tasks", label: "Tasks", count: data.tasks.length },
+    { id: "documents", label: "Documents", count: data.documents.length },
+    { id: "risks", label: "Risks", count: data.risks.length },
+    { id: "team", label: "Team", count: data.teamMembers.length },
+    { id: "costs", label: "Costs", count: data.costLines.length },
+    { id: "scope", label: "Scope", count: data.outOfScope.length },
+  ];
+
+  return (
+    <div className="rounded-2xl border border-border/50 bg-card/40 p-6 shadow-xl backdrop-blur-xl">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-semibold text-foreground">Generated Operating Model</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Review the records that will be created before you open the command center.
+          </p>
+        </div>
+        <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground">
+          {mode === "blank" ? "Base skeleton" : mode === "import" ? "Mapped import" : "Template build"}
+        </span>
+      </div>
+
+      <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => onTabChange(tab.id)}
+            className={cn(
+              "shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all",
+              activeTab === tab.id
+                ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            {tab.label} <span className="ml-1 tabular-nums opacity-80">{tab.count}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-4 max-h-[360px] overflow-y-auto rounded-xl border border-border/50 bg-background/50">
+        {activeTab === "milestones" && (
+          data.milestones.length > 0 ? (
+            data.milestones.map((milestone) => (
+              <PreviewRow key={milestone.id}>
+                <div>
+                  <p className="font-semibold text-foreground">{milestone.name}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {milestone.phase} · owner {milestone.owner} · target {milestone.plannedDate}
+                  </p>
+                </div>
+                <span className="rounded-full border border-border bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                  {milestone.locked ? "Locked gate" : milestone.status}
+                </span>
+              </PreviewRow>
+            ))
+          ) : <PreviewEmpty title="No milestones yet" body="Imports and blank skeletons create the project shell first. Add milestone gates next so Delivery Signals can judge schedule." />
+        )}
+
+        {activeTab === "tasks" && (
+          data.tasks.length > 0 ? (
+            data.tasks.map((task) => (
+              <PreviewRow key={task.id}>
+                <div>
+                  <p className="font-semibold text-foreground">{task.name}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {task.workstream} · owner {task.owner} · due {task.dueDate}
+                    {task.dependsOn?.length ? ` · waits for ${task.dependsOn.length}` : ""}
+                    {task.milestoneId ? " · linked to milestone" : " · no milestone link"}
+                  </p>
+                </div>
+                <span className="rounded-full border border-border bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                  {task.priority}
+                </span>
+              </PreviewRow>
+            ))
+          ) : <PreviewEmpty title="No tasks yet" body="Blank skeletons start without work records. Add or import tasks when you are ready to manage delivery." />
+        )}
+
+        {activeTab === "documents" && (
+          data.documents.length > 0 ? (
+            data.documents.map((document) => (
+              <PreviewRow key={document.id}>
+                <div>
+                  <p className="font-semibold text-foreground">{document.abbreviation ? `${document.abbreviation} · ` : ""}{document.name}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {document.phase} · owner {document.owner} · due {document.dueDate} · {document.reviewers.length + document.approvers.length} decisions
+                  </p>
+                </div>
+                <span className="rounded-full border border-border bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                  {document.status}
+                </span>
+              </PreviewRow>
+            ))
+          ) : <PreviewEmpty title="No documents yet" body="Decision and approval evidence starts once controlled documents are added." />
+        )}
+
+        {activeTab === "risks" && (
+          data.risks.length > 0 ? (
+            data.risks.map((risk) => (
+              <PreviewRow key={risk.id}>
+                <div>
+                  <p className="font-semibold text-foreground">{risk.title}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {risk.category} · owner {risk.owner} · mitigation: {risk.mitigation}
+                  </p>
+                </div>
+                <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700">
+                  {risk.score}
+                </span>
+              </PreviewRow>
+            ))
+          ) : <PreviewEmpty title="No risks yet" body="Risk tracking starts after creation. Add delivery risks before the first SteerCo report." />
+        )}
+
+        {activeTab === "team" && (
+          data.teamMembers.length > 0 ? (
+            data.teamMembers.map((member) => (
+              <PreviewRow key={member.id}>
+                <div>
+                  <p className="font-semibold text-foreground">{member.name}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {member.role} · {member.workstream}
+                  </p>
+                </div>
+                <span className="rounded-full border border-border bg-card px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+                  {member.initials}
+                </span>
+              </PreviewRow>
+            ))
+          ) : <PreviewEmpty title="No team yet" body="Team members are created from template roles or imported owners." />
+        )}
+
+        {activeTab === "costs" && (
+          data.costLines.length > 0 ? (
+            data.costLines.map((line) => (
+              <PreviewRow key={line.id}>
+                <div>
+                  <p className="font-semibold text-foreground">{line.category}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {line.description} · owner {line.owner} · {line.contractType}
+                  </p>
+                </div>
+                <span className="rounded-full border border-border bg-card px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+                  ${line.budgetK}k
+                </span>
+              </PreviewRow>
+            ))
+          ) : <PreviewEmpty title="No budget lines yet" body="Cost confidence stays pending until budget lines are added." />
+        )}
+
+        {activeTab === "scope" && (
+          <div className="divide-y divide-border/50">
+            {data.outOfScope.length > 0 && data.outOfScope.map((item) => (
+              <PreviewRow key={item}>
+                <div>
+                  <p className="font-semibold text-foreground">{item}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Will be written to the charter as out of scope.</p>
+                </div>
+              </PreviewRow>
+            ))}
+            {data.operatingNotes.length > 0 && data.operatingNotes.map((note) => (
+              <PreviewRow key={note}>
+                <div>
+                  <p className="font-semibold text-foreground">Operating note</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{note}</p>
+                </div>
+              </PreviewRow>
+            ))}
+            {data.importWarnings.length > 0 && data.importWarnings.map((warning) => (
+              <PreviewRow key={warning}>
+                <div>
+                  <p className="font-semibold text-foreground">Import note</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{warning}</p>
+                </div>
+              </PreviewRow>
+            ))}
+            {data.outOfScope.length === 0 && data.operatingNotes.length === 0 && data.importWarnings.length === 0 && (
+              <PreviewEmpty title="No scope exclusions" body="Nothing is marked out of scope for this build yet." />
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PreviewRow({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-4 border-b border-border/50 px-4 py-3 last:border-b-0">
+      {children}
+    </div>
+  );
+}
+
+function PreviewEmpty({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="px-4 py-8 text-center">
+      <p className="font-semibold text-foreground">{title}</p>
+      <p className="mx-auto mt-1 max-w-lg text-sm text-muted-foreground">{body}</p>
+    </div>
+  );
+}
 
 function SelectField<T extends string>({
   label,
