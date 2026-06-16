@@ -48,6 +48,8 @@ function signalIcon(signal: DeliveryTruthSignal) {
       return GitBranch;
     case "risk-pressure":
       return AlertTriangle;
+    case "status-integrity":
+      return AlertTriangle;
   }
 }
 
@@ -60,6 +62,7 @@ const signalShortLabel: Record<DeliveryTruthSignal["kind"], string> = {
   "readiness-compression": "readiness",
   "blocked-work": "blocked work",
   "risk-pressure": "risk",
+  "status-integrity": "integrity",
 };
 
 function sourceHref(kind: DeliveryTruthSignal["sources"][number]["kind"]) {

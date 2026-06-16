@@ -7,6 +7,7 @@ import type { CostLine, Document, Milestone, Project, Risk, Task } from "@/lib/m
 import { compare, daysBetween } from "./dates";
 import type { EvmSnapshot } from "./evm";
 import { confidenceScore as evmConfidenceScore } from "./evm-project";
+import { computeStatusIntegrity } from "./status-integrity";
 
 export const DEFAULT_TRUTH_DATE = "2026-05-19";
 
@@ -20,7 +21,8 @@ export type DeliveryTruthSignalKind =
   | "decision-debt"
   | "readiness-compression"
   | "blocked-work"
-  | "risk-pressure";
+  | "risk-pressure"
+  | "status-integrity";
 
 export interface DeliveryTruthSource {
   kind: "milestone" | "task" | "risk" | "document" | "cost";
@@ -457,6 +459,33 @@ function buildRiskPressureSignal(risks: Risk[]): DeliveryTruthSignal | null {
   };
 }
 
+// F1 — Status Integrity. Confidence trusts reported % complete; this signal
+// surfaces independent reasons that the reported progress may be overstated, so
+// the score is read with the right caveat rather than taken at face value.
+function buildStatusIntegritySignal(evm: EvmSnapshot, milestones: Milestone[]): DeliveryTruthSignal | null {
+  const integrity = computeStatusIntegrity({
+    percentComplete: evm.percentComplete,
+    percentSpent: evm.percentSpent,
+    cpi: evm.cpi,
+    gatesTotal: milestones.length,
+    gatesComplete: milestones.filter((m) => m.status === "complete").length,
+  });
+  if (integrity.band === "consistent") return null;
+
+  return {
+    id: "status-integrity",
+    kind: "status-integrity",
+    severity: integrity.band === "overstated" ? "high" : "medium",
+    tone: "amber",
+    title: "Reported progress may be overstated",
+    summary: integrity.flags.map((flag) => flag.message).join(" "),
+    whyItMatters:
+      "Confidence is computed from the reported % complete. These checks are independent of that number and suggest it may be ahead of real work — so the score could be optimistic.",
+    nextAction: "Verify the reported progress against approved evidence and gate completion before trusting the score.",
+    sources: milestones.filter((m) => m.status !== "complete").slice(0, 3).map((m) => source("milestone", m.id, m.name)),
+  };
+}
+
 function confidenceBand(score: number, signals: DeliveryTruthSignal[]): DeliveryTruthBand {
   const hasCritical = signals.some((signal) => signal.severity === "critical");
   if (score >= 75 && !hasCritical) return "credible";
@@ -575,6 +604,7 @@ export function calculateDeliveryTruth(input: DeliveryTruthInput): DeliveryTruth
     scheduleSignal,
     costSignal,
     input.evm ? buildPaceDivergenceSignal(milestones, tasks, input.evm, goLiveDelta) : null,
+    input.evm ? buildStatusIntegritySignal(input.evm, milestones) : null,
     buildDecisionDebtSignal(documents, currentDate),
     buildReadinessSignal(tasks, documents, currentDate),
     buildBlockedWorkSignal(tasks),
