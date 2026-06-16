@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { DollarSign, TrendingDown, Wallet, Layers, Plus } from "lucide-react";
-import { budgetTrend, type CostLine } from "@/lib/mockData";
+import { DollarSign, TrendingDown, Wallet, Layers, Plus, PencilLine } from "lucide-react";
+import { type CostLine } from "@/lib/mockData";
 import { CostLineFormDrawer } from "./cost-line-form";
 import { useProject } from "@/components/projects/project-provider";
 import { useEntityStore } from "@/lib/stores/entity-store";
@@ -178,16 +178,6 @@ export function CostsGrid() {
   const totalBurnPct  = totalBudgetK > 0 ? Math.round((totalActualK / totalBudgetK) * 100) : 0;
   const remainingK    = totalBudgetK - totalActualK;
 
-  const withDelta = budgetTrend.map((row, i) => {
-    const prevPlanned = i > 0 ? budgetTrend[i - 1].planned : 0;
-    const prevActual  = i > 0 ? budgetTrend[i - 1].actual  : 0;
-    return {
-      ...row,
-      deltaPlanned: row.planned - prevPlanned,
-      deltaActual:  row.actual > 0 ? row.actual - prevActual : null,
-    };
-  });
-
   return (
     <div className="space-y-6">
       {/* KPI summary */}
@@ -234,12 +224,20 @@ export function CostsGrid() {
         </div>
       </div>
 
+      <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+        <p className="text-sm font-semibold text-foreground">How burn is entered</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Enter spend-to-date in each cost line&rsquo;s <span className="font-semibold text-foreground">Actual ($k)</span> field.
+          Burn is calculated as actual spend divided by approved budget. Monthly consumption needs a monthly actuals source and is not inferred.
+        </p>
+      </div>
+
       {/* Cost breakdown */}
       <div className="rounded-xl border border-border bg-card shadow-sm overflow-x-auto" data-tour-id="costs-lines">
         <div className="flex items-center justify-between border-b border-border bg-muted/30 px-5 py-3.5">
           <div>
             <p className="text-sm font-semibold text-foreground">Cost Breakdown by Category</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">budget · actual · burn % per line</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">budget · actual spend-to-date · burn % per line</p>
           </div>
           <button
             onClick={() => setDrawer({ mode: "new" })}
@@ -256,7 +254,7 @@ export function CostsGrid() {
               <th className="px-3 py-2.5 text-left">Description</th>
               <th className="w-24 px-3 py-2.5 text-center">Type</th>
               <th className="w-24 px-3 py-2.5 text-right">Budget</th>
-              <th className="w-24 px-3 py-2.5 text-right">Actual</th>
+              <th className="w-28 px-3 py-2.5 text-right">Actual to date</th>
               <th className="w-44 px-5 py-2.5 text-left">Burn</th>
               <th className="w-28 px-3 py-2.5 text-center">Impact</th>
             </tr>
@@ -294,7 +292,18 @@ export function CostsGrid() {
                     ${c.budgetK}k
                   </td>
                   <td className="px-3 py-3.5 text-right text-sm tabular-nums text-foreground">
-                    {c.actualK > 0 ? `$${c.actualK}k` : <span className="text-muted-foreground">—</span>}
+                    <button
+                      onClick={() => setDrawer({ mode: "edit", line: c })}
+                      className="inline-flex items-center justify-end gap-1 rounded-md px-1.5 py-1 text-right font-medium hover:bg-muted hover:text-primary"
+                      title={c.actualK > 0 ? "Edit actual spend-to-date" : "Enter actual spend-to-date"}
+                    >
+                      {c.actualK > 0 ? (
+                        `$${c.actualK}k`
+                      ) : (
+                        <span className="text-muted-foreground">Enter actual</span>
+                      )}
+                      <PencilLine className="h-3 w-3" />
+                    </button>
                   </td>
                   <td className="px-5 py-3.5">
                     <BurnBar pct={pct} warn={warn} danger={danger} />
@@ -374,67 +383,24 @@ export function CostsGrid() {
         <div className="flex items-center justify-between border-b border-border bg-muted/30 px-5 py-3.5">
           <div>
             <p className="text-sm font-semibold text-foreground">Monthly Burn Trend</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">Cumulative $k · Jan – Jun 2026</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Requires monthly actuals; current burn uses cost-line spend-to-date.</p>
           </div>
         </div>
-
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/20 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              <th className="w-20 px-5 py-2.5 text-left">Month</th>
-              <th className="px-3 py-2.5 text-right">Plan (month)</th>
-              <th className="px-3 py-2.5 text-right">Actual (month)</th>
-              <th className="px-3 py-2.5 text-right">Plan (cumul.)</th>
-              <th className="px-5 py-2.5 text-right">Actual (cumul.)</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {withDelta.map((row) => {
-              const isForecast = row.actual === 0;
-              const variance = row.deltaActual != null ? row.deltaActual - row.deltaPlanned : null;
-              return (
-                <tr key={row.month} className={cn("transition-colors hover:bg-muted/20", isForecast && "opacity-60")}>
-                  <td className="px-5 py-3 font-medium text-foreground">
-                    {row.month}
-                    {isForecast && (
-                      <span className="ml-2 rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                        forecast
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-3 py-3 text-right tabular-nums text-muted-foreground">
-                    ${row.deltaPlanned}k
-                  </td>
-                  <td className="px-3 py-3 text-right tabular-nums">
-                    {row.deltaActual != null ? (
-                      <span className="text-foreground">${row.deltaActual}k</span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                    {variance != null && variance !== 0 && (
-                      <span className={cn(
-                        "ml-1.5 text-[11px] font-semibold",
-                        variance > 0 ? "text-rose-600" : "text-emerald-600",
-                      )}>
-                        {variance > 0 ? `+${variance}` : variance}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-3 py-3 text-right tabular-nums text-muted-foreground">
-                    ${row.planned}k
-                  </td>
-                  <td className="px-5 py-3 text-right tabular-nums">
-                    {row.actual > 0 ? (
-                      <span className="font-medium text-foreground">${row.actual}k</span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div className="px-5 py-6">
+          <div className="rounded-lg border border-dashed border-border bg-muted/20 p-5">
+            <p className="text-sm font-semibold text-foreground">No monthly actuals loaded yet</p>
+            <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
+              The app can show reliable burn now from cost-line actuals: ${totalActualK}k spent against ${totalBudgetK}k approved.
+              Add monthly invoice or time-entry data later to trend consumption by month.
+            </p>
+            <button
+              onClick={() => setDrawer({ mode: "new" })}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add or update cost line
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
