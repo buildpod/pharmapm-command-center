@@ -27,7 +27,11 @@ import {
   previewTasksToTasks,
   previewToMilestones,
   recordsFromMatrix,
+  detectHeaders,
+  guessColumnMap,
   type ImportPreview,
+  type ColumnMap,
+  type ImportField,
 } from "@/lib/import/project-import";
 import {
   PROJECT_TEMPLATES,
@@ -158,6 +162,9 @@ export default function GuidedSetupPage() {
   const [importText, setImportText] = useState(SAMPLE_IMPORT);
   const [importError, setImportError] = useState<string | null>(null);
   const [isReadingFile, setIsReadingFile] = useState(false);
+  // Interactive column mapping — the PM points their file's columns at our
+  // fields when the headers don't auto-match.
+  const [columnMap, setColumnMap] = useState<ColumnMap>({});
 
   useEffect(() => {
     const templates = loadCustomProjectTemplates();
@@ -165,18 +172,37 @@ export default function GuidedSetupPage() {
     setCustomTemplateId((current) => current || templates[0]?.id || "");
   }, []);
 
+  // Lenient parse so the file's columns are always available to map, even when
+  // the headers aren't auto-recognized.
+  const importRecords = useMemo(() => {
+    if (mode === "blank" || mode === "saved") return [];
+    try {
+      return parseDelimitedTable(mode === "template" ? TEMPLATE_IMPORT : importText, { lenient: true });
+    } catch {
+      return [];
+    }
+  }, [importText, mode]);
+
+  const importHeaders = useMemo(() => detectHeaders(importRecords), [importRecords]);
+
+  // Re-guess the mapping whenever a new file/text loads; user edits persist
+  // until the source changes again.
+  useEffect(() => {
+    setColumnMap(guessColumnMap(importHeaders));
+  }, [importHeaders]);
+
   const preview = useMemo<ImportPreview | null>(() => {
     if (mode === "blank" || mode === "saved") return null;
     try {
-      const records = parseDelimitedTable(mode === "template" ? TEMPLATE_IMPORT : importText);
-      return buildImportPreview(records, {
+      return buildImportPreview(importRecords, {
         defaultOwnerName: "Project Manager",
         fallbackDueDate: goLiveDate || startDate,
+        columnMap,
       });
     } catch {
       return buildImportPreview([]);
     }
-  }, [goLiveDate, importText, mode, startDate]);
+  }, [importRecords, columnMap, goLiveDate, startDate, mode]);
 
   const templateModel = useMemo(() => (
     mode === "template"
@@ -306,10 +332,10 @@ export default function GuidedSetupPage() {
         const sheetName = workbook.SheetNames.find((sheet) => sheet.toLowerCase().includes("project tasks")) ?? workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
         const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", raw: false });
-        const records = recordsFromMatrix(matrix as string[][]);
+        const records = recordsFromMatrix(matrix as string[][], { lenient: true });
         if (records.length === 0) {
           setImportText("");
-          setImportError("The file opened, but no task table was found. Exports need recognizable task columns so the command center can map owners, dates, and dependencies.");
+          setImportError("The file opened, but no table of rows was found. Make sure the sheet has a header row and at least one task or milestone row.");
           return;
         }
         const headers = Object.keys(records[0] ?? {});
@@ -319,10 +345,10 @@ export default function GuidedSetupPage() {
         setImportText([headers.join(","), body].filter(Boolean).join("\n"));
       } else {
         const text = await file.text();
-        const records = parseDelimitedTable(text);
+        const records = parseDelimitedTable(text, { lenient: true });
         if (records.length === 0) {
           setImportText(text);
-          setImportError("No recognizable task table was found. Use the sample format or include Task Name plus Start/Finish or Due Date columns so the plan can be mapped safely.");
+          setImportError("No table of rows was found. The file needs a header row and at least one task or milestone row.");
           return;
         }
         setImportText(text);
@@ -977,14 +1003,7 @@ export default function GuidedSetupPage() {
                 </a>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <MappingCard source="Task title / Task Name" target="Task record" />
-                <MappingCard source="Bucket / Workstream / Phase" target="Workstream" />
-                <MappingCard source="Assignments / Resource Names" target="Owner and team member" />
-                <MappingCard source="Start, Due Date, Finish" target="Schedule fields" />
-                <MappingCard source="Status, Priority, % Complete" target="Progress and pressure" />
-                <MappingCard source="Predecessors / Depends on" target="Task dependencies" />
-              </div>
+              <ColumnMapper headers={importHeaders} value={columnMap} onChange={setColumnMap} />
 
               <label className="flex w-full cursor-pointer flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-border/50 bg-background/30 px-6 py-12 transition-all hover:bg-muted/50">
                 {isReadingFile ? <Loader2 className="h-8 w-8 animate-spin text-primary" /> : <Upload className="h-8 w-8 text-muted-foreground" />}
@@ -1604,13 +1623,76 @@ function Metric({ label, value }: { label: string; value: number }) {
   );
 }
 
-function MappingCard({ source, target }: { source: string; target: string }) {
+const MAP_FIELDS: { field: ImportField; label: string; required?: boolean }[] = [
+  { field: "name", label: "Task / milestone name", required: true },
+  { field: "owner", label: "Owner / assignee" },
+  { field: "workstream", label: "Workstream / phase" },
+  { field: "start", label: "Start date" },
+  { field: "due", label: "Finish / due date" },
+  { field: "status", label: "Status" },
+  { field: "progress", label: "% complete" },
+  { field: "predecessors", label: "Predecessors / depends on" },
+  { field: "milestone", label: "Milestone flag" },
+];
+
+// Interactive column mapper — the PM points their file's columns at our fields.
+// Pre-filled by auto-guess; required "name" is flagged when unmapped so a
+// non-standard sheet never silently imports nothing.
+function ColumnMapper({
+  headers,
+  value,
+  onChange,
+}: {
+  headers: string[];
+  value: ColumnMap;
+  onChange: (next: ColumnMap) => void;
+}) {
+  if (headers.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-border/60 bg-background/40 p-4 text-sm text-muted-foreground">
+        Upload a file or paste a table above, then map its columns here.
+      </div>
+    );
+  }
+  const nameMissing = !value.name;
   return (
     <div className="rounded-xl border border-border/50 bg-background/50 p-4">
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Map</p>
-      <p className="mt-1 text-sm font-medium text-foreground">{source}</p>
-      <p className="mt-2 text-xs text-muted-foreground">to</p>
-      <p className="mt-1 text-sm font-semibold text-primary">{target}</p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-foreground">Map your columns</p>
+        <span className="text-xs text-muted-foreground">{headers.length} columns detected</span>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        We pre-matched what we could. Point any remaining fields at the right column from your file.
+      </p>
+      {nameMissing && (
+        <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-800">
+          Map a name column to import — nothing will be created until then.
+        </p>
+      )}
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {MAP_FIELDS.map(({ field, label, required }) => (
+          <label key={field} className="flex items-center justify-between gap-2 text-xs">
+            <span className="text-muted-foreground">
+              {label}{required && <span className="text-amber-700"> *</span>}
+            </span>
+            <select
+              value={value[field] ?? ""}
+              onChange={(event) => {
+                const next = { ...value };
+                if (event.target.value) next[field] = event.target.value;
+                else delete next[field];
+                onChange(next);
+              }}
+              className="w-40 rounded border border-border bg-background px-1.5 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="">— none —</option>
+              {headers.map((header) => (
+                <option key={header} value={header}>{header}</option>
+              ))}
+            </select>
+          </label>
+        ))}
+      </div>
     </div>
   );
 }

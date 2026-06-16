@@ -7,6 +7,8 @@ import {
   previewTasksToTasks,
   previewToMilestones,
   recordsFromMatrix,
+  detectHeaders,
+  guessColumnMap,
 } from "./project-import";
 
 describe("project import parser", () => {
@@ -110,6 +112,37 @@ Design Approved,0 days,2026-02-03,Complete,1`);
     expect(preview.stats.importedMilestones).toBe(1);
     expect(preview.milestones[0].name).toBe("Design Approved");
     expect(preview.milestones[0].status).toBe("complete");
+  });
+
+  it("imports a non-standard sheet once columns are mapped", () => {
+    // Headers don't match any synonym — auto-import finds nothing...
+    const text =
+`Activity,Responsible,Target,State
+Draft URS,Priya,2026-07-01,Doing
+Approve URS,Quentin,2026-07-15,To do`;
+    const auto = buildImportPreview(parseDelimitedTable(text, { lenient: true }));
+    expect(auto.stats.importedTasks).toBe(0);
+
+    // ...but with an explicit column map it imports cleanly.
+    const records = parseDelimitedTable(text, { lenient: true });
+    const mapped = buildImportPreview(records, {
+      columnMap: { name: "Activity", owner: "Responsible", due: "Target", status: "State" },
+    });
+    expect(mapped.stats.importedTasks).toBe(2);
+    expect(mapped.tasks[0].name).toBe("Draft URS");
+    expect(mapped.tasks[0].ownerInitials).toBe("PR");
+  });
+
+  it("lenient parse exposes the file's columns for mapping; guess pre-fills known fields", () => {
+    const records = parseDelimitedTable(
+`Task Name,Owner,Finish,Mystery Column
+Build,KM,2026-08-01,foo`, { lenient: true });
+    const headers = detectHeaders(records);
+    expect(headers).toContain("mystery column");
+    const guess = guessColumnMap(headers);
+    expect(guess.name).toBe("task name");
+    expect(guess.owner).toBe("owner");
+    expect(guess.due).toBe("finish");
   });
 
   it("chains milestone → milestone predecessors and emits engine-ready ids", () => {

@@ -56,6 +56,9 @@ export type BuildImportOptions = {
   defaultWorkstream?: string;
   defaultOwnerName?: string;
   fallbackDueDate?: string;
+  // Explicit field → header mapping from the mapper UI. Overrides synonym
+  // guessing so non-standard sheets import correctly.
+  columnMap?: ColumnMap;
 };
 
 const TASK_NAME_KEYS = [
@@ -86,8 +89,10 @@ const TYPE_KEYS = ["type", "task type", "item type"];
 
 // A row is a milestone when the plan says so: an explicit Milestone=Yes flag,
 // a type of "milestone", or zero duration (the MS Project convention).
-function isMilestoneRow(record: ImportRecord): boolean {
-  const flag = getFirst(record, MILESTONE_FLAG_KEYS).toLowerCase();
+function isMilestoneRow(record: ImportRecord, columnMap?: ColumnMap): boolean {
+  const flag = (columnMap?.milestone
+    ? getField(record, "milestone", columnMap)
+    : getFirst(record, MILESTONE_FLAG_KEYS)).toLowerCase();
   if (["yes", "true", "1", "y", "x"].includes(flag)) return true;
   if (/milestone/.test(getFirst(record, TYPE_KEYS).toLowerCase())) return true;
   const dur = getFirst(record, DURATION_KEYS);
@@ -102,23 +107,85 @@ function mapMilestoneStatus(status: TaskStatus): MilestoneStatus {
   return "pending";
 }
 
-export function parseDelimitedTable(text: string): ImportRecord[] {
+// ─── Column mapping (import fidelity for non-standard sheets) ─────────────────
+//
+// When a file's headers don't match the auto-recognized names, the PM maps their
+// own columns to our fields. A ColumnMap (field → that file's header) overrides
+// the synonym guessing; absent a mapping, we fall back to synonyms as before.
+
+export type ImportField =
+  | "name" | "workstream" | "owner" | "start" | "due"
+  | "status" | "priority" | "progress" | "predecessors" | "milestone";
+
+export type ColumnMap = Partial<Record<ImportField, string>>;
+
+const FIELD_SYNONYMS: Record<ImportField, string[]> = {
+  name: TASK_NAME_KEYS,
+  workstream: WORKSTREAM_KEYS,
+  owner: OWNER_KEYS,
+  start: START_KEYS,
+  due: DUE_KEYS,
+  status: STATUS_KEYS,
+  priority: PRIORITY_KEYS,
+  progress: PROGRESS_KEYS,
+  predecessors: PREDECESSOR_KEYS,
+  milestone: MILESTONE_FLAG_KEYS,
+};
+
+// Read a field: the PM's explicit mapping wins; otherwise synonym auto-match.
+function getField(record: ImportRecord, field: ImportField, columnMap?: ColumnMap): string {
+  const mapped = columnMap?.[field];
+  if (mapped) {
+    const wanted = normalizeHeader(mapped);
+    const match = Object.entries(record).find(([key]) => normalizeHeader(key) === wanted);
+    return normalizeCell(match?.[1]);
+  }
+  return getFirst(record, FIELD_SYNONYMS[field]);
+}
+
+// The file's actual column headers — what the mapper UI offers as choices.
+export function detectHeaders(records: ImportRecord[]): string[] {
+  return records[0] ? Object.keys(records[0]) : [];
+}
+
+// Pre-fill a mapping by matching each field's synonyms against the file headers.
+export function guessColumnMap(headers: string[]): ColumnMap {
+  const map: ColumnMap = {};
+  (Object.keys(FIELD_SYNONYMS) as ImportField[]).forEach((field) => {
+    const hit = headers.find((h) => FIELD_SYNONYMS[field].includes(normalizeHeader(h)));
+    if (hit) map[field] = hit;
+  });
+  return map;
+}
+
+export type ParseOptions = {
+  // When the auto-recognized header row isn't found, still parse using the
+  // first substantial row as headers — so the mapper UI can show the columns.
+  lenient?: boolean;
+};
+
+export function parseDelimitedTable(text: string, options: ParseOptions = {}): ImportRecord[] {
   const trimmed = text.trim();
   if (!trimmed) return [];
   const delimiter = detectDelimiter(trimmed);
   const rows = parseRows(trimmed, delimiter);
-  return recordsFromMatrix(rows);
+  return recordsFromMatrix(rows, options);
 }
 
-export function recordsFromMatrix(matrix: ImportCell[][]): ImportRecord[] {
+export function recordsFromMatrix(matrix: ImportCell[][], options: ParseOptions = {}): ImportRecord[] {
   const normalizedRows = matrix
     .map((row) => row.map((cell) => normalizeCell(cell)))
     .filter((row) => row.some((cell) => cell.trim().length > 0));
 
   if (normalizedRows.length < 2) return [];
 
-  const headerIndex = findHeaderRow(normalizedRows);
-  if (headerIndex === -1) return [];
+  let headerIndex = findHeaderRow(normalizedRows);
+  if (headerIndex === -1) {
+    if (!options.lenient) return [];
+    // Lenient: first row with at least two non-empty cells is the header row.
+    headerIndex = normalizedRows.findIndex((row) => row.filter((c) => c.trim().length > 0).length >= 2);
+    if (headerIndex === -1) return [];
+  }
 
   const headers = normalizedRows[headerIndex].map((header, index) => normalizeHeader(header) || `column ${index + 1}`);
   const records: ImportRecord[] = [];
@@ -142,24 +209,25 @@ export function buildImportPreview(records: ImportRecord[], options: BuildImport
   const defaultWorkstream = options.defaultWorkstream ?? "Imported Plan";
   const defaultOwnerName = options.defaultOwnerName ?? "Project Manager";
 
+  const columnMap = options.columnMap;
   const tasks: ImportPreviewTask[] = [];
   const milestones: ImportPreviewMilestone[] = [];
   const warnings: string[] = [];
 
   records.forEach((record, rowIndex) => {
-    const name = getFirst(record, TASK_NAME_KEYS);
+    const name = getField(record, "name", columnMap);
     if (!name) return;
 
     const sourceKey = getFirst(record, SOURCE_ID_KEYS) || String(rowIndex + 1);
-    const workstream = getFirst(record, WORKSTREAM_KEYS) || defaultWorkstream;
-    const ownerName = cleanOwnerName(getFirst(record, OWNER_KEYS) || defaultOwnerName);
-    const startDate = parseDate(getFirst(record, START_KEYS));
-    const dueDate = parseDate(getFirst(record, DUE_KEYS)) ?? startDate ?? fallbackDueDate;
-    const status = mapStatus(getFirst(record, STATUS_KEYS), getFirst(record, PROGRESS_KEYS));
-    const predecessorKeys = parsePredecessors(getFirst(record, PREDECESSOR_KEYS));
+    const workstream = getField(record, "workstream", columnMap) || defaultWorkstream;
+    const ownerName = cleanOwnerName(getField(record, "owner", columnMap) || defaultOwnerName);
+    const startDate = parseDate(getField(record, "start", columnMap));
+    const dueDate = parseDate(getField(record, "due", columnMap)) ?? startDate ?? fallbackDueDate;
+    const status = mapStatus(getField(record, "status", columnMap), getField(record, "progress", columnMap));
+    const predecessorKeys = parsePredecessors(getField(record, "predecessors", columnMap));
 
     // Milestone rows become the gate spine, not tasks.
-    if (isMilestoneRow(record)) {
+    if (isMilestoneRow(record, columnMap)) {
       milestones.push({
         sourceKey,
         name,
@@ -172,13 +240,13 @@ export function buildImportPreview(records: ImportRecord[], options: BuildImport
       return;
     }
 
-    const priority = mapPriority(getFirst(record, PRIORITY_KEYS));
-    const progress = mapProgress(getFirst(record, PROGRESS_KEYS), status);
+    const priority = mapPriority(getField(record, "priority", columnMap));
+    const progress = mapProgress(getField(record, "progress", columnMap), status);
     const taskWarnings: string[] = [];
-    if (!parseDate(getFirst(record, DUE_KEYS)) && !startDate) {
+    if (!parseDate(getField(record, "due", columnMap)) && !startDate) {
       taskWarnings.push("No date found; using project fallback date.");
     }
-    if (!getFirst(record, OWNER_KEYS)) {
+    if (!getField(record, "owner", columnMap)) {
       taskWarnings.push("No owner found; assigning to project manager.");
     }
 
