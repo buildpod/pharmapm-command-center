@@ -241,6 +241,22 @@ describe("calculateDeliveryTruth — EVM-grounded", () => {
     expect(truth.confidenceScore).toBe(100);
   });
 
+  it("status-integrity fires when reported progress is over-claimed (F1)", () => {
+    // 100% reported done having spent half → CPI 2, no gates complete.
+    const evm = snap({ percentComplete: 1, percentSpent: 0.5, cpi: 2, ev: 100_000, ac: 50_000 });
+    const truth = calculateDeliveryTruth(input({ evm }));
+    const integrity = truth.signals.find((s) => s.kind === "status-integrity");
+    expect(integrity).toBeDefined();
+    expect(integrity?.severity).toBe("high");
+    expect(integrity?.title).toMatch(/overstated/i);
+  });
+
+  it("status-integrity stays quiet for a believable project", () => {
+    const evm = snap({ percentComplete: 0.5, percentSpent: 0.48, cpi: 1.04 });
+    const truth = calculateDeliveryTruth(input({ evm }));
+    expect(truth.signals.find((s) => s.kind === "status-integrity")).toBeUndefined();
+  });
+
   it("cost pressure fires on forecast overrun even when burn% looks calm", () => {
     // 39% burned (calm by the legacy heuristic) but CPI 0.67 forecasts +50%.
     const evm = snap({ cpi: 0.67, bac: 2_000_000, eac2: 2_990_000, ac: 780_000 });
