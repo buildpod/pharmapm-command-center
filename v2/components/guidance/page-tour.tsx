@@ -1,13 +1,13 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useDapEnabled } from "@/components/guidance/dap-settings";
-import { Coachmark } from "@/components/ui/coachmark";
 import { TOUR_STORAGE_KEY, toursByRoute, type TourStep } from "@/lib/guidance/tours";
 
 type SeenMap = Record<string, boolean>;
 type TourPhase = "intro" | "steps";
+type TargetBox = { top: number; left: number; width: number; height: number };
 
 type TourIntro = {
   eyebrow: string;
@@ -42,19 +42,48 @@ function targetSelector(step: TourStep) {
   return `[data-tour-id="${step.anchor}"]`;
 }
 
+function getTargetBox(target: HTMLElement): TargetBox {
+  const rect = target.getBoundingClientRect();
+  const padding = 8;
+  return {
+    top: Math.max(8, rect.top - padding),
+    left: Math.max(8, rect.left - padding),
+    width: Math.min(window.innerWidth - 16, rect.width + padding * 2),
+    height: Math.min(window.innerHeight - 16, rect.height + padding * 2),
+  };
+}
+
+function getStepCardStyle(targetBox: TargetBox | null): CSSProperties {
+  if (!targetBox || typeof window === "undefined") {
+    return { right: 24, bottom: 24, width: 392 };
+  }
+
+  const cardWidth = 392;
+  const estimatedCardHeight = 260;
+  const gap = 18;
+  const margin = 20;
+  const left = Math.min(Math.max(targetBox.left, margin), window.innerWidth - cardWidth - margin);
+  const below = targetBox.top + targetBox.height + gap;
+  const top = below + estimatedCardHeight < window.innerHeight
+    ? below
+    : Math.max(margin, targetBox.top - estimatedCardHeight - gap);
+
+  return { top, left, width: cardWidth };
+}
+
 function getTourIntro(route: string): TourIntro {
   switch (route) {
     case "/setup":
       return {
         eyebrow: "Guided setup",
-        title: "Let's build a command center you can trust.",
+        title: "Hi Vineet, let's build a command center you can trust.",
         body: "I'll walk you through the project facts, playbook choice, and review points before anything is created.",
         primaryAction: "Start setup guide",
       };
     case "/tasks":
       return {
         eyebrow: "Guided work",
-        title: "Let's make schedule impact visible.",
+        title: "Hi Vineet, let's make schedule impact visible.",
         body: "I'll show where work is owned, where dates move, and how downstream tasks are reviewed before saving.",
         primaryAction: "Start task guide",
       };
@@ -82,7 +111,7 @@ function getTourIntro(route: string): TourIntro {
     default:
       return {
         eyebrow: "Guided command center",
-        title: "Hi, let's read the project story.",
+        title: "Hi Vineet, let's read the project story.",
         body: "I'll show the verdict, the numbers behind it, and the next actions that make this project board-ready.",
         primaryAction: "Start guided work",
       };
@@ -97,12 +126,15 @@ export function PageTour() {
   const [active, setActive] = useState(false);
   const [phase, setPhase] = useState<TourPhase>("intro");
   const [index, setIndex] = useState(0);
+  const [targetBox, setTargetBox] = useState<TargetBox | null>(null);
   const intro = getTourIntro(route);
   const step = steps[index];
+  const progress = phase === "intro" ? 100 / (steps.length + 1) : ((index + 1) / steps.length) * 100;
   const dismiss = useCallback(() => {
     markSeen(route);
     setActive(false);
     setPhase("intro");
+    setTargetBox(null);
   }, [route]);
 
   useEffect(() => {
@@ -144,11 +176,33 @@ export function PageTour() {
   }, [active, dapEnabled, dismiss, route, steps.length]);
 
   useEffect(() => {
-    if (!active || phase !== "steps" || !step) return;
+    if (!active || phase !== "steps" || !step) {
+      setTargetBox(null);
+      return;
+    }
     const target = document.querySelector<HTMLElement>(targetSelector(step));
-    target?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
-    target?.setAttribute("data-tour-active", "true");
-    return () => target?.removeAttribute("data-tour-active");
+    if (!target) {
+      setTargetBox(null);
+      return;
+    }
+    const tourTarget = target;
+
+    function syncTarget() {
+      setTargetBox(getTargetBox(tourTarget));
+    }
+
+    tourTarget.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+    tourTarget.setAttribute("data-tour-active", "true");
+    syncTarget();
+    const timer = window.setTimeout(syncTarget, 260);
+    window.addEventListener("resize", syncTarget);
+    window.addEventListener("scroll", syncTarget, true);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("resize", syncTarget);
+      window.removeEventListener("scroll", syncTarget, true);
+      tourTarget.removeAttribute("data-tour-active");
+    };
   }, [active, phase, step]);
 
   if (!active || !step) return null;
@@ -166,8 +220,33 @@ export function PageTour() {
     setIndex((value) => value + 1);
   }
 
+  function back() {
+    if (index === 0) {
+      setPhase("intro");
+      return;
+    }
+    setIndex((value) => value - 1);
+  }
+
   return (
     <div className="page-tour" aria-live="polite">
+      {phase === "steps" ? (
+        <>
+          <div className="page-tour__scrim" aria-hidden="true" />
+          {targetBox ? (
+            <div
+              className="page-tour__spotlight"
+              aria-hidden="true"
+              style={{
+                top: targetBox.top,
+                left: targetBox.left,
+                width: targetBox.width,
+                height: targetBox.height,
+              }}
+            />
+          ) : null}
+        </>
+      ) : null}
       {phase === "intro" ? (
         <aside className="tour-start-card" role="dialog" aria-label={intro.title}>
           <button type="button" className="tour-start-card__close" onClick={dismiss} aria-label="Close guide">
@@ -190,7 +269,7 @@ export function PageTour() {
             <h2>{intro.title}</h2>
             <p>{intro.body}</p>
             <div className="tour-start-card__progress" aria-label={`0 of ${steps.length} steps complete`}>
-              <span style={{ width: `${100 / (steps.length + 1)}%` }} />
+              <span style={{ width: `${progress}%` }} />
             </div>
             <div className="tour-start-card__actions">
               <button type="button" className="coachmark__button" onClick={dismiss}>
@@ -203,22 +282,30 @@ export function PageTour() {
           </div>
         </aside>
       ) : (
-        <Coachmark
-          eyebrow={`Step ${index + 1} of ${steps.length}`}
-          title={step.title}
-          secondaryAction={
-            <button type="button" className="coachmark__button" onClick={dismiss}>
-              Dismiss
+        <aside className="tour-step-card" role="dialog" aria-label={step.title} style={getStepCardStyle(targetBox)}>
+          <div className="tour-step-card__header">
+            <span className="tour-step-card__eyebrow">Step {index + 1} of {steps.length}</span>
+            <button type="button" className="tour-step-card__close" onClick={dismiss} aria-label="Close guide">
+              ×
             </button>
-          }
-          primaryAction={
+          </div>
+          <h2>{step.title}</h2>
+          <p>{step.body}</p>
+          <div className="tour-start-card__progress" aria-label={`${index + 1} of ${steps.length} steps complete`}>
+            <span style={{ width: `${progress}%` }} />
+          </div>
+          <div className="tour-step-card__actions">
+            <button type="button" className="coachmark__button" onClick={dismiss}>
+              Skip
+            </button>
+            <button type="button" className="coachmark__button" onClick={back}>
+              Back
+            </button>
             <button type="button" className="coachmark__button coachmark__button--primary" onClick={next}>
               {index >= steps.length - 1 ? "Done" : "Next"}
             </button>
-          }
-        >
-          {step.body}
-        </Coachmark>
+          </div>
+        </aside>
       )}
     </div>
   );
