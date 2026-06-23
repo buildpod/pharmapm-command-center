@@ -34,6 +34,7 @@ import { SAMPLE_HARD_WINDOWS } from "@/lib/domain/hard-windows";
 import { useProjectEvm } from "@/lib/hooks/use-project-evm";
 import { appendAudit, buildAction } from "@/lib/stores/audit";
 import { ensureCommitment } from "@/lib/stores/baseline-store";
+import { CommitmentBanner } from "./commitment-banner";
 import { addDays } from "@/lib/domain/dates";
 import { useSettings } from "@/lib/settingsStore";
 import { useEntityStore } from "@/lib/stores/entity-store";
@@ -543,6 +544,9 @@ export function MilestonesGrid() {
 
   return (
     <div className="space-y-4">
+      {/* O8.4 — committed-baseline drift + re-baseline history (visible, governed). */}
+      <CommitmentBanner projectId={activeProjectId} currentGoLive={activeProject.goLiveDate} />
+
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3 shadow-sm">
         {/* View toggle */}

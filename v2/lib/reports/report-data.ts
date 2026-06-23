@@ -11,6 +11,7 @@ import type {
 import type { EvmCoverage } from "@/lib/domain/evm-coverage";
 import type { ProjectEvm } from "@/lib/domain/evm-project";
 import type { AuditAction } from "@/lib/stores/audit";
+import type { RebaselineEvent } from "@/lib/stores/baseline-store";
 import { computeStatusIntegrity } from "../domain/status-integrity";
 
 const BASE_ROUTE = "/pharmapm-command-center/v2";
@@ -38,6 +39,9 @@ export interface ReportDataInput {
   // slips ACCEPTED this period, not just current state. Optional for callers
   // that don't supply it.
   auditLog?: AuditAction[];
+  // O8.4 — re-baseline history (who/when/why the committed go-live moved), so
+  // the report shows baseline changes rather than hiding them. Optional.
+  rebaselines?: RebaselineEvent[];
 }
 
 export interface ReportBudgetSummary {
@@ -96,6 +100,8 @@ export interface WeeklyReportData {
   // O9.3 — when reported progress may be overstated, the report carries the
   // integrity caveat so the verdict isn't read at face value. null = no caveat.
   integrityCaveat: string | null;
+  // O8.4 — re-baseline events (who/when/why the committed go-live moved).
+  rebaselines: RebaselineEvent[];
 }
 
 export interface SteerCoDecisionItem {
@@ -354,6 +360,7 @@ export function buildWeeklyReportData(input: ReportDataInput): WeeklyReportData 
     blockedTasks,
     acceptedChanges,
     integrityCaveat,
+    rebaselines: input.rebaselines ?? [],
   };
 
   return { ...base, evidenceRows: buildEvidenceRows(base) };
