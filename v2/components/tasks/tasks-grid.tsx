@@ -385,6 +385,8 @@ export function TasksGrid() {
   // Impact Engine — live EVM snapshot + cost lines feed the consequence story.
   const { evm } = useProjectEvm();
   const costLines         = useEntityStore((s) => s.costLines);
+  const addCostLine       = useEntityStore((s) => s.addCostLine);
+  const addDecisionRecord = useEntityStore((s) => s.addDecisionRecord);
   const tasks             = useEntityStore((s) => s.tasks);
   const addTask           = useEntityStore((s) => s.addTask);
   const updateTask        = useEntityStore((s) => s.updateTask);
@@ -461,18 +463,63 @@ export function TasksGrid() {
       })
     : null;
 
+  // O4.3 — accepting added scope is a governance act, not a note. We record the
+  // full "yes" together: the cost is added to the budget AND a decision record
+  // is logged (so the report and audit show what was committed and why), with a
+  // human-readable audit line that flows into the weekly report's accepted-changes.
   function recordScope() {
     if (!scopeConsequence) return;
     const cq = scopeConsequence;
-    const parts = [`${scopeName.trim() || "New scope"} (+$${scopeBudgetK}k)`];
+    const name = scopeName.trim() || "New scope";
+    const today = new Date().toISOString().slice(0, 10);
+    const scopeId = `scope-${Date.now()}`;
+
+    const parts = [`${name} (+$${scopeBudgetK}k)`];
     if (cq.commitmentBreach) parts.push(`go-live → ${cq.goLive.projected} (+${cq.goLive.workingDaysSlip}d)`);
     if (cq.confidence.moves && cq.confidence.before != null) parts.push(`confidence ${cq.confidence.before}→${cq.confidence.after}`);
+    const summary = parts.join(" · ");
+
+    // 1) Cost added — the budget reflects the commitment (writes its own audit).
+    if (scopeBudgetK > 0) {
+      addCostLine(
+        {
+          id: `cost-${scopeId}`,
+          projectId: activeProjectId,
+          category: "Scope change",
+          description: `Added scope: ${name}`,
+          budgetK: scopeBudgetK,
+          actualK: 0,
+          contractType: "T&M",
+          owner: "VP",
+        },
+        { source: "user-edit", note: `Funded added scope — ${name} (+$${scopeBudgetK}k)` },
+      );
+    }
+
+    // 2) Decision logged — who accepted it, the alternatives, and the true cost.
+    addDecisionRecord(
+      {
+        id: `dec-${scopeId}`,
+        projectId: activeProjectId,
+        title: `Accept added scope: ${name}`,
+        context: `New work requested mid-flight. Modelled impact: ${summary}.`,
+        decidedDate: today,
+        decidedBy: "VP",
+        alternatives: ["Reject the change", "Defer to next phase", "Accept and fund now"],
+        chosenOption: "Accept and fund now",
+        rationale: `Accepted with eyes open — ${summary}.`,
+        status: "Approved",
+      },
+      { source: "user-edit", note: `Accepted added scope — ${summary}` },
+    );
+
+    // 3) Headline audit line for the weekly report's accepted-changes section.
     appendAudit(buildAction({
-      type: "add", entityKind: "task", entityId: `scope-${Date.now()}`,
+      type: "add", entityKind: "task", entityId: scopeId,
       source: "user-edit", projectId: activeProjectId,
-      note: `Modelled added scope — ${parts.join(" · ")}`,
+      note: `Accepted added scope — ${summary}`,
     }));
-    toast.success("Scope impact recorded", { description: scopeName.trim() || "New scope" });
+    toast.success("Scope accepted & recorded", { description: `${name} — cost added, decision logged` });
     setScopeOpen(false);
   }
 
@@ -1194,7 +1241,7 @@ export function TasksGrid() {
             </span>
           </div>
         }
-        recordLabel="Record this scope"
+        recordLabel="Accept & record scope"
         onRecord={recordScope}
         onClose={() => setScopeOpen(false)}
       />

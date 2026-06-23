@@ -216,10 +216,10 @@ describe("report data builders", () => {
   it("captures accepted decisions/slips this period from the audit log (O9.2)", () => {
     const report = buildWeeklyReportData(input({
       auditLog: [
-        { id: "a1", type: "update", entityKind: "milestone", projectId: activeProject.id, timestamp: "2026-06-11T09:00:00.000Z", note: "Accepted slip: go-live moves 12 days" },
-        { id: "a2", type: "cascade-apply", entityKind: "milestone", projectId: activeProject.id, timestamp: "2026-06-10T09:00:00.000Z" },
-        { id: "a3", type: "update", entityKind: "task", projectId: activeProject.id, timestamp: "2026-06-09T09:00:00.000Z", note: "Renamed task" },
-        { id: "a4", type: "update", entityKind: "milestone", projectId: otherProject.id, timestamp: "2026-06-11T09:00:00.000Z", note: "Accepted slip on wrong project" },
+        { id: "a1", type: "update", entityKind: "milestone", entityId: "m1", source: "user-edit", projectId: activeProject.id, timestamp: "2026-06-11T09:00:00.000Z", note: "Accepted slip: go-live moves 12 days" },
+        { id: "a2", type: "cascade-apply", entityKind: "milestone", entityId: "m2", source: "cascade", projectId: activeProject.id, timestamp: "2026-06-10T09:00:00.000Z" },
+        { id: "a3", type: "update", entityKind: "task", entityId: "t1", source: "user-edit", projectId: activeProject.id, timestamp: "2026-06-09T09:00:00.000Z", note: "Renamed task" },
+        { id: "a4", type: "update", entityKind: "milestone", entityId: "m3", source: "user-edit", projectId: otherProject.id, timestamp: "2026-06-11T09:00:00.000Z", note: "Accepted slip on wrong project" },
       ],
     }));
 
