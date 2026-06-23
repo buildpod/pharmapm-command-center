@@ -1,0 +1,34 @@
+{
+  "launchpad": {
+    "hasPurpose": true,
+    "hasStartOptions": true,
+    "screenshot": "v2/docs/uat-artifacts/uat-j0-launchpad.png"
+  },
+  "importMapping": {
+    "heading": true,
+    "hasColumnMapper": false,
+    "hasPreview": true
+  },
+  "setupBeforeCommitScreenshot": "v2/docs/uat-artifacts/uat-j1-next-before-commit.png",
+  "review": {
+    "hasReview": true,
+    "hasGeneratedModel": true,
+    "hasCategoryCounts": true
+  },
+  "createProject": {
+    "url": "http://localhost:3000/pharmapm-command-center/v2/",
+    "landsDashboard": true,
+    "hasProjectName": true
+  },
+  "dashboardNavScreenshot": "v2/docs/uat-artifacts/uat-j4-dashboard-nav.png",
+  "dashboard": {
+    "hasVerdict": true,
+    "hasGuidedWork": true
+  },
+  "reportsScreenshot": "v2/docs/uat-artifacts/uat-j6-o9-weekly-report.png",
+  "reports": {
+    "hasEvidenceTrail": true,
+    "hasExport": true
+  },
+  "trendScreenshot": "v2/docs/uat-artifacts/uat-o10-trend-missing.png"
+}
