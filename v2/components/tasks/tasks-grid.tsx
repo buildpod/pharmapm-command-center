@@ -490,7 +490,7 @@ export function TasksGrid() {
           budgetK: scopeBudgetK,
           actualK: 0,
           contractType: "T&M",
-          owner: "VP",
+          owner: settings.identity.initials,
         },
         { source: "user-edit", note: `Funded added scope — ${name} (+$${scopeBudgetK}k)` },
       );
@@ -504,7 +504,7 @@ export function TasksGrid() {
         title: `Accept added scope: ${name}`,
         context: `New work requested mid-flight. Modelled impact: ${summary}.`,
         decidedDate: today,
-        decidedBy: "VP",
+        decidedBy: settings.identity.initials,
         alternatives: ["Reject the change", "Defer to next phase", "Accept and fund now"],
         chosenOption: "Accept and fund now",
         rationale: `Accepted with eyes open — ${summary}.`,
@@ -630,7 +630,7 @@ export function TasksGrid() {
     if (filterPriority   !== "All" && t.priority   !== filterPriority)   return false;
     if (filterStatus     !== "All" && t.status     !== filterStatus)     return false;
     if (filterWorkstream !== "All" && t.workstream !== filterWorkstream) return false;
-    if (filterMine && t.owner !== "VP")                                  return false;
+    if (filterMine && t.owner !== settings.identity.initials)            return false;
     return true;
   });
 

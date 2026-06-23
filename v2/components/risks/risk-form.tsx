@@ -5,6 +5,7 @@ import { Trash2 } from "lucide-react";
 import type { Risk, RiskStatus } from "@/lib/mockData";
 import { EntityDrawer, ConfirmDelete, DrawerGuidance, Field, inputCls } from "@/components/ui/entity-drawer";
 import { SelectWithCustom } from "@/components/ui/select-with-custom";
+import { useCurrentUser } from "@/lib/settingsStore";
 
 const STATUSES: RiskStatus[] = ["open", "mitigated", "closed"];
 const SCALE = [1, 2, 3, 4, 5];
@@ -28,12 +29,13 @@ export function RiskFormDrawer({
   onClose: () => void;
 }) {
   const isNew = initial === null;
+  const me = useCurrentUser();
   const [title,       setTitle]       = useState("");
   const [category,    setCategory]    = useState("");
   const [probability, setProbability] = useState(3);
   const [impact,      setImpact]      = useState(3);
   const [status,      setStatus]      = useState<RiskStatus>("open");
-  const [owner,       setOwner]       = useState("VP");
+  const [owner,       setOwner]       = useState(me.initials);
   const [mitigation,  setMitigation]  = useState("");
   const [confirming,  setConfirming]  = useState(false);
   const [error,       setError]       = useState<string | null>(null);
@@ -45,11 +47,11 @@ export function RiskFormDrawer({
     setProbability(initial?.probability ?? 3);
     setImpact(initial?.impact           ?? 3);
     setStatus(initial?.status           ?? "open");
-    setOwner(initial?.owner             ?? "VP");
+    setOwner(initial?.owner             ?? me.initials);
     setMitigation(initial?.mitigation   ?? "");
     setConfirming(false);
     setError(null);
-  }, [open, initial, knownCategories]);
+  }, [open, initial, knownCategories, me.initials]);
 
   const score = probability * impact;
 
@@ -67,7 +69,7 @@ export function RiskFormDrawer({
       impact,
       score,
       status,
-      owner: owner.trim() || "VP",
+      owner: owner.trim() || me.initials,
       mitigation: mitigation.trim(),
       projectId: initial?.projectId ?? "", // parent grid overwrites with activeProjectId
     });

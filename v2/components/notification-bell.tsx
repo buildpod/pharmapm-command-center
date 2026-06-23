@@ -12,10 +12,9 @@ import {
   risks as allRisks,
   documents as allDocuments,
 } from "@/lib/mockData";
+import { useCurrentUser } from "@/lib/settingsStore";
 import { cn } from "@/lib/utils";
 
-// Current "logged-in" user (mock).
-const ME = "VP";
 const TODAY = "2026-05-13";
 
 type Alert = {
@@ -28,6 +27,7 @@ type Alert = {
 
 export function NotificationBell() {
   const { activeProjectId } = useProject();
+  const ME = useCurrentUser().initials;
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -110,7 +110,7 @@ export function NotificationBell() {
       });
 
     return out;
-  }, [activeProjectId]);
+  }, [activeProjectId, ME]);
 
   const kindMeta = {
     "overdue-task":      { Icon: CheckSquare,    tint: "text-rose-600  bg-rose-50  border-rose-200"  },

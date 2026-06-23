@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { useProject } from "@/components/projects/project-provider";
 import { useFocusRow } from "@/lib/hooks/use-focus-row";
+import { useCurrentUser } from "@/lib/settingsStore";
 import { type Issue, type IssueSeverity, type IssueStatus } from "@/lib/mockData";
 import { IssueFormDrawer } from "./issue-form";
 
@@ -44,6 +45,7 @@ type DrawerState = { mode: "closed" } | { mode: "new" } | { mode: "edit"; issue:
 export function IssuesGrid() {
   const { activeProjectId } = useProject();
   useFocusRow();
+  const me = useCurrentUser();
   const issues             = useEntityStore((s) => s.issues);
   const addIssue           = useEntityStore((s) => s.addIssue);
   const updateIssue        = useEntityStore((s) => s.updateIssue);
@@ -59,7 +61,7 @@ export function IssuesGrid() {
   const filtered = projectIssues
     .filter((i) => filterSeverity === "All" || i.severity === filterSeverity)
     .filter((i) => filterStatus   === "All" || i.status   === filterStatus)
-    .filter((i) => !filterMine || i.owner === "VP")
+    .filter((i) => !filterMine || i.owner === me.initials)
     .slice()
     // Sort: open severity first, then resolved
     .sort((a, b) => {

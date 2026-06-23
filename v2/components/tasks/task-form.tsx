@@ -8,6 +8,7 @@ import { EntityDrawer, ConfirmDelete, DrawerGuidance, Field, inputCls } from "@/
 import { SelectWithCustom } from "@/components/ui/select-with-custom";
 import { isIsoDate, inProjectRange, PROJECT_DATE_MIN, PROJECT_DATE_MAX } from "@/lib/validation";
 import { topoSortTasks } from "@/lib/domain/scheduling";
+import { useCurrentUser } from "@/lib/settingsStore";
 import { cn } from "@/lib/utils";
 
 const PRIORITIES: TaskPriority[] = ["Critical", "High", "Medium", "Low"];
@@ -40,6 +41,7 @@ export function TaskFormDrawer({
   onClose: () => void;
 }) {
   const isNew = initial === null;
+  const me = useCurrentUser();
 
   const [name,        setName]        = useState("");
   const [workstream,  setWorkstream]  = useState("");
@@ -47,7 +49,7 @@ export function TaskFormDrawer({
   const [status,      setStatus]      = useState<TaskStatus>("Not Started");
   const [progress,    setProgress]    = useState<number>(0);
   const [milestoneId, setMilestoneId] = useState("");
-  const [owner,       setOwner]       = useState("VP");
+  const [owner,       setOwner]       = useState(me.initials);
   const [dueDate,     setDueDate]     = useState("");
   const [dependsOn,   setDependsOn]   = useState<string[]>([]);
 
@@ -62,12 +64,12 @@ export function TaskFormDrawer({
     setStatus(initial?.status         ?? "Not Started");
     setProgress(initial?.progress     ?? 0);
     setMilestoneId(initial?.milestoneId ?? "");
-    setOwner(initial?.owner           ?? "VP");
+    setOwner(initial?.owner           ?? me.initials);
     setDueDate(initial?.dueDate       ?? "");
     setDependsOn(initial?.dependsOn   ?? []);
     setConfirming(false);
     setError(null);
-  }, [open, initial, knownWorkstreams]);
+  }, [open, initial, knownWorkstreams, me.initials]);
 
   function handleSave() {
     if (!name.trim())         { setError("Name is required"); return; }
@@ -141,7 +143,7 @@ export function TaskFormDrawer({
       priority,
       status: derivedStatus,
       progress: clampedProgress,
-      owner: owner.trim() || "VP",
+      owner: owner.trim() || me.initials,
       dueDate,
       ...(milestoneId ? { milestoneId } : {}),
       ...(dependsOn.length > 0 ? { dependsOn } : {}),

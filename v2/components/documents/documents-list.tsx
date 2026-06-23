@@ -19,6 +19,7 @@ import { avatarColor } from "@/lib/ui/avatar-color";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { cn } from "@/lib/utils";
 import { useFocusRow } from "@/lib/hooks/use-focus-row";
+import { useCurrentUser } from "@/lib/settingsStore";
 
 const TODAY = "2026-05-11";
 
@@ -412,6 +413,7 @@ type DocDrawerState = { mode: "closed" } | { mode: "new" } | { mode: "edit"; doc
 export function DocumentsList() {
   const { activeProjectId } = useProject();
   useFocusRow();
+  const me = useCurrentUser();
   const docs            = useEntityStore((s) => s.documents);
   const addDocument     = useEntityStore((s) => s.addDocument);
   const updateDocument  = useEntityStore((s) => s.updateDocument);
@@ -462,7 +464,7 @@ export function DocumentsList() {
   const filtered = projectDocs.filter((d) => {
     const s = deriveStatus(d);
     if (filterStatus !== "All" && s !== filterStatus) return false;
-    if (filterMine && d.owner !== "VP") return false;
+    if (filterMine && d.owner !== me.initials) return false;
     if (query.trim()) {
       const q = query.toLowerCase();
       const hit =

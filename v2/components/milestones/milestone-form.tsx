@@ -5,6 +5,7 @@ import { Trash2 } from "lucide-react";
 import type { Milestone, MilestoneStatus } from "@/lib/mockData";
 import { EntityDrawer, ConfirmDelete, DrawerGuidance, Field, inputCls } from "@/components/ui/entity-drawer";
 import { isIsoDate, inProjectRange, addCalendarDays, PROJECT_DATE_MIN, PROJECT_DATE_MAX } from "@/lib/validation";
+import { useCurrentUser } from "@/lib/settingsStore";
 
 const PHASES = ["Initiation", "Design", "Config", "Testing", "Training", "Go-Live"] as const;
 const STATUSES: MilestoneStatus[] = ["pending", "in-progress", "at-risk", "complete"];
@@ -35,10 +36,11 @@ export function MilestoneFormDrawer({
   onClose: () => void;
 }) {
   const isNew = initial === null;
+  const me = useCurrentUser();
 
   const [name,         setName]         = useState("");
   const [phase,        setPhase]        = useState<string>("Config");
-  const [owner,        setOwner]        = useState("VP");
+  const [owner,        setOwner]        = useState(me.initials);
   const [predecessor,  setPredecessor]  = useState("");
   const [duration,     setDuration]     = useState<number>(5);
   const [lag,          setLag]          = useState<number>(0);
@@ -55,7 +57,7 @@ export function MilestoneFormDrawer({
     if (!open) return;
     setName(initial?.name             ?? "");
     setPhase(initial?.phase           ?? "Config");
-    setOwner(initial?.owner           ?? "VP");
+    setOwner(initial?.owner           ?? me.initials);
     setPredecessor(initial?.predecessor ?? "");
     setDuration(initial?.duration     ?? 5);
     setLag(initial?.lag               ?? 0);
@@ -65,7 +67,7 @@ export function MilestoneFormDrawer({
     setLocked(initial?.locked         ?? false);
     setConfirming(false);
     setError(null);
-  }, [open, initial]);
+  }, [open, initial, me.initials]);
 
   function handleSave() {
     if (!name.trim())             { setError("Name is required"); return; }
@@ -91,7 +93,7 @@ export function MilestoneFormDrawer({
       id,
       name: name.trim(),
       phase,
-      owner: owner.trim() || "VP",
+      owner: owner.trim() || me.initials,
       plannedDate,
       forecastDate: forecastDate || plannedDate,
       status,

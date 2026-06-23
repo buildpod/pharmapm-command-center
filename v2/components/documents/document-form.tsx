@@ -7,6 +7,7 @@ import type { Document, DocumentPhase, DocumentStatus, Decision } from "@/lib/mo
 import { EntityDrawer, ConfirmDelete, Field, inputCls } from "@/components/ui/entity-drawer";
 import { SelectWithCustom } from "@/components/ui/select-with-custom";
 import { isIsoDate, inProjectRange, PROJECT_DATE_MIN, PROJECT_DATE_MAX } from "@/lib/validation";
+import { useCurrentUser } from "@/lib/settingsStore";
 
 const PHASES: DocumentPhase[] = ["Planning", "Configuration", "Validation", "Training", "Go-Live"];
 const STATUSES: DocumentStatus[] = ["draft", "in-review", "reviewed", "approved", "rejected"];
@@ -102,6 +103,7 @@ export function DocumentFormDrawer({
   onClose: () => void;
 }) {
   const isNew = initial === null;
+  const me = useCurrentUser();
   const [name,         setName]         = useState("");
   const [abbreviation, setAbbreviation] = useState("");
   const [type,         setType]         = useState("");
@@ -110,7 +112,7 @@ export function DocumentFormDrawer({
   const [status,       setStatus]       = useState<DocumentStatus>("draft");
   const [dueDate,      setDueDate]      = useState("");
   const [description,  setDescription]  = useState("");
-  const [owner,        setOwner]        = useState("VP");
+  const [owner,        setOwner]        = useState(me.initials);
   const [reviewers,    setReviewers]    = useState<Decision[]>([]);
   const [approvers,    setApprovers]    = useState<Decision[]>([]);
   const [confirming,   setConfirming]   = useState(false);
@@ -126,12 +128,12 @@ export function DocumentFormDrawer({
     setStatus(initial?.status             ?? "draft");
     setDueDate(initial?.dueDate           ?? "");
     setDescription(initial?.description   ?? "");
-    setOwner(initial?.owner               ?? "VP");
+    setOwner(initial?.owner               ?? me.initials);
     setReviewers(initial?.reviewers       ?? []);
     setApprovers(initial?.approvers       ?? []);
     setConfirming(false);
     setError(null);
-  }, [open, initial, knownTypes]);
+  }, [open, initial, knownTypes, me.initials]);
 
   function handleSave() {
     if (!name.trim())             { setError("Name is required"); return; }
@@ -153,7 +155,7 @@ export function DocumentFormDrawer({
       type: type.trim(), phase, version: version.trim() || "1.0",
       status, dueDate,
       ...(description.trim() ? { description: description.trim() } : {}),
-      owner: owner.trim() || "VP",
+      owner: owner.trim() || me.initials,
       reviewers, approvers,
       projectId: initial?.projectId ?? "",
     });

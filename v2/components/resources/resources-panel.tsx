@@ -12,6 +12,7 @@ import { MeetingFormDrawer } from "./meeting-form";
 import { useProject } from "@/components/projects/project-provider";
 import { avatarColor } from "@/lib/ui/avatar-color";
 import { useEntityStore } from "@/lib/stores/entity-store";
+import { useCurrentUser } from "@/lib/settingsStore";
 import { cn } from "@/lib/utils";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -566,6 +567,7 @@ function MeetingCadenceTab({ onEditMeeting }: { onEditMeeting: (m: RecurringMeet
 // ─── Tab 3: SteerCo Pre-Brief ────────────────────────────────────────────────
 
 function SteerCoPreBriefTab() {
+  const me = useCurrentUser();
   const { absences, teamMembers, recurringMeetings } = useResources();
   const steerco = recurringMeetings.find((m) => m.type === "steerco")!;
   const mandatory = teamMembers.filter((m) => m.steercoRole === "mandatory");
@@ -608,7 +610,7 @@ function SteerCoPreBriefTab() {
     type ActionType = "Present" | "Approve" | "Review" | "Note";
     const actions: { type: ActionType; label: string }[] = [];
 
-    if (member.initials === "VP") {
+    if (member.initials === me.initials) {
       actions.push({ type: "Present", label: "Overall project status (Amber — schedule slippage)" });
     }
 
@@ -820,6 +822,7 @@ function SteerCoPreBriefTab() {
 const ALL_WORKSTREAMS = ["Configuration", "Validation", "Data Migration", "Training", "Project Mgmt"];
 
 function WorkstreamPreBriefTab() {
+  const me = useCurrentUser();
   const { absences, teamMembers } = useResources();
   const [ws, setWs] = useState(ALL_WORKSTREAMS[0]);
 
@@ -841,7 +844,7 @@ function WorkstreamPreBriefTab() {
   );
 
   const wsMembers = teamMembers.filter(
-    (m) => m.workstream === ws || (m.initials === "VP" && ws !== "Project Mgmt")
+    (m) => m.workstream === ws || (m.initials === me.initials && ws !== "Project Mgmt")
   );
   const wsAbsences = absences.filter(
     (ab) =>

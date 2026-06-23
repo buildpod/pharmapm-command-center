@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { X, Plus, RotateCcw, Calendar } from "lucide-react";
 import { useSettings } from "@/lib/settingsStore";
@@ -50,8 +50,18 @@ export function SettingsPanel() {
     bulkAddHolidays,
     setRagThresholds,
     setBudgetBands,
+    setIdentity,
     resetToDefaults,
   } = useSettings();
+
+  // Identity (G1) — committed on blur. Re-sync once settings hydrate from
+  // localStorage so the fields show the persisted value, not the default.
+  const [idName, setIdName]         = useState(settings.identity.name);
+  const [idInitials, setIdInitials] = useState(settings.identity.initials);
+  useEffect(() => {
+    setIdName(settings.identity.name);
+    setIdInitials(settings.identity.initials);
+  }, [settings.identity.name, settings.identity.initials]);
 
   // Working days state
   const [selectedDays, setSelectedDays] = useState<number[]>(settings.workingDays);
@@ -68,6 +78,21 @@ export function SettingsPanel() {
   const [ragAmber, setRagAmber] = useState(String(settings.ragThresholds.amberDelayDays));
   const [budgRed,  setBudgRed]  = useState(String(settings.budgetBands.redPct));
   const [budgAmb,  setBudgAmb]  = useState(String(settings.budgetBands.amberPct));
+
+  // ── Identity ──────────────────────────────────────────────────────────────
+
+  function commitIdentity() {
+    const name = idName.trim();
+    const initials = idInitials.trim().toUpperCase().slice(0, 4);
+    if (!initials) {
+      toast.error("Initials are required — they identify your items across the app.");
+      setIdInitials(settings.identity.initials);
+      return;
+    }
+    setIdentity({ name: name || settings.identity.name, initials });
+    setIdInitials(initials);
+    toast.success("Identity updated", { description: `“Mine”, new-record owner, and decision authorship now use ${initials}.` });
+  }
 
   // ── Working days ────────────────────────────────────────────────────────────
 
@@ -161,6 +186,40 @@ export function SettingsPanel() {
 
   return (
     <div className="space-y-4 max-w-2xl">
+
+      {/* ── Identity (G1) ── */}
+      <Section
+        title="Your Identity"
+        description="Who you are in this command center. The “Mine” filters, new-record owner defaults, and decision/audit authorship all use these — change them to make the tool yours."
+      >
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="space-y-1">
+            <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Name</label>
+            <input
+              type="text"
+              value={idName}
+              onChange={(e) => setIdName(e.target.value)}
+              onBlur={commitIdentity}
+              placeholder="Your name"
+              className={cn(inputCls, "w-56")}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Initials</label>
+            <input
+              type="text"
+              value={idInitials}
+              onChange={(e) => setIdInitials(e.target.value.toUpperCase().slice(0, 4))}
+              onBlur={commitIdentity}
+              placeholder="VP"
+              className={cn(inputCls, "w-20 uppercase")}
+            />
+          </div>
+        </div>
+        <p className="text-[10px] text-muted-foreground">
+          Initials are the ownership key (max 4 chars). Existing sample/template records keep their original owners.
+        </p>
+      </Section>
 
       {/* ── Working days ── */}
       <Section

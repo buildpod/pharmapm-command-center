@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { useProject } from "@/components/projects/project-provider";
 import { useFocusRow } from "@/lib/hooks/use-focus-row";
+import { useCurrentUser } from "@/lib/settingsStore";
 import { type DecisionRecord, type DecisionRecordStatus } from "@/lib/mockData";
 import { DecisionFormDrawer } from "./decision-form";
 
@@ -33,6 +34,7 @@ type DrawerState = { mode: "closed" } | { mode: "new" } | { mode: "edit"; decisi
 export function DecisionsGrid() {
   const { activeProjectId } = useProject();
   useFocusRow();
+  const me = useCurrentUser();
   const decisions          = useEntityStore((s) => s.decisionRecords);
   const addDecision        = useEntityStore((s) => s.addDecisionRecord);
   const updateDecision     = useEntityStore((s) => s.updateDecisionRecord);
@@ -46,7 +48,7 @@ export function DecisionsGrid() {
 
   const filtered = projectDecisions
     .filter((d) => filterStatus === "All" || d.status === filterStatus)
-    .filter((d) => !filterMine || d.decidedBy === "VP")
+    .filter((d) => !filterMine || d.decidedBy === me.initials)
     .slice()
     .sort((a, b) => {
       // Sort: newest decisions first, but Superseded goes to the bottom

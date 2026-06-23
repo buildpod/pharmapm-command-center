@@ -6,6 +6,7 @@ import { Trash2 } from "lucide-react";
 import type { CostLine, ContractType } from "@/lib/mockData";
 import { EntityDrawer, ConfirmDelete, DrawerGuidance, Field, inputCls } from "@/components/ui/entity-drawer";
 import { SelectWithCustom } from "@/components/ui/select-with-custom";
+import { useCurrentUser } from "@/lib/settingsStore";
 
 const CONTRACTS: ContractType[] = ["T&M", "Fixed", "Internal"];
 
@@ -28,12 +29,13 @@ export function CostLineFormDrawer({
   onClose: () => void;
 }) {
   const isNew = initial === null;
+  const me = useCurrentUser();
   const [category,     setCategory]     = useState("");
   const [description,  setDescription]  = useState("");
   const [budgetK,      setBudgetK]      = useState(0);
   const [actualK,      setActualK]      = useState(0);
   const [contractType, setContractType] = useState<ContractType>("Fixed");
-  const [owner,        setOwner]        = useState("VP");
+  const [owner,        setOwner]        = useState(me.initials);
   const [confirming,   setConfirming]   = useState(false);
   const [error,        setError]        = useState<string | null>(null);
 
@@ -44,10 +46,10 @@ export function CostLineFormDrawer({
     setBudgetK(initial?.budgetK           ?? 0);
     setActualK(initial?.actualK           ?? 0);
     setContractType(initial?.contractType ?? "Fixed");
-    setOwner(initial?.owner               ?? "VP");
+    setOwner(initial?.owner               ?? me.initials);
     setConfirming(false);
     setError(null);
-  }, [open, initial, knownCategories]);
+  }, [open, initial, knownCategories, me.initials]);
 
   function handleSave() {
     if (!category.trim())    { setError("Category is required"); return; }
@@ -65,7 +67,7 @@ export function CostLineFormDrawer({
     const id = initial?.id ?? nextCostId(allCostLines);
     onSave({
       id, category: category.trim(), description: description.trim(),
-      budgetK, actualK, contractType, owner: owner.trim() || "VP",
+      budgetK, actualK, contractType, owner: owner.trim() || me.initials,
       projectId: initial?.projectId ?? "", // parent grid overwrites with activeProjectId
     });
   }

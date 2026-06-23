@@ -11,6 +11,7 @@ import {
   type Issue, type IssueSeverity, type IssueStatus,
 } from "@/lib/mockData";
 import { cn } from "@/lib/utils";
+import { useCurrentUser } from "@/lib/settingsStore";
 
 const SEVERITIES: IssueSeverity[] = ["Critical", "High", "Medium", "Low"];
 const STATUSES:   IssueStatus[]   = ["Open", "In Progress", "Resolved", "Won't Fix"];
@@ -36,6 +37,7 @@ export function IssueFormDrawer({
   onClose: () => void;
 }) {
   const isNew = initial === null;
+  const me = useCurrentUser();
   const { activeProjectId } = useProject();
   const issues       = useEntityStore((s) => s.issues);
   const milestones   = useEntityStore((s) => s.milestones).filter((m) => m.projectId === activeProjectId);
@@ -46,7 +48,7 @@ export function IssueFormDrawer({
   const [raisedDate,     setRaisedDate]     = useState("");
   const [severity,       setSeverity]       = useState<IssueSeverity>("Medium");
   const [status,         setStatus]         = useState<IssueStatus>("Open");
-  const [owner,          setOwner]          = useState("VP");
+  const [owner,          setOwner]          = useState(me.initials);
   const [resolutionPlan, setResolutionPlan] = useState("");
   const [resolvedDate,   setResolvedDate]   = useState("");
   const [milestoneId,    setMilestoneId]    = useState("");
@@ -61,14 +63,14 @@ export function IssueFormDrawer({
     setRaisedDate(initial?.raisedDate ?? new Date().toISOString().slice(0, 10));
     setSeverity(initial?.severity ?? "Medium");
     setStatus(initial?.status ?? "Open");
-    setOwner(initial?.owner ?? "VP");
+    setOwner(initial?.owner ?? me.initials);
     setResolutionPlan(initial?.resolutionPlan ?? "");
     setResolvedDate(initial?.resolvedDate ?? "");
     setMilestoneId(initial?.milestoneId ?? "");
     setTaskId(initial?.taskId ?? "");
     setConfirming(false);
     setError(null);
-  }, [open, initial]);
+  }, [open, initial, me.initials]);
 
   function handleSave() {
     // Validation — per error-message-pattern skill: what / why / next
@@ -90,7 +92,7 @@ export function IssueFormDrawer({
       raisedDate,
       severity,
       status,
-      owner: owner.trim() || "VP",
+      owner: owner.trim() || me.initials,
       ...(resolutionPlan.trim() ? { resolutionPlan: resolutionPlan.trim() } : {}),
       ...(isResolved && resolvedDate ? { resolvedDate } : {}),
       ...(milestoneId ? { milestoneId } : {}),

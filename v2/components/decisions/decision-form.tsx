@@ -11,6 +11,7 @@ import {
   type DecisionRecord, type DecisionRecordStatus,
 } from "@/lib/mockData";
 import { cn } from "@/lib/utils";
+import { useCurrentUser } from "@/lib/settingsStore";
 
 const STATUSES: DecisionRecordStatus[] = ["Pending", "Approved", "Rejected", "Superseded"];
 
@@ -35,6 +36,7 @@ export function DecisionFormDrawer({
   onClose: () => void;
 }) {
   const isNew = initial === null;
+  const me = useCurrentUser();
   const { activeProjectId } = useProject();
 
   const decisions  = useEntityStore((s) => s.decisionRecords).filter((d) => d.projectId === activeProjectId);
@@ -45,7 +47,7 @@ export function DecisionFormDrawer({
   const [title,        setTitle]        = useState("");
   const [context,      setContext]      = useState("");
   const [decidedDate,  setDecidedDate]  = useState("");
-  const [decidedBy,    setDecidedBy]    = useState("VP");
+  const [decidedBy,    setDecidedBy]    = useState(me.initials);
   const [alternatives, setAlternatives] = useState<string[]>([]);
   const [chosenOption, setChosenOption] = useState("");
   const [rationale,    setRationale]    = useState("");
@@ -62,7 +64,7 @@ export function DecisionFormDrawer({
     setTitle(initial?.title ?? "");
     setContext(initial?.context ?? "");
     setDecidedDate(initial?.decidedDate ?? new Date().toISOString().slice(0, 10));
-    setDecidedBy(initial?.decidedBy ?? "VP");
+    setDecidedBy(initial?.decidedBy ?? me.initials);
     setAlternatives(initial?.alternatives ?? []);
     setChosenOption(initial?.chosenOption ?? "");
     setRationale(initial?.rationale ?? "");
@@ -73,7 +75,7 @@ export function DecisionFormDrawer({
     setIssueId(initial?.linkedIssueId ?? "");
     setConfirming(false);
     setError(null);
-  }, [open, initial]);
+  }, [open, initial, me.initials]);
 
   function handleSave() {
     // Validation per error-message-pattern skill
@@ -90,7 +92,7 @@ export function DecisionFormDrawer({
       title: title.trim(),
       context: context.trim(),
       decidedDate,
-      decidedBy: decidedBy.trim() || "VP",
+      decidedBy: decidedBy.trim() || me.initials,
       alternatives: alternatives.map((s) => s.trim()).filter(Boolean),
       chosenOption: chosenOption.trim(),
       rationale: rationale.trim(),

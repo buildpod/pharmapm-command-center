@@ -13,9 +13,9 @@ import {
   documents as initialDocuments,
   type Milestone, type Task, type Risk, type Document,
 } from "@/lib/mockData";
+import { useCurrentUser } from "@/lib/settingsStore";
 import { cn } from "@/lib/utils";
 
-const ME = "VP";
 const TODAY = "2026-05-13";
 
 function readStored<T>(key: string, fallback: T): T {
@@ -35,6 +35,7 @@ function daysFromToday(iso: string): number {
 
 export default function MyItemsPage() {
   const { activeProjectId, activeProject } = useProject();
+  const ME = useCurrentUser().initials;
 
   const { ownedTasks, ownedRisks, ownedMilestones, ownedDocuments } = useMemo(() => {
     const ms = readStored<Milestone[]>("aivello_milestones_v1", initialMilestones)
@@ -46,7 +47,7 @@ export default function MyItemsPage() {
     const ds = readStored<Document[]>("aivello_documents_v1", initialDocuments)
       .filter((d) => d.projectId === activeProjectId && d.owner === ME);
     return { ownedTasks: ts, ownedRisks: rs, ownedMilestones: ms, ownedDocuments: ds };
-  }, [activeProjectId]);
+  }, [activeProjectId, ME]);
 
   // Task buckets
   const overdueTasks  = ownedTasks.filter((t) => t.status !== "Complete" && t.dueDate < TODAY);

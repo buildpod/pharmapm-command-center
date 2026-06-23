@@ -535,7 +535,7 @@ export function MilestonesGrid() {
     .filter((m) => {
       if (filterPhase !== "All" && m.phase !== filterPhase) return false;
       if (filterStatus !== "All" && m.status !== filterStatus) return false;
-      if (filterMine && m.owner !== "VP") return false;
+      if (filterMine && m.owner !== settings.identity.initials) return false;
       return true;
     })
     .slice()

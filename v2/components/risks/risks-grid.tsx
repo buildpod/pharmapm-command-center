@@ -11,6 +11,7 @@ import { useEntityStore } from "@/lib/stores/entity-store";
 import { cn } from "@/lib/utils";
 import { avatarColor } from "@/lib/ui/avatar-color";
 import { useFocusRow } from "@/lib/hooks/use-focus-row";
+import { useCurrentUser } from "@/lib/settingsStore";
 
 // ─── Score bands (from v1 config/rules.js) ───────────────────────────────────
 
@@ -306,6 +307,7 @@ type RiskDrawerState = { mode: "closed" } | { mode: "new" } | { mode: "edit"; ri
 export function RisksGrid() {
   const { activeProjectId } = useProject();
   useFocusRow();
+  const me = useCurrentUser();
   const risks            = useEntityStore((s) => s.risks);
   const addRisk          = useEntityStore((s) => s.addRisk);
   const updateRisk       = useEntityStore((s) => s.updateRisk);
@@ -354,7 +356,7 @@ export function RisksGrid() {
   const filtered = projectRisks
     .filter((r) => filterStatus === "All" || r.status === filterStatus)
     .filter((r) => filterCategory === "All" || r.category === filterCategory)
-    .filter((r) => !filterMine || r.owner === "VP")
+    .filter((r) => !filterMine || r.owner === me.initials)
     .sort((a, b) => b[sortBy] - a[sortBy]);
 
   const counts = {
