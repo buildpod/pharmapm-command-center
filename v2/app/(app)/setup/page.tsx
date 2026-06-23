@@ -189,6 +189,18 @@ export default function GuidedSetupPage() {
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [reviewPreviewTab, setReviewPreviewTab] = useState<ReviewPreviewTab>("milestones");
+  // J2.4 — sections the PM chose to defer; their records are NOT created (they
+  // can be added later). Keyed by review tab; "scope" (charter notes) is not
+  // deferrable. Lets the PM exclude an obviously-irrelevant section before Create.
+  const [deferredSections, setDeferredSections] = useState<Set<ReviewPreviewTab>>(new Set());
+  function toggleDeferredSection(tab: ReviewPreviewTab) {
+    setDeferredSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(tab)) next.delete(tab);
+      else next.add(tab);
+      return next;
+    });
+  }
   const [launchpadStart, setLaunchpadStart] = useState<LaunchpadStart | null>(null);
 
   const [mode, setMode] = useState<SetupMode>("template");
@@ -486,15 +498,16 @@ export default function GuidedSetupPage() {
         methodology: created.methodology,
         modules: selectedModuleIds,
       });
-      addCharter(model.charter, { source: "import", note: `${model.template.name} setup` });
-      model.milestones.forEach((milestone) => addMilestone(milestone, { source: "import", note: `${model.template.name} setup` }));
-      model.teamMembers.forEach((member) => addTeamMember(member, { source: "import", note: `${model.template.name} setup` }));
-      model.tasks.forEach((task) => addTask(task, { source: "import", note: `${model.template.name} setup` }));
-      model.documents.forEach((document) => addDocument(document, { source: "import", note: `${model.template.name} setup` }));
-      model.risks.forEach((risk) => addRisk(risk, { source: "import", note: `${model.template.name} setup` }));
-      model.costLines.forEach((line) => addCostLine(line, { source: "import", note: `${model.template.name} setup` }));
+      const tmplNote = { source: "import" as const, note: `${model.template.name} setup` };
+      addCharter(model.charter, tmplNote);
+      if (!deferredSections.has("milestones")) model.milestones.forEach((milestone) => addMilestone(milestone, tmplNote));
+      if (!deferredSections.has("team")) model.teamMembers.forEach((member) => addTeamMember(member, tmplNote));
+      if (!deferredSections.has("tasks")) model.tasks.forEach((task) => addTask(task, tmplNote));
+      if (!deferredSections.has("documents")) model.documents.forEach((document) => addDocument(document, tmplNote));
+      if (!deferredSections.has("risks")) model.risks.forEach((risk) => addRisk(risk, tmplNote));
+      if (!deferredSections.has("costs")) model.costLines.forEach((line) => addCostLine(line, tmplNote));
       toast.success("Project operating model created", {
-        description: `${model.tasks.length} tasks, ${model.milestones.length} milestones, ${model.documents.length} documents, and ${model.risks.length} risks prepared.`,
+        description: `${deferredSections.has("tasks") ? 0 : model.tasks.length} tasks, ${deferredSections.has("milestones") ? 0 : model.milestones.length} milestones, ${deferredSections.has("documents") ? 0 : model.documents.length} documents, and ${deferredSections.has("risks") ? 0 : model.risks.length} risks prepared.`,
       });
     } else if (mode === "saved" && selectedCustomTemplate) {
       const model = instantiateCustomProjectTemplate({
@@ -506,42 +519,32 @@ export default function GuidedSetupPage() {
         goLiveDate: created.goLiveDate,
         methodology: created.methodology,
       });
-      if (model.charter) addCharter(model.charter, { source: "import", note: `${model.template.name} saved template` });
-      model.milestones.forEach((milestone) => addMilestone(milestone, { source: "import", note: `${model.template.name} saved template` }));
-      model.teamMembers.forEach((member) => addTeamMember(member, { source: "import", note: `${model.template.name} saved template` }));
-      model.tasks.forEach((task) => addTask(task, { source: "import", note: `${model.template.name} saved template` }));
-      model.documents.forEach((document) => addDocument(document, { source: "import", note: `${model.template.name} saved template` }));
-      model.risks.forEach((risk) => addRisk(risk, { source: "import", note: `${model.template.name} saved template` }));
-      model.costLines.forEach((line) => addCostLine(line, { source: "import", note: `${model.template.name} saved template` }));
+      const savedNote = { source: "import" as const, note: `${model.template.name} saved template` };
+      if (model.charter) addCharter(model.charter, savedNote);
+      if (!deferredSections.has("milestones")) model.milestones.forEach((milestone) => addMilestone(milestone, savedNote));
+      if (!deferredSections.has("team")) model.teamMembers.forEach((member) => addTeamMember(member, savedNote));
+      if (!deferredSections.has("tasks")) model.tasks.forEach((task) => addTask(task, savedNote));
+      if (!deferredSections.has("documents")) model.documents.forEach((document) => addDocument(document, savedNote));
+      if (!deferredSections.has("risks")) model.risks.forEach((risk) => addRisk(risk, savedNote));
+      if (!deferredSections.has("costs")) model.costLines.forEach((line) => addCostLine(line, savedNote));
       toast.success("Project created from saved template", {
-        description: `${model.tasks.length} tasks, ${model.milestones.length} milestones, and ${model.teamMembers.length} roles reused.`,
+        description: `${deferredSections.has("tasks") ? 0 : model.tasks.length} tasks, ${deferredSections.has("milestones") ? 0 : model.milestones.length} milestones, and ${deferredSections.has("team") ? 0 : model.teamMembers.length} roles reused.`,
       });
     } else if (preview && (preview.tasks.length > 0 || preview.milestones.length > 0)) {
       const teamMembers = previewOwnersToTeamMembers(created.id, preview);
       const tasks = previewTasksToTasks(created.id, preview);
       const importedMilestones = previewToMilestones(created.id, preview);
-      teamMembers.forEach((member) => addTeamMember(member, {
-        source: "import",
-        note: "Created from guided setup",
-      }));
+      const importNote = { source: "import" as const, note: "Created from guided setup" };
+      if (!deferredSections.has("team")) teamMembers.forEach((member) => addTeamMember(member, importNote));
       // Apply the imported gate spine so the project anchors the impact engine.
-      importedMilestones.forEach((milestone) => addMilestone(milestone, {
-        source: "import",
-        note: "Created from guided setup",
-      }));
-      tasks.forEach((task) => addTask(task, {
-        source: "import",
-        note: "Created from guided setup",
-      }));
+      if (!deferredSections.has("milestones")) importedMilestones.forEach((milestone) => addMilestone(milestone, importNote));
+      if (!deferredSections.has("tasks")) tasks.forEach((task) => addTask(task, importNote));
       // Apply imported cost lines so the project has a BAC and the confidence
       // verdict computes instead of staying coverage-gated.
       const importedCostLines = previewToCostLines(created.id, preview);
-      importedCostLines.forEach((line) => addCostLine(line, {
-        source: "import",
-        note: "Created from guided setup",
-      }));
+      if (!deferredSections.has("costs")) importedCostLines.forEach((line) => addCostLine(line, importNote));
       toast.success("Project setup created", {
-        description: `${preview.tasks.length} tasks, ${importedMilestones.length} milestones, and ${preview.owners.length} owners prepared.`,
+        description: `${deferredSections.has("tasks") ? 0 : tasks.length} tasks, ${deferredSections.has("milestones") ? 0 : importedMilestones.length} milestones, and ${deferredSections.has("team") ? 0 : preview.owners.length} owners prepared.`,
       });
     } else {
       toast.success("Project shell created", {
@@ -1508,6 +1511,8 @@ export default function GuidedSetupPage() {
           <OperatingModelPreview
             activeTab={reviewPreviewTab}
             onTabChange={setReviewPreviewTab}
+            deferredSections={deferredSections}
+            onToggleDefer={toggleDeferredSection}
             data={{
               milestones: generatedMilestones,
               tasks: generatedTasks,
@@ -1592,14 +1597,24 @@ type OperatingModelPreviewData = {
   importWarnings: string[];
 };
 
+// J2.4 — sections the PM can defer (exclude from create). "scope" is charter
+// notes, not a record set, so it is not deferrable.
+const DEFERRABLE_SECTIONS: ReadonlySet<ReviewPreviewTab> = new Set<ReviewPreviewTab>([
+  "milestones", "tasks", "documents", "risks", "team", "costs",
+]);
+
 function OperatingModelPreview({
   activeTab,
   onTabChange,
+  deferredSections,
+  onToggleDefer,
   data,
   mode,
 }: {
   activeTab: ReviewPreviewTab;
   onTabChange: (tab: ReviewPreviewTab) => void;
+  deferredSections: Set<ReviewPreviewTab>;
+  onToggleDefer: (tab: ReviewPreviewTab) => void;
   data: OperatingModelPreviewData;
   mode: SetupMode;
 }) {
@@ -1612,6 +1627,9 @@ function OperatingModelPreview({
     { id: "costs", label: "Costs", count: data.costLines.length },
     { id: "scope", label: "Scope", count: data.outOfScope.length },
   ];
+  const activeCount = tabs.find((t) => t.id === activeTab)?.count ?? 0;
+  const activeDeferrable = DEFERRABLE_SECTIONS.has(activeTab);
+  const activeDeferred = deferredSections.has(activeTab);
 
   return (
     <div id="setup-review-records" className="rounded-2xl border border-border/50 bg-card/40 p-6 shadow-xl backdrop-blur-xl">
@@ -1628,24 +1646,56 @@ function OperatingModelPreview({
       </div>
 
       <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => onTabChange(tab.id)}
-            className={cn(
-              "shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all",
-              activeTab === tab.id
-                ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
-            )}
-          >
-            {tab.label} <span className="ml-1 tabular-nums opacity-80">{tab.count}</span>
-          </button>
-        ))}
+        {tabs.map((tab) => {
+          const deferred = deferredSections.has(tab.id);
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => onTabChange(tab.id)}
+              className={cn(
+                "shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all",
+                activeTab === tab.id
+                  ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                  : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
+                deferred && "opacity-60",
+              )}
+            >
+              <span className={cn(deferred && "line-through")}>{tab.label}</span>
+              {deferred ? (
+                <span className="ml-1 text-[10px] uppercase tracking-wide opacity-90">deferred</span>
+              ) : (
+                <span className="ml-1 tabular-nums opacity-80">{tab.count}</span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      <div className="mt-4 max-h-[360px] overflow-y-auto rounded-xl border border-border/50 bg-background/50">
+      {/* J2.4 — defer the active section before create (its records won't be created). */}
+      {activeDeferrable && (
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-background/40 px-4 py-2.5 text-xs">
+          <span className="text-muted-foreground">
+            {activeDeferred
+              ? `Deferred — these ${activeCount} record${activeCount === 1 ? "" : "s"} will NOT be created. You can add them later.`
+              : `Not every section has to be created now. Defer this one to add it later.`}
+          </span>
+          <button
+            type="button"
+            onClick={() => onToggleDefer(activeTab)}
+            className={cn(
+              "shrink-0 rounded-full border px-3 py-1 font-semibold transition-all",
+              activeDeferred
+                ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
+                : "border-border bg-background text-foreground hover:bg-muted",
+            )}
+          >
+            {activeDeferred ? "Include this section" : "Defer this section"}
+          </button>
+        </div>
+      )}
+
+      <div className={cn("mt-4 max-h-[360px] overflow-y-auto rounded-xl border border-border/50 bg-background/50", activeDeferred && "opacity-50")}>
         {activeTab === "milestones" && (
           data.milestones.length > 0 ? (
             data.milestones.map((milestone) => (

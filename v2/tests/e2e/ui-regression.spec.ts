@@ -257,20 +257,20 @@ test("charter template flow opens with useful prefilled content", async ({ page 
 test("guided setup keeps actions visible and offers a review tour after create", async ({ page }) => {
   await gotoApp(page, "/setup/");
 
-  await expectActionVisibleInViewport(page, page.getByRole("button", { name: /continue/i }));
-  await page.getByRole("button", { name: /continue/i }).click();
+  await expectActionVisibleInViewport(page, page.getByRole("button", { name: "Continue", exact: true }));
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
 
   await expect(page.getByRole("heading", { name: /build method/i })).toBeVisible();
-  await expectActionVisibleInViewport(page, page.getByRole("button", { name: /continue/i }));
-  await page.getByRole("button", { name: /continue/i }).click();
+  await expectActionVisibleInViewport(page, page.getByRole("button", { name: "Continue", exact: true }));
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
 
   await expect(page.getByRole("heading", { name: /template recommendation/i })).toBeVisible();
-  await expectActionVisibleInViewport(page, page.getByRole("button", { name: /review/i }));
-  await page.getByRole("button", { name: /review/i }).click();
+  await expectActionVisibleInViewport(page, page.getByRole("button", { name: "Review", exact: true }));
+  await page.getByRole("button", { name: "Review", exact: true }).click();
 
   await expect(page.getByRole("heading", { name: /review & create/i })).toBeVisible();
-  await expectActionVisibleInViewport(page, page.getByRole("button", { name: /create command center/i }));
-  await page.getByRole("button", { name: /create command center/i }).click();
+  await expectActionVisibleInViewport(page, page.getByRole("button", { name: "Create Command Center", exact: true }));
+  await page.getByRole("button", { name: "Create Command Center", exact: true }).click();
 
   await expect(page).toHaveURL(new RegExp(`${escapeRegex(appBase)}/$`));
   await expect(page.getByRole("region", { name: /project setup review/i })).toBeVisible();
@@ -285,20 +285,20 @@ test("SAP template creates an SAP-specific command center from the guided setup"
   await page.getByLabel(/project code/i).fill("SAP-UAT-2026");
   await page.getByLabel(/system family/i).selectOption("sap");
   await page.getByLabel(/target go-live/i).fill("2027-01-30");
-  await page.getByRole("button", { name: /continue/i }).click();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
 
   await expect(page.getByRole("heading", { name: /build method/i })).toBeVisible();
-  await page.getByRole("button", { name: /continue/i }).click();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
 
   await expect(page.getByRole("heading", { name: /template recommendation/i })).toBeVisible();
   await expect(page.locator("body")).toContainText(/SAP S\/4HANA implementation/i);
   await expect(page.locator("body")).toContainText(/SAP Activate/i);
   await expect(page.locator("body")).toContainText(/30 tasks/i);
-  await page.getByRole("button", { name: /review/i }).click();
+  await page.getByRole("button", { name: "Review", exact: true }).click();
 
   await expect(page.getByRole("heading", { name: /review & create/i })).toBeVisible();
   await expect(page.locator("body")).toContainText(/SAP S\/4HANA UAT Implementation/i);
-  await page.getByRole("button", { name: /create command center/i }).click();
+  await page.getByRole("button", { name: "Create Command Center", exact: true }).click();
 
   await expect(page).toHaveURL(new RegExp(`${escapeRegex(appBase)}/$`));
   await expect(page.getByRole("heading", { name: /SAP S\/4HANA UAT Implementation/i })).toBeVisible();
@@ -316,6 +316,30 @@ test("SAP template creates an SAP-specific command center from the guided setup"
   await navigateBySidebar(page, isMobile, "Risks", /risks\/$/);
   await expect(page.locator("body")).toContainText(/Master data quality blocks mock loads/i);
   await expect(page.locator("body")).toContainText(/Fit-to-standard decisions reopen/i);
+});
+
+test("review screen can defer a section so its records are not created (J2.4)", async ({ page, isMobile }) => {
+  await gotoApp(page, "/setup/");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page.getByRole("heading", { name: /build method/i })).toBeVisible();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page.getByRole("heading", { name: /template recommendation/i })).toBeVisible();
+  await page.getByRole("button", { name: "Review", exact: true }).click();
+  await expect(page.getByRole("heading", { name: /review & create/i })).toBeVisible();
+
+  // Open the Risks section in the operating-model preview and defer it.
+  await page.getByRole("button", { name: /^Risks/ }).click();
+  const deferButton = page.getByRole("button", { name: /defer this section/i });
+  await expect(deferButton).toBeVisible();
+  await deferButton.click();
+  await expect(page.getByRole("button", { name: /include this section/i })).toBeVisible();
+
+  await page.getByRole("button", { name: "Create Command Center", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`${escapeRegex(appBase)}/$`));
+
+  // The deferred section's records must NOT have been created.
+  await navigateBySidebar(page, isMobile, "Risks", /risks\/$/);
+  await expect(page.locator("body")).not.toContainText(/Registration data model decisions arrive late/i);
 });
 
 test("reports tabs and evidence links are navigable without losing the report context", async ({ page }) => {
@@ -337,6 +361,12 @@ test("reports tabs and evidence links are navigable without losing the report co
 
 async function expectActionVisibleInViewport(page: Page, locator: Locator) {
   await expect(locator).toBeVisible();
+  // Bring the action into view before measuring. A sticky action bar can sit
+  // below the fold on tall mobile layouts (an animate-in transform ancestor
+  // breaks position:sticky relative to the viewport); the point of this check
+  // is that the CTA isn't clipped/overflowing once reachable, not that the page
+  // happens to be scrolled to it.
+  await locator.scrollIntoViewIfNeeded();
   const box = await locator.boundingBox();
   expect(box, "button must have a measurable bounding box").not.toBeNull();
   const viewport = page.viewportSize();
