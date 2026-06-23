@@ -213,6 +213,39 @@ describe("report data builders", () => {
     expect(report.budget.detail).toContain("budget lines");
   });
 
+  it("captures accepted decisions/slips this period from the audit log (O9.2)", () => {
+    const report = buildWeeklyReportData(input({
+      auditLog: [
+        { id: "a1", type: "update", entityKind: "milestone", projectId: activeProject.id, timestamp: "2026-06-11T09:00:00.000Z", note: "Accepted slip: go-live moves 12 days" },
+        { id: "a2", type: "cascade-apply", entityKind: "milestone", projectId: activeProject.id, timestamp: "2026-06-10T09:00:00.000Z" },
+        { id: "a3", type: "update", entityKind: "task", projectId: activeProject.id, timestamp: "2026-06-09T09:00:00.000Z", note: "Renamed task" },
+        { id: "a4", type: "update", entityKind: "milestone", projectId: otherProject.id, timestamp: "2026-06-11T09:00:00.000Z", note: "Accepted slip on wrong project" },
+      ],
+    }));
+
+    expect(report.acceptedChanges).toHaveLength(2);
+    expect(report.acceptedChanges[0].summary).toContain("Accepted slip: go-live moves 12 days");
+    expect(report.acceptedChanges.map((c) => c.summary).join(" ")).not.toContain("wrong project");
+    expect(report.acceptedChanges.map((c) => c.summary).join(" ")).not.toContain("Renamed task");
+  });
+
+  it("surfaces the integrity caveat when reported progress may be overstated (O9.3)", () => {
+    const clean = buildWeeklyReportData(input());
+    expect(clean.integrityCaveat).toBeNull();
+
+    const overstated = buildWeeklyReportData(input({
+      evm: {
+        coverage: { ready: true, missing: [] },
+        statusDate: "2026-06-12",
+        evm: {
+          snapshot: { bac: 500_000, ac: 125_000, percentComplete: 0.9, percentSpent: 0.05, cpi: 2.4 },
+        } as unknown as ProjectEvm,
+      },
+    }));
+    expect(overstated.integrityCaveat).not.toBeNull();
+    expect(typeof overstated.integrityCaveat).toBe("string");
+  });
+
   it("surfaces pending SteerCo decision records with focus links", () => {
     const report = buildSteerCoReportData(input());
 

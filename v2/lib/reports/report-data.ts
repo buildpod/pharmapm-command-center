@@ -10,6 +10,8 @@ import type {
 } from "@/lib/mockData";
 import type { EvmCoverage } from "@/lib/domain/evm-coverage";
 import type { ProjectEvm } from "@/lib/domain/evm-project";
+import type { AuditAction } from "@/lib/stores/audit";
+import { computeStatusIntegrity } from "../domain/status-integrity";
 
 const BASE_ROUTE = "/pharmapm-command-center/v2";
 const DAY_MS = 86_400_000;
@@ -32,6 +34,10 @@ export interface ReportDataInput {
   decisionRecords: DecisionRecord[];
   issues: Issue[];
   evm: ReportEvmContext;
+  // O9.2 — the project's audit log, so the report can include the decisions /
+  // slips ACCEPTED this period, not just current state. Optional for callers
+  // that don't supply it.
+  auditLog?: AuditAction[];
 }
 
 export interface ReportBudgetSummary {
@@ -59,6 +65,14 @@ export interface EvidenceRow {
   label: string;
 }
 
+// O9.2 — a governed change accepted this period (from the audit log): a slip
+// accepted, a modelled over-charge, an owner-absence impact, etc.
+export interface AcceptedChange {
+  id: string;
+  when: string;
+  summary: string;
+}
+
 export interface WeeklyReportData {
   project: Project;
   reportWeek: string;
@@ -77,6 +91,11 @@ export interface WeeklyReportData {
   tasksInFlight: Task[];
   blockedTasks: Task[];
   evidenceRows: EvidenceRow[];
+  // O9.2 — decisions/slips accepted this period (from the audit log).
+  acceptedChanges: AcceptedChange[];
+  // O9.3 — when reported progress may be overstated, the report carries the
+  // integrity caveat so the verdict isn't read at face value. null = no caveat.
+  integrityCaveat: string | null;
 }
 
 export interface SteerCoDecisionItem {
@@ -290,6 +309,32 @@ export function buildWeeklyReportData(input: ReportDataInput): WeeklyReportData 
   const tasksInFlight = tasks.filter((t) => t.status === "In Progress");
   const blockedTasks = tasks.filter((t) => t.status === "Blocked");
 
+  // O9.2 — governed changes accepted this period, newest first (the audit log
+  // is already capped + newest-first). Acceptance/model entries carry a note.
+  const acceptedChanges: AcceptedChange[] = (input.auditLog ?? [])
+    .filter((a) => a.projectId === projectId && (/^(Accepted|Modelled)\b/.test(a.note ?? "") || a.type === "cascade-apply"))
+    .slice(0, 8)
+    .map((a) => ({
+      id: a.id,
+      when: fmtReportDate(a.timestamp.slice(0, 10)),
+      summary: a.note ?? `${a.type} · ${a.entityKind}`,
+    }));
+
+  // O9.3 — integrity caveat: when reported progress may be overstated, carry it
+  // into the report so the score isn't taken at face value.
+  const snapshot = input.evm.evm?.snapshot;
+  const integrity = snapshot
+    ? computeStatusIntegrity({
+        percentComplete: snapshot.percentComplete,
+        percentSpent: snapshot.percentSpent,
+        cpi: snapshot.cpi,
+        gatesTotal: milestones.length,
+        gatesComplete: milestones.filter((m) => m.status === "complete").length,
+      })
+    : null;
+  const integrityCaveat =
+    integrity && integrity.band !== "consistent" ? integrity.flags.map((f) => f.message).join(" ") : null;
+
   const base: Omit<WeeklyReportData, "evidenceRows"> = {
     project: input.project,
     reportWeek: `Week of ${fmtReportDate(statusDate)}`,
@@ -307,6 +352,8 @@ export function buildWeeklyReportData(input: ReportDataInput): WeeklyReportData 
     pendingDecisions: pendingDocumentDecisions(documents),
     tasksInFlight,
     blockedTasks,
+    acceptedChanges,
+    integrityCaveat,
   };
 
   return { ...base, evidenceRows: buildEvidenceRows(base) };
