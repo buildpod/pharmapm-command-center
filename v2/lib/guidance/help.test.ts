@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { helpByRoute, missingHelpRoutes } from "./help";
 import { toursByRoute } from "./tours";
+import { routeToTabMap } from "../navigation";
 
 describe("guidance content", () => {
   it("has help content for every shell route", () => {
@@ -17,6 +18,7 @@ describe("guidance content", () => {
   });
 
   it("keeps tours short enough to avoid blocking work", () => {
+    expect(Object.keys(toursByRoute).sort()).toEqual(Object.keys(routeToTabMap).sort());
     Object.entries(toursByRoute).forEach(([route, steps]) => {
       expect(steps.length, `${route} tour length`).toBeGreaterThanOrEqual(3);
       expect(steps.length, `${route} tour length`).toBeLessThanOrEqual(5);

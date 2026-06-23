@@ -2,7 +2,8 @@
 
 import { useEffect } from "react";
 import { X } from "lucide-react";
-import { evmGlossary, helpByRoute } from "@/lib/guidance/help";
+import { useDapEnabled, writeDapEnabled } from "@/components/guidance/dap-settings";
+import { helpByRoute, productGlossary } from "@/lib/guidance/help";
 
 export function HelpDrawer({
   open,
@@ -14,6 +15,7 @@ export function HelpDrawer({
   onClose: () => void;
 }) {
   const help = helpByRoute[route] ?? helpByRoute["/"];
+  const dapEnabled = useDapEnabled();
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -25,18 +27,29 @@ export function HelpDrawer({
 
   if (!open) return null;
 
-  function replayTour() {
-    window.dispatchEvent(new CustomEvent("aivello:replay-tour", { detail: { route } }));
+  function startPageTour() {
+    if (!dapEnabled) writeDapEnabled(true);
+    window.setTimeout(() => {
+      window.dispatchEvent(new CustomEvent("aivello:replay-tour", { detail: { route } }));
+    }, 0);
+    onClose();
+  }
+
+  function startProductJourney() {
+    if (!dapEnabled) writeDapEnabled(true);
+    window.setTimeout(() => {
+      window.dispatchEvent(new CustomEvent("aivello:replay-tour"));
+    }, 0);
     onClose();
   }
 
   return (
-    <div className="help-drawer" role="dialog" aria-modal="true" aria-label="How this page works">
+    <div className="help-drawer" role="dialog" aria-modal="true" aria-label="Guide">
       <button type="button" className="help-drawer__backdrop" aria-label="Close help" onClick={onClose} />
       <aside className="help-drawer__panel">
         <header className="help-drawer__header">
           <div>
-            <div className="help-drawer__eyebrow">How this page works</div>
+            <div className="help-drawer__eyebrow">Guide</div>
             <h2 className="help-drawer__title">{help.question}</h2>
           </div>
           <button type="button" className="drawer-close" onClick={onClose} aria-label="Close help">
@@ -45,8 +58,20 @@ export function HelpDrawer({
         </header>
 
         <div className="help-drawer__body">
+          <section className="help-drawer__tour-actions" aria-label="Guided walkthroughs">
+            <button type="button" className="btn btn--primary" onClick={startPageTour}>
+              Start page tour
+            </button>
+            <button type="button" className="btn btn--secondary" onClick={startProductJourney}>
+              Product journey
+            </button>
+            <p>
+              DAP is {dapEnabled ? "on" : "off"}. Starting a guide turns DAP on so the overlay, highlights, and nudges are visible.
+            </p>
+          </section>
+
           <section>
-            <h3 className="help-drawer__section-title">What you can do here</h3>
+            <h3 className="help-drawer__section-title">Current page purpose</h3>
             <ul className="help-drawer__list">
               {help.canDo.map((item) => (
                 <li key={item}>{item}</li>
@@ -55,9 +80,18 @@ export function HelpDrawer({
           </section>
 
           <section>
-            <h3 className="help-drawer__section-title">Plain-language glossary</h3>
+            <h3 className="help-drawer__section-title">How do I...</h3>
+            <ul className="help-drawer__list">
+              {help.howDoI.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </section>
+
+          <section>
+            <h3 className="help-drawer__section-title">Glossary</h3>
             <dl className="help-drawer__glossary">
-              {evmGlossary.map((item) => (
+              {productGlossary.map((item) => (
                 <div key={item.term}>
                   <dt>{item.term}</dt>
                   <dd>{item.definition}</dd>
@@ -68,8 +102,8 @@ export function HelpDrawer({
         </div>
 
         <footer className="help-drawer__footer">
-          <button type="button" className="btn btn--secondary" onClick={replayTour}>
-            Replay the tour
+          <button type="button" className="btn btn--secondary" onClick={startProductJourney}>
+            Replay product journey
           </button>
           <button type="button" className="btn btn--primary" onClick={onClose}>
             Got it

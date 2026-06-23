@@ -1,11 +1,19 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useDapEnabled } from "@/components/guidance/dap-settings";
-import { TOUR_STORAGE_KEY, toursByRoute, type TourStep } from "@/lib/guidance/tours";
+import {
+  ACTIVE_COMMAND_CENTER_JOURNEY_KEY,
+  COMMAND_CENTER_JOURNEY_SEEN_KEY,
+  TOUR_STORAGE_KEY,
+  commandCenterJourney,
+  toursByRoute,
+  type TourStep,
+} from "@/lib/guidance/tours";
 
 type SeenMap = Record<string, boolean>;
+type TourMode = "route" | "journey";
 type TourPhase = "intro" | "steps";
 type TargetBox = { top: number; left: number; width: number; height: number };
 
@@ -35,6 +43,42 @@ function readSeen(): SeenMap {
 function markSeen(route: string) {
   try {
     window.localStorage.setItem(TOUR_STORAGE_KEY, JSON.stringify({ ...readSeen(), [route]: true }));
+  } catch {}
+}
+
+function readJourneySeen() {
+  try {
+    return window.localStorage.getItem(COMMAND_CENTER_JOURNEY_SEEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markJourneySeen() {
+  try {
+    window.localStorage.setItem(COMMAND_CENTER_JOURNEY_SEEN_KEY, "1");
+    window.sessionStorage.removeItem(ACTIVE_COMMAND_CENTER_JOURNEY_KEY);
+  } catch {}
+}
+
+function writeActiveJourney(index: number) {
+  try {
+    window.sessionStorage.setItem(ACTIVE_COMMAND_CENTER_JOURNEY_KEY, JSON.stringify({ index }));
+  } catch {}
+}
+
+function readActiveJourney(): { index: number } | null {
+  try {
+    const raw = window.sessionStorage.getItem(ACTIVE_COMMAND_CENTER_JOURNEY_KEY);
+    return raw ? JSON.parse(raw) as { index: number } : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearActiveJourney() {
+  try {
+    window.sessionStorage.removeItem(ACTIVE_COMMAND_CENTER_JOURNEY_KEY);
   } catch {}
 }
 
@@ -120,47 +164,102 @@ function getTourIntro(route: string): TourIntro {
 
 export function PageTour() {
   const pathname = usePathname();
+  const router = useRouter();
   const dapEnabled = useDapEnabled();
   const route = useMemo(() => normalizeRoute(pathname), [pathname]);
-  const steps = toursByRoute[route] ?? [];
+  const routeSteps = toursByRoute[route] ?? [];
+  const journeySteps = commandCenterJourney.steps;
+  const [mode, setMode] = useState<TourMode>("route");
   const [active, setActive] = useState(false);
   const [phase, setPhase] = useState<TourPhase>("intro");
   const [index, setIndex] = useState(0);
   const [targetBox, setTargetBox] = useState<TargetBox | null>(null);
-  const intro = getTourIntro(route);
+  const steps = mode === "journey" ? journeySteps : routeSteps;
+  const intro = mode === "journey" ? commandCenterJourney : getTourIntro(route);
   const step = steps[index];
   const progress = phase === "intro" ? 100 / (steps.length + 1) : ((index + 1) / steps.length) * 100;
   const dismiss = useCallback(() => {
-    markSeen(route);
+    if (mode === "journey") {
+      markJourneySeen();
+    } else {
+      markSeen(route);
+    }
     setActive(false);
     setPhase("intro");
     setTargetBox(null);
-  }, [route]);
+  }, [mode, route]);
+
+  const goToStep = useCallback((nextIndex: number) => {
+    const nextStep = steps[nextIndex];
+    if (!nextStep) return;
+    setIndex(nextIndex);
+    if (mode === "journey") writeActiveJourney(nextIndex);
+    if (nextStep.route && nextStep.route !== route) {
+      setTargetBox(null);
+      router.push(nextStep.route);
+    }
+  }, [mode, route, router, steps]);
 
   useEffect(() => {
-    if (!dapEnabled || !steps.length) {
+    if (!dapEnabled) {
       setActive(false);
+      return;
+    }
+    const activeJourney = readActiveJourney();
+    if (activeJourney && !readJourneySeen()) {
+      const safeIndex = Math.min(Math.max(activeJourney.index, 0), journeySteps.length - 1);
+      setMode("journey");
+      setIndex(safeIndex);
+      setPhase("steps");
+      setActive(true);
+      const nextRoute = journeySteps[safeIndex]?.route;
+      if (nextRoute && nextRoute !== route) router.replace(nextRoute);
+      return;
+    }
+    if (!routeSteps.length) {
+      setActive(false);
+      return;
+    }
+    if (route === "/" && !readJourneySeen()) {
+      setMode("journey");
+      setIndex(0);
+      setPhase("intro");
+      setActive(true);
       return;
     }
     const seen = readSeen();
     if (!seen[route]) {
+      setMode("route");
       setIndex(0);
       setPhase("intro");
       setActive(true);
     } else {
       setActive(false);
     }
-  }, [dapEnabled, route, steps.length]);
+  }, [dapEnabled, journeySteps, route, routeSteps.length, router]);
 
   useEffect(() => {
     function replay(event: Event) {
       const detail = (event as CustomEvent<{ route?: string }>).detail;
-      if (detail?.route && detail.route !== route) return;
       if (!dapEnabled) return;
-      if (!steps.length) return;
+      if (detail && "route" in detail) {
+        if (detail.route && detail.route !== route) return;
+        if (!routeSteps.length) return;
+        clearActiveJourney();
+        setMode("route");
+        setIndex(0);
+        setPhase("intro");
+        setActive(true);
+        return;
+      }
+      if (!journeySteps.length) return;
+      setMode("journey");
       setIndex(0);
       setPhase("intro");
       setActive(true);
+      writeActiveJourney(0);
+      const firstRoute = journeySteps[0]?.route;
+      if (firstRoute && firstRoute !== route) router.push(firstRoute);
     }
 
     function onKey(event: KeyboardEvent) {
@@ -173,7 +272,7 @@ export function PageTour() {
       window.removeEventListener("aivello:replay-tour", replay);
       window.removeEventListener("keydown", onKey);
     };
-  }, [active, dapEnabled, dismiss, route, steps.length]);
+  }, [active, dapEnabled, dismiss, journeySteps, route, routeSteps.length, router]);
 
   useEffect(() => {
     if (!active || phase !== "steps" || !step) {
@@ -208,8 +307,8 @@ export function PageTour() {
   if (!active || !step) return null;
 
   function start() {
-    setIndex(0);
     setPhase("steps");
+    goToStep(0);
   }
 
   function next() {
@@ -217,7 +316,7 @@ export function PageTour() {
       dismiss();
       return;
     }
-    setIndex((value) => value + 1);
+    goToStep(index + 1);
   }
 
   function back() {
@@ -225,7 +324,7 @@ export function PageTour() {
       setPhase("intro");
       return;
     }
-    setIndex((value) => value - 1);
+    goToStep(index - 1);
   }
 
   return (
@@ -302,7 +401,7 @@ export function PageTour() {
               Back
             </button>
             <button type="button" className="coachmark__button coachmark__button--primary" onClick={next}>
-              {index >= steps.length - 1 ? "Done" : "Next"}
+              {index >= steps.length - 1 ? "Done" : step.nextLabel ?? "Next"}
             </button>
           </div>
         </aside>

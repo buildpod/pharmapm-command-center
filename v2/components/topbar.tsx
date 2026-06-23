@@ -15,7 +15,6 @@ import { useProject } from "@/components/projects/project-provider";
 import { HelpDrawer } from "@/components/guidance/help-drawer";
 import { PageTour } from "@/components/guidance/page-tour";
 import { DapToggle } from "@/components/guidance/dap-toggle";
-import { RoleSelector } from "@/components/guidance/role-selector";
 import { adminNavItems, appTabs, getRouteNavContext, isActiveRoute, routeToTabMap } from "@/lib/navigation";
 
 function normalizeHelpRoute(pathname: string) {
@@ -64,7 +63,7 @@ export function Topbar() {
         {/* Breadcrumb — shows WHERE you are (page context). Project identity
             (name + phase) lives in the ProjectSwitcher beside it; repeating it
             here just crammed and wrapped the header. */}
-        <div className="crumbs">
+        <div className="crumbs" data-tour-id="route-context">
           <strong>{tab.label} · {itemLabel}</strong>
           {activeProject.isSample && (
             <Link
@@ -96,20 +95,19 @@ export function Topbar() {
 
         <NotificationBell />
 
-        <DapToggle />
-
-        <RoleSelector />
-
         <button
           type="button"
-          className="topbar-icon-button"
+          className="topbar-guide-button"
           onClick={() => setHelpOpen(true)}
-          aria-label="How this page works"
-          title="How this page works"
+          aria-label="Open guide"
+          title="Open guide"
           data-tour-id="topbar-help"
         >
           <HelpCircle />
+          <span>Guide</span>
         </button>
+
+        <DapToggle />
 
         <div className="hidden sm:flex">
           <ExportButton project={activeProject} />
@@ -143,7 +141,7 @@ export function Topbar() {
         </div>
       </div>
 
-      <nav className="app-tabs" aria-label="Primary navigation">
+      <nav className="app-tabs" aria-label="Primary navigation" data-tour-id="primary-nav">
         {appTabs.map((item) => (
           <Link
             key={item.id}

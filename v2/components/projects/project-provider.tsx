@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, createContext, useContext } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { projects as initialProjects, type Project } from "@/lib/mockData";
+import { ACTIVE_COMMAND_CENTER_JOURNEY_KEY } from "@/lib/guidance/tours";
 
 const STORAGE_KEY = "aivello_active_project_v1";
 const PROJECTS_KEY = "aivello_projects_v1";
@@ -76,17 +77,19 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // CX-7 first-run: a visitor with no real (non-sample) projects who hasn't
-  // opted into the sample belongs in the setup wizard, not inside someone
-  // else's demo project. Gated on `hydrated` so a returning user with real
-  // projects in localStorage is never bounced during the pre-hydration render.
+  // opted into the sample belongs on the launchpad (/) or setup wizard, not
+  // inside someone else's demo project. Gated on `hydrated` so a returning user
+  // with real projects in localStorage is never bounced during hydration.
   useEffect(() => {
     if (!hydrated) return;
     const hasRealProject = projects.some((x) => !x.isSample);
     if (hasRealProject) return;
     let sampleOptIn = false;
+    let activeGuide = false;
     try { sampleOptIn = localStorage.getItem(SAMPLE_OPTIN_KEY) === "1"; } catch {}
-    if (!sampleOptIn && !pathname.startsWith("/setup")) {
-      router.replace("/setup");
+    try { activeGuide = Boolean(sessionStorage.getItem(ACTIVE_COMMAND_CENTER_JOURNEY_KEY)); } catch {}
+    if (!sampleOptIn && !activeGuide && pathname !== "/" && !pathname.startsWith("/setup")) {
+      router.replace("/");
     }
   }, [hydrated, projects, pathname, router]);
 

@@ -57,12 +57,28 @@ test.beforeEach(async ({ page }) => {
     window.localStorage.setItem("aivello_sample_optin_v1", "1");
     window.localStorage.setItem("aivello_tours_seen_v1", JSON.stringify({
       "/": true,
-      "/truth": true,
-      "/tasks": true,
+      "/activity": true,
+      "/charter": true,
       "/costs": true,
+      "/decisions": true,
+      "/documents": true,
+      "/governance": true,
+      "/issues": true,
+      "/milestones": true,
+      "/my-items": true,
+      "/plan": true,
+      "/projects": true,
+      "/readiness": true,
       "/reports": true,
+      "/resources": true,
+      "/risks": true,
+      "/settings": true,
       "/setup": true,
+      "/tasks": true,
+      "/truth": true,
+      "/worklist": true,
     }));
+    window.localStorage.setItem("aivello_command_center_journey_seen_v1", "1");
   });
   await gotoApp(page, "/");
   (page as Page & { __errors?: string[] }).__errors = errors;
@@ -97,7 +113,7 @@ test("tab and contextual rail navigation covers every main product area", async 
   for (const route of routes) {
     await gotoApp(page, "/");
     await navigateByShell(page, isMobile, route);
-    await expect(page).toHaveURL(new RegExp(`${escapeRegex(appBase + route.path)}$`));
+    await expect(page).toHaveURL(new RegExp(`${escapeRegex(appBase + route.path)}(?:\\?.*)?$`));
     await expect(page.locator("body")).toContainText(route.heading);
     await assertNoHorizontalOverflow(page);
   }
@@ -192,8 +208,8 @@ test("schedule impact review opens as a centered modal window", async ({ page, i
 
   const impactDialog = page.getByRole("dialog", { name: /review schedule impact/i });
   await expect(impactDialog).toBeVisible();
-  await expect(impactDialog).toContainText(/affected downstream|downstream tasks|linked milestones/i);
-  await expectActionVisibleInViewport(page, impactDialog.getByRole("button", { name: /discard changes/i }));
+  await expect(impactDialog).toContainText(/affected downstream|downstream tasks|downstream dates|linked milestones/i);
+  await expectActionVisibleInViewport(page, impactDialog.getByRole("button", { name: /discard changes|back without saving/i }));
   await expectActionVisibleInViewport(page, impactDialog.getByRole("button", { name: /save/i }));
 
   const modalPanel = page.locator(".impact-modal-panel");

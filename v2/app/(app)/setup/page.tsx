@@ -67,6 +67,7 @@ import { isIsoDate } from "@/lib/validation";
 import type { CostLine, Document, Milestone, Risk, Task, TeamMember } from "@/lib/mockData";
 
 type SetupMode = "template" | "import" | "saved" | "blank";
+type LaunchpadStart = "playbook" | "import" | "blank" | "saved";
 type ImportSource = "planner" | "project" | "excel" | "manual";
 type ReviewPreviewTab = "milestones" | "tasks" | "documents" | "risks" | "team" | "costs" | "scope";
 
@@ -92,37 +93,87 @@ const TEMPLATE_IMPORT = `ID,Task Name,Workstream,Start,Finish,Resource Names,Pri
 
 const IMPORT_SAMPLE_BASE = "/pharmapm-command-center/v2/samples";
 const SETUP_REVIEW_TOUR_KEY = "aivello_pending_setup_review_v1";
-const setupActionRowCls = "sticky bottom-4 z-20 mt-8 flex rounded-2xl border border-border/50 bg-background/90 p-3 shadow-xl backdrop-blur-xl";
+const setupActionRowCls = "sticky bottom-3 z-20 mt-8 flex w-full flex-wrap items-center gap-3 rounded-2xl border border-border/50 bg-background/95 p-3 shadow-xl backdrop-blur-xl";
 
 const modeCards = [
   {
     id: "template" as const,
-    title: "Build with template",
-    description: "Use the closest predefined setup for this project type.",
+    title: "Create from playbook",
+    description: "Start from a regulated implementation pattern, then adjust scope before create.",
+    bestFor: "Best when the project resembles a known pharma rollout.",
+    creates: "Milestones, workstreams, tasks, documents, risks, team roles, and budget lines.",
     icon: Sparkles,
   },
   {
     id: "import" as const,
     title: "Import existing plan",
-    description: "Upload an export, map the columns, and validate before creating records.",
+    description: "Bring in a current Microsoft Project, Planner, Excel, or CSV plan.",
+    bestFor: "Best when delivery work already exists outside the command center.",
+    creates: "Mapped tasks, owners, dates, dependencies, workstreams, and starter budget evidence.",
     icon: FileSpreadsheet,
   },
   {
     id: "saved" as const,
-    title: "Build from saved template",
+    title: "Create from saved template",
     description: "Reuse a proven project model for a release, rollout, or repeat delivery.",
+    bestFor: "Best when your team has already validated the operating model.",
+    creates: "A fresh copy with shifted dates, reset progress, reopened risks, and reused ownership.",
     icon: Library,
   },
   {
     id: "blank" as const,
-    title: "Start base skeleton",
-    description: "Create only the command center shell.",
+    title: "Start blank skeleton",
+    description: "Create the command center shell and build the plan manually.",
+    bestFor: "Best when the project is still being shaped or the plan is intentionally lightweight.",
+    creates: "Project identity only; Delivery Signals activates after milestones, work, evidence, and costs exist.",
     icon: ClipboardList,
   },
 ];
 
+const launchpadIntentCopy: Record<LaunchpadStart, string> = {
+  playbook: "Create from playbook",
+  import: "Import existing plan",
+  blank: "Start blank skeleton",
+  saved: "Create from saved template",
+};
+
+const setupJourney = [
+  {
+    step: 1,
+    label: "Discover",
+    body: "Capture project facts that drive schedule impact, governance, and setup fit.",
+    tourId: "setup-discovery",
+  },
+  {
+    step: 2,
+    label: "Choose source",
+    body: "Decide whether to use a playbook, import, saved model, or blank skeleton.",
+    tourId: "setup-source",
+  },
+  {
+    step: 3,
+    label: "Shape model",
+    body: "Tune the recommended playbook or mapping before records are generated.",
+    tourId: "setup-template",
+  },
+  {
+    step: 4,
+    label: "Validate",
+    body: "Review the operating model before it becomes the active command center.",
+    tourId: "setup-summary",
+  },
+] as const;
+
 function defaultModuleIds(template: { modules?: { id: string }[] }): string[] {
   return template.modules?.map((module) => module.id) ?? [];
+}
+
+function optionLabel<T extends { id: string; label: string }>(options: readonly T[], id: string) {
+  return options.find((option) => option.id === id)?.label ?? id;
+}
+
+function modeLabel(mode: SetupMode) {
+  return modeCards.find((card) => card.id === mode)?.title ?? "Setup path";
 }
 
 export default function GuidedSetupPage() {
@@ -138,6 +189,7 @@ export default function GuidedSetupPage() {
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [reviewPreviewTab, setReviewPreviewTab] = useState<ReviewPreviewTab>("milestones");
+  const [launchpadStart, setLaunchpadStart] = useState<LaunchpadStart | null>(null);
 
   const [mode, setMode] = useState<SetupMode>("template");
   const [templateId, setTemplateId] = useState<ProjectTemplateId>("veeva-rim");
@@ -171,6 +223,19 @@ export default function GuidedSetupPage() {
     const templates = loadCustomProjectTemplates();
     setCustomTemplates(templates);
     setCustomTemplateId((current) => current || templates[0]?.id || "");
+  }, []);
+
+  useEffect(() => {
+    try {
+      const start = new URLSearchParams(window.location.search).get("start");
+      if (start === "playbook" || start === "import" || start === "blank" || start === "saved") {
+        setLaunchpadStart(start);
+        if (start === "playbook") setMode("template");
+        if (start === "import") setMode("import");
+        if (start === "blank") setMode("blank");
+        if (start === "saved") setMode("saved");
+      }
+    } catch {}
   }, []);
 
   // Lenient parse so the file's columns are always available to map, even when
@@ -501,11 +566,166 @@ export default function GuidedSetupPage() {
     router.push("/");
   }
 
+  function continueFromDiscovery() {
+    if (!name.trim() || !client.trim() || !startDate || !goLiveDate) {
+      toast.error("Please fill in all required fields.");
+      return;
+    }
+    if (startDate >= goLiveDate) {
+      toast.error("Target go-live must be after the start date.");
+      return;
+    }
+    setStep(2);
+  }
+
+  function continueFromSource() {
+    if (mode === "blank") {
+      setStep(4);
+      return;
+    }
+    if (mode === "template") {
+      selectTemplate(recommendTemplateId(intake));
+    }
+    if (mode === "saved" && customTemplates.length === 0) {
+      toast.error("No saved templates yet", { description: "Save an existing project as a template from Manage Projects first." });
+      return;
+    }
+    if (mode === "saved" && selectedCustomTemplate) {
+      setPhase(selectedCustomTemplate.recommendedPhase);
+      setMethodology(selectedCustomTemplate.recommendedMethodology);
+    }
+    setStep(3);
+  }
+
+  function continueFromModel() {
+    setStep(4);
+  }
+
+  function focusReviewRecords() {
+    document.getElementById("setup-review-records")?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }
+
+  function journeyPrimaryAction() {
+    if (step === 1) return { label: "Continue to source", action: continueFromDiscovery };
+    if (step === 2) return { label: mode === "blank" ? "Review blank skeleton" : "Continue to model", action: continueFromSource };
+    if (step === 3) return { label: "Review generated model", action: continueFromModel };
+    return { label: "Review generated records", action: focusReviewRecords };
+  }
+
+  function renderJourneyContext() {
+    const selectedMode = modeCards.find((card) => card.id === mode) ?? modeCards[0];
+    const SelectedModeIcon = selectedMode.icon;
+    const currentStage = setupJourney.find((stage) => stage.step === step) ?? setupJourney[0];
+    const primaryAction = journeyPrimaryAction();
+    const stageDecision = step === 1
+      ? "These facts tune the playbook recommendation, schedule feasibility, governance model, and reporting needs."
+      : step === 2
+      ? "Choose the source that should become the command center's first operating model."
+      : step === 3
+      ? mode === "template"
+        ? `The recommendation is based on ${optionLabel(systemOptions, intake.systemFamily)}, ${optionLabel(PROJECT_TYPE_OPTIONS, intake.projectType)}, ${optionLabel(controlOptions, intake.controlModel)}, and ${intake.scopeElements.length} selected scope area${intake.scopeElements.length === 1 ? "" : "s"}.`
+        : mode === "import"
+        ? "This step turns outside plan rows into command-center records and exposes mapping gaps before create."
+        : "This step confirms the reusable operating model before dates, owners, and progress are reset."
+      : "Creating opens the Dashboard, then prompts the PM to review milestones, tasks, risks, documents, charter, and cost evidence.";
+
+    return (
+      <section className="mx-auto mb-8 max-w-6xl rounded-2xl border border-border/50 bg-card/40 p-5 shadow-xl backdrop-blur-xl" aria-label="Setup journey context">
+        <div className="grid gap-5 lg:grid-cols-[1.1fr_1.4fr_1fr]">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wider text-primary">Command Center Setup</div>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground">Build the project truth layer before work starts.</h1>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              This is not a marketing flow or a task-list generator. It turns project facts, existing plans, and pharma playbooks into live records for delivery evidence, schedule impact, governance, cost, and reporting.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                {launchpadStart ? `From launchpad: ${launchpadIntentCopy[launchpadStart]}` : `Path: ${modeLabel(mode)}`}
+              </span>
+              <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground">
+                Next after create: Dashboard review
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={primaryAction.action}
+              className="mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-lg transition-all hover:bg-primary/90"
+            >
+              {primaryAction.label}
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
+              {setupJourney.map((stage) => {
+                const active = step === stage.step;
+                const complete = step > stage.step;
+                return (
+                  <div
+                    key={stage.label}
+                    data-tour-id={stage.tourId}
+                    className={cn(
+                      "rounded-xl border p-3 transition-all",
+                      active
+                        ? "border-primary bg-primary/10 text-foreground shadow-sm"
+                        : complete
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200"
+                        : "border-border/50 bg-background/50 text-muted-foreground",
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wider">{stage.label}</span>
+                      {complete ? <CheckCircle2 className="h-4 w-4" /> : <span className="text-xs tabular-nums">{stage.step}</span>}
+                    </div>
+                    <p className="mt-2 text-xs leading-relaxed">{stage.body}</p>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-4 rounded-xl border border-border/50 bg-background/50 p-4">
+              <p className="text-sm font-semibold text-foreground">Current decision: {currentStage.label}</p>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{stageDecision}</p>
+            </div>
+          </div>
+
+          <aside className="rounded-xl border border-border/50 bg-background/50 p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <SelectedModeIcon className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">{selectedMode.title}</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{selectedMode.bestFor}</p>
+              </div>
+            </div>
+            <div className="mt-4 rounded-lg border border-border/50 bg-card p-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Creates</p>
+              <p className="mt-1 text-sm leading-relaxed text-foreground">{selectedMode.creates}</p>
+            </div>
+            <div className="mt-3 rounded-lg border border-border/50 bg-card p-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Then guide the PM through</p>
+              <p className="mt-1 text-sm leading-relaxed text-foreground">Dashboard to Milestones to Tasks to Reports, with DAP able to navigate across pages.</p>
+            </div>
+            <button
+              type="button"
+              onClick={primaryAction.action}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-lg transition-all hover:bg-primary/90"
+            >
+              {primaryAction.label}
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </aside>
+        </div>
+      </section>
+    );
+  }
+
   function renderStep1() {
     const hasSample = projects.some((p) => p.isSample);
     return (
       <div className="mx-auto max-w-3xl animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="mb-8 text-center" data-tour-id="setup-discovery">
+        <div className="mb-8 text-center">
           <h2 className="text-3xl font-bold tracking-tight text-foreground">Project Discovery</h2>
           <p className="mt-2 text-sm text-muted-foreground">Capture only the facts needed to recommend the right command-center setup.</p>
           {hasSample && (
@@ -516,6 +736,21 @@ export default function GuidedSetupPage() {
               </button>
             </p>
           )}
+        </div>
+
+        <div className="mb-6 grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
+          <div className="rounded-xl border border-border/50 bg-card/40 p-4">
+            <p className="font-semibold text-foreground">Identity</p>
+            <p className="mt-1 text-muted-foreground">Names, code, client, and dates become the project spine used across reports and exports.</p>
+          </div>
+          <div className="rounded-xl border border-border/50 bg-card/40 p-4">
+            <p className="font-semibold text-foreground">Regulated context</p>
+            <p className="mt-1 text-muted-foreground">Industry, system, region, and controls decide which governance and validation records matter.</p>
+          </div>
+          <div className="rounded-xl border border-border/50 bg-card/40 p-4">
+            <p className="font-semibold text-foreground">Schedule promise</p>
+            <p className="mt-1 text-muted-foreground">Start and go-live dates drive feasibility, milestones, and later schedule impact warnings.</p>
+          </div>
         </div>
 
         <div className="rounded-2xl border border-border/50 bg-card/40 p-8 shadow-xl backdrop-blur-xl">
@@ -603,17 +838,8 @@ export default function GuidedSetupPage() {
 
         <div className={cn(setupActionRowCls, "justify-end")}>
           <button
-            onClick={() => {
-              if (!name.trim() || !client.trim() || !startDate || !goLiveDate) {
-                toast.error("Please fill in all required fields.");
-                return;
-              }
-              if (startDate >= goLiveDate) {
-                toast.error("Target go-live must be after the start date.");
-                return;
-              }
-              setStep(2);
-            }}
+            type="button"
+            onClick={continueFromDiscovery}
             className="group flex items-center gap-2 rounded-full bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground shadow-lg transition-all hover:scale-105 hover:bg-primary/90 hover:shadow-primary/25"
           >
             Continue <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -638,6 +864,7 @@ export default function GuidedSetupPage() {
             return (
               <button
                 key={card.id}
+                type="button"
                 onClick={() => setMode(card.id)}
                 className={cn(
                   "flex w-full items-center gap-6 rounded-2xl border bg-card/40 p-6 text-left shadow-lg backdrop-blur-xl transition-all duration-200",
@@ -650,6 +877,16 @@ export default function GuidedSetupPage() {
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-foreground">{card.title}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">{card.description}</p>
+                  <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+                    <div className="rounded-lg border border-border/50 bg-background/50 p-3">
+                      <span className="font-semibold text-foreground">Use when</span>
+                      <p className="mt-1 leading-relaxed text-muted-foreground">{card.bestFor}</p>
+                    </div>
+                    <div className="rounded-lg border border-border/50 bg-background/50 p-3">
+                      <span className="font-semibold text-foreground">Creates</span>
+                      <p className="mt-1 leading-relaxed text-muted-foreground">{card.creates}</p>
+                    </div>
+                  </div>
                 </div>
                 <div className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2", active ? "border-primary bg-primary" : "border-muted-foreground/30")}>
                   {active && <div className="h-2.5 w-2.5 rounded-full bg-background" />}
@@ -661,30 +898,15 @@ export default function GuidedSetupPage() {
 
         <div className={cn(setupActionRowCls, "justify-between")}>
           <button
+            type="button"
             onClick={() => setStep(1)}
             className="flex items-center gap-2 rounded-full border border-border/50 bg-background/50 px-6 py-3 text-sm font-semibold text-foreground transition-all hover:bg-muted"
           >
             <ArrowLeft className="h-4 w-4" /> Back
           </button>
           <button
-            onClick={() => {
-              if (mode === "blank") {
-                setStep(4);
-              } else {
-                if (mode === "template") {
-                  selectTemplate(recommendTemplateId(intake));
-                }
-                if (mode === "saved" && customTemplates.length === 0) {
-                  toast.error("No saved templates yet", { description: "Save an existing project as a template from Manage Projects first." });
-                  return;
-                }
-                if (mode === "saved" && selectedCustomTemplate) {
-                  setPhase(selectedCustomTemplate.recommendedPhase);
-                  setMethodology(selectedCustomTemplate.recommendedMethodology);
-                }
-                setStep(3);
-              }
-            }}
+            type="button"
+            onClick={continueFromSource}
             className="group flex items-center gap-2 rounded-full bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground shadow-lg transition-all hover:scale-105 hover:bg-primary/90 hover:shadow-primary/25"
           >
             Continue <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -718,7 +940,34 @@ export default function GuidedSetupPage() {
         <div className="rounded-2xl border border-border/50 bg-card/40 p-8 shadow-xl backdrop-blur-xl">
           {mode === "template" && (
             <div className="space-y-8">
-              <div className="space-y-4" data-tour-id="setup-template">
+              <div className="rounded-xl border border-border/50 bg-background/50 p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Why this recommendation</p>
+                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                      The setup engine matched your discovery facts to a command-center playbook. Change the template if the delivery shape is wrong; keep it if these facts describe the project.
+                    </p>
+                  </div>
+                  <span className={cn(
+                    "rounded-full border px-3 py-1 text-xs font-semibold",
+                    feasibility.status === "credible"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : feasibility.status === "compressed"
+                      ? "border-amber-200 bg-amber-50 text-amber-700"
+                      : "border-rose-200 bg-rose-50 text-rose-700",
+                  )}>
+                    {feasibility.status === "credible" ? "Credible timeline" : feasibility.status === "compressed" ? "Compressed timeline" : "Timeline risk"}
+                  </span>
+                </div>
+                <div className="mt-4 grid grid-cols-1 gap-3 text-sm md:grid-cols-4">
+                  <Metric label="System" value={optionLabel(systemOptions, intake.systemFamily)} />
+                  <Metric label="Project type" value={optionLabel(PROJECT_TYPE_OPTIONS, intake.projectType)} />
+                  <Metric label="Control model" value={optionLabel(controlOptions, intake.controlModel)} />
+                  <Metric label="Scope areas" value={intake.scopeElements.length} />
+                </div>
+              </div>
+
+              <div className="space-y-4">
                 <h3 className="text-sm font-semibold text-foreground">Recommended build template</h3>
                 <Field label="Template">
                   <select value={templateId} onChange={(event) => selectTemplate(event.target.value as ProjectTemplateId)} className={cn(inputCls, "bg-background/50 text-base py-2")}>
@@ -1091,13 +1340,15 @@ export default function GuidedSetupPage() {
 
         <div className={cn(setupActionRowCls, "justify-between")}>
           <button
+            type="button"
             onClick={() => setStep(2)}
             className="flex items-center gap-2 rounded-full border border-border/50 bg-background/50 px-6 py-3 text-sm font-semibold text-foreground transition-all hover:bg-muted"
           >
             <ArrowLeft className="h-4 w-4" /> Back
           </button>
           <button
-            onClick={() => setStep(4)}
+            type="button"
+            onClick={continueFromModel}
             className="group flex items-center gap-2 rounded-full bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground shadow-lg transition-all hover:scale-105 hover:bg-primary/90 hover:shadow-primary/25"
           >
             Review <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -1144,7 +1395,37 @@ export default function GuidedSetupPage() {
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-2xl border border-border/50 bg-card/40 p-6 shadow-xl backdrop-blur-xl" data-tour-id="setup-summary">
+          <div className="rounded-2xl border border-primary/20 bg-primary/5 p-6 shadow-xl backdrop-blur-xl">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">What happens after create</h3>
+                <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+                  The project opens on Dashboard with a setup review banner. The guided path then moves through Milestones, Tasks, Risks, Documents, Charter, Costs, and Reports so the command center becomes operational evidence, not just generated rows.
+                </p>
+              </div>
+              <Sparkles className="h-5 w-5 text-primary" />
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-3 text-sm md:grid-cols-4">
+              <div className="rounded-lg border border-border/60 bg-background/70 p-3">
+                <p className="font-semibold text-foreground">1. Dashboard</p>
+                <p className="mt-1 text-muted-foreground">Confirm the project story and setup review prompt.</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-background/70 p-3">
+                <p className="font-semibold text-foreground">2. Plan records</p>
+                <p className="mt-1 text-muted-foreground">Review milestones, owners, dependencies, and schedule impact.</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-background/70 p-3">
+                <p className="font-semibold text-foreground">3. Governance evidence</p>
+                <p className="mt-1 text-muted-foreground">Confirm risks, issues, decisions, documents, and charter readiness.</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-background/70 p-3">
+                <p className="font-semibold text-foreground">4. Reports</p>
+                <p className="mt-1 text-muted-foreground">Produce SteerCo-ready reporting from the same evidence trail.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border/50 bg-card/40 p-6 shadow-xl backdrop-blur-xl">
             <h3 className="text-lg font-semibold text-foreground">Project Identity</h3>
             <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
               <div>
@@ -1244,12 +1525,14 @@ export default function GuidedSetupPage() {
 
         <div className={cn(setupActionRowCls, "justify-between")}>
           <button
+            type="button"
             onClick={() => setStep(mode === "blank" ? 2 : 3)}
             className="flex items-center gap-2 rounded-full border border-border/50 bg-background/50 px-6 py-3 text-sm font-semibold text-foreground transition-all hover:bg-muted"
           >
             <ArrowLeft className="h-4 w-4" /> Back
           </button>
           <button
+            type="button"
             onClick={handleCreate}
             className="group flex items-center gap-2 rounded-full bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground shadow-lg transition-all hover:scale-105 hover:bg-primary/90 hover:shadow-primary/25"
           >
@@ -1262,6 +1545,8 @@ export default function GuidedSetupPage() {
 
   return (
     <div className="min-h-[80vh] px-4 py-8 pb-24">
+      {renderJourneyContext()}
+
       {/* Progress Stepper */}
       <div className="mb-12 flex items-center justify-center gap-2">
         {[1, 2, 3, 4].map((s) => (
@@ -1329,7 +1614,7 @@ function OperatingModelPreview({
   ];
 
   return (
-    <div className="rounded-2xl border border-border/50 bg-card/40 p-6 shadow-xl backdrop-blur-xl">
+    <div id="setup-review-records" className="rounded-2xl border border-border/50 bg-card/40 p-6 shadow-xl backdrop-blur-xl">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="text-lg font-semibold text-foreground">Generated Operating Model</h3>
@@ -1622,7 +1907,7 @@ function FeasibilityCard({ feasibility, onRevisitTimeline }: { feasibility: Setu
   );
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
+function Metric({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="rounded-xl border border-border/50 bg-background/50 p-4 text-center transition-all hover:bg-background">
       <p className="text-3xl font-black tabular-nums text-foreground">{value}</p>

@@ -13,10 +13,12 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import "@/app/styles/dashboard.css";
 import { getKpis, budgetTrend, riskTrend } from "@/lib/mockData";
-import { useProject } from "@/components/projects/project-provider";
+import { SAMPLE_OPTIN_KEY, useProject } from "@/components/projects/project-provider";
 import { GuidedWorkPanel } from "@/components/guidance/guided-work-panel";
+import { GUIDANCE_ROLE_EVENT, GUIDANCE_ROLE_KEY } from "@/components/guidance/role-selector";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { useProjectEvm } from "@/lib/hooks/use-project-evm";
+import { guidanceRoleLabel, type GuidanceRole } from "@/lib/guidance/guided-work";
 import { calculateDeliveryTruth, calculateForecastDate, type DeliveryTruthSource } from "@/lib/domain/delivery-truth";
 import { daysBetween } from "@/lib/domain/dates";
 
@@ -65,11 +67,26 @@ const PHASES = [
 ] as const;
 
 const SETUP_REVIEW_TOUR_KEY = "aivello_pending_setup_review_v1";
+const launchpadRoles: GuidanceRole[] = ["pm", "sponsor", "qa"];
+const launchpadRoleCopy: Record<GuidanceRole, string> = {
+  pm: "Show me setup, schedule impact, ownership, blockers, and what to do next.",
+  sponsor: "Show me confidence, decisions, budget pressure, and SteerCo-ready reporting.",
+  qa: "Show me validation evidence, readiness gates, approvals, risks, and audit-facing records.",
+};
+
+function readLaunchpadRole(): GuidanceRole {
+  try {
+    const stored = localStorage.getItem(GUIDANCE_ROLE_KEY);
+    return launchpadRoles.includes(stored as GuidanceRole) ? stored as GuidanceRole : "pm";
+  } catch {
+    return "pm";
+  }
+}
 
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { activeProjectId, activeProject } = useProject();
+  const { projects, activeProjectId, activeProject } = useProject();
   const kpis = getKpis(activeProjectId);
   const charters = useEntityStore((s) => s.charters);
   const milestones = useEntityStore((s) => s.milestones);
@@ -79,6 +96,8 @@ export default function DashboardPage() {
   const costLines = useEntityStore((s) => s.costLines);
   const charter  = charters.find((c) => c.projectId === activeProjectId);
   const [showSetupReview, setShowSetupReview] = useState(false);
+  const [sampleOptedIn, setSampleOptedIn] = useState(false);
+  const [launchpadRole, setLaunchpadRole] = useState<GuidanceRole>("pm");
 
   useEffect(() => {
     try {
@@ -88,12 +107,41 @@ export default function DashboardPage() {
     }
   }, [activeProjectId]);
 
+  useEffect(() => {
+    try {
+      setSampleOptedIn(localStorage.getItem(SAMPLE_OPTIN_KEY) === "1");
+    } catch {
+      setSampleOptedIn(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    setLaunchpadRole(readLaunchpadRole());
+  }, []);
+
   function dismissSetupReview() {
     try {
       sessionStorage.removeItem(SETUP_REVIEW_TOUR_KEY);
     } catch {}
     setShowSetupReview(false);
   }
+
+  function exploreSampleProject() {
+    try {
+      localStorage.setItem(SAMPLE_OPTIN_KEY, "1");
+    } catch {}
+    setSampleOptedIn(true);
+  }
+
+  function updateLaunchpadRole(role: GuidanceRole) {
+    setLaunchpadRole(role);
+    try {
+      localStorage.setItem(GUIDANCE_ROLE_KEY, role);
+      window.dispatchEvent(new CustomEvent(GUIDANCE_ROLE_EVENT, { detail: role }));
+    } catch {}
+  }
+
+  const hasRealProject = projects.some((project) => !project.isSample);
 
   // One schedule truth: same milestone-drift source as the Delivery Signals
   // page (calculateForecastDate), replacing the mock scheduleVariance that
@@ -144,6 +192,103 @@ export default function DashboardPage() {
     : evm.verdict.level === "watch" ? "var(--color-status-warn-dot)"
     : "var(--color-status-risk-dot)";
   const fmtM = (v: number) => `$${(v / 1_000_000).toFixed(2)}M`;
+
+  if (!hasRealProject && !sampleOptedIn) {
+    const timeline = [
+      ["Discover", "Capture the project type, dates, regions, governance needs, and starting evidence."],
+      ["Build", "Create the command center from a pharma playbook, import, saved template, or blank skeleton."],
+      ["Validate", "Check generated milestones, tasks, risks, approvals, owners, and dates before the plan becomes active."],
+      ["Run", "Use live signals, worklists, readiness gates, and schedule impact to manage delivery week by week."],
+      ["Report", "Turn the same evidence into leadership-ready status, SteerCo, and workstream reports."],
+    ];
+
+    return (
+      <section className="command-launchpad" aria-label="Command Center Launchpad">
+        <div className="command-launchpad__hero" data-tour-id="dashboard-verdict">
+          <div>
+            <div className="page-header__eyebrow">Command Center Launchpad</div>
+            <h1 className="t-page-title page-header__title">Run regulated implementation projects with evidence you can defend.</h1>
+            <p>
+              Run regulated implementation projects with live delivery evidence, schedule impact, governance, cost, and SteerCo-ready reporting.
+            </p>
+            <p>
+              Core issue it solves: project teams usually maintain one plan for delivery, another story for sponsors, and scattered evidence for audit. This command center keeps those views connected.
+            </p>
+          </div>
+          <div className="command-launchpad__role" data-tour-id="dashboard-confidence">
+            <span>Guidance role</span>
+            <div className="command-launchpad__role-options" role="group" aria-label="Guidance role">
+              {launchpadRoles.map((role) => (
+                <button
+                  key={role}
+                  type="button"
+                  className={role === launchpadRole ? "command-launchpad__role-option command-launchpad__role-option--active" : "command-launchpad__role-option"}
+                  onClick={() => updateLaunchpadRole(role)}
+                  aria-pressed={role === launchpadRole}
+                >
+                  {guidanceRoleLabel(role)}
+                </button>
+              ))}
+            </div>
+            <p>{launchpadRoleCopy[launchpadRole]}</p>
+          </div>
+        </div>
+
+        <div className="command-launchpad__journey" data-tour-id="dashboard-what-now">
+          <div className="command-launchpad__section-head">
+            <div className="command-launchpad__eyebrow">Journey timeline</div>
+            <h2>Discover → Build → Validate → Run → Report</h2>
+          </div>
+          <ol className="command-launchpad__timeline">
+            {timeline.map(([label, body]) => (
+              <li key={label}>
+                <strong>{label}</strong>
+                <p>{body}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+
+        <div className="command-launchpad__grid" data-tour-id="dashboard-kpis">
+          <button type="button" className="command-launchpad__card command-launchpad__card--button" onClick={exploreSampleProject}>
+            <span>1</span>
+            <strong>Explore sample project</strong>
+            <p>Use the seeded Veeva RIM project to see the command center with realistic delivery evidence.</p>
+          </button>
+          <Link href="/setup?start=playbook" className="command-launchpad__card">
+            <span>2</span>
+            <strong>Create from playbook</strong>
+            <p>Start from a pharma implementation pattern when the project resembles a known rollout.</p>
+          </Link>
+          <Link href="/setup?start=import" className="command-launchpad__card">
+            <span>3</span>
+            <strong>Import existing plan</strong>
+            <p>Bring in an existing schedule, preview what maps, and review before creating records.</p>
+          </Link>
+          <Link href="/setup?start=blank" className="command-launchpad__card">
+            <span>4</span>
+            <strong>Start blank skeleton</strong>
+            <p>Create the minimum structure when the team wants to build the plan manually.</p>
+          </Link>
+        </div>
+
+        <div className="command-launchpad__knowledge" data-tour-id="dashboard-confidence">
+          <details>
+            <summary>What is this?</summary>
+            <p>
+              PharmaPM Command Center is a working control room for regulated implementation delivery. It connects plan records, evidence, readiness, cost, governance, and reporting so a PM can explain what is true and what needs action.
+            </p>
+          </details>
+          <details>
+            <summary>How the command center works</summary>
+            <p>
+              You create or import a project, validate the generated records, then operate from live dashboards, Delivery Signals, worklists, readiness gates, and reports. Guidance stays available through the Guide drawer and DAP toggle after setup.
+            </p>
+          </details>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <>
