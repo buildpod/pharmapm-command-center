@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { cloneElement, Fragment, isValidElement, useEffect, useId, type ReactElement } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -141,15 +141,26 @@ export function Field({
   children: React.ReactNode;
   className?: string;
 }) {
+  // Associate the label with its control explicitly. A single form element gets
+  // an injected id + matching htmlFor; composite children (e.g. a checkbox
+  // group rendered as a <div>) keep their own structure with no broken
+  // association. Outer element is a <div>, not a <label>, so nested control
+  // labels inside composite fields stay valid.
+  const generatedId = useId();
+  const control =
+    isValidElement(children) && children.type !== Fragment
+      ? (children as ReactElement<{ id?: string }>)
+      : null;
+  const fieldId = control?.props.id ?? generatedId;
   return (
-    <label className={cn("field", className)}>
-      <span className="field-label">
+    <div className={cn("field", className)}>
+      <label htmlFor={control ? fieldId : undefined} className="field-label">
         {label}
         {required && <span className="field-required">*</span>}
-      </span>
-      {children}
+      </label>
+      {control ? cloneElement(control, { id: fieldId }) : children}
       {hint && <span className="field-hint">{hint}</span>}
-    </label>
+    </div>
   );
 }
 

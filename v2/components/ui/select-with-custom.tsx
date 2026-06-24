@@ -16,12 +16,14 @@ export function SelectWithCustom({
   options,
   placeholder = "Type a new value…",
   newLabel = "+ Other (type new)…",
+  id,
 }: {
   value: string;
   onChange: (next: string) => void;
   options: string[];
   placeholder?: string;
   newLabel?: string;
+  id?: string;
 }) {
   // If value isn't in options (and isn't empty), force custom mode
   const valueIsKnown = value === "" || options.includes(value);
@@ -31,6 +33,7 @@ export function SelectWithCustom({
     return (
       <div className="flex gap-1.5">
         <input
+          id={id}
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -52,6 +55,7 @@ export function SelectWithCustom({
 
   return (
     <select
+      id={id}
       value={value}
       onChange={(e) => {
         if (e.target.value === "__new__") {
