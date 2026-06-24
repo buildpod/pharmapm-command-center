@@ -3,14 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { HelpCircle, Menu, Sun, Moon, Plus, Settings } from "lucide-react";
+import { HelpCircle, Menu, Plus, Settings } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { SidebarContent } from "@/components/sidebar";
 import { CommandPaletteTrigger } from "@/components/command-palette";
 import { NotificationBell } from "@/components/notification-bell";
 import { ExportButton } from "@/components/projects/export-button";
 import { ProjectSwitcher } from "@/components/projects/project-switcher";
-import { useTheme } from "@/components/theme-provider";
 import { useProject } from "@/components/projects/project-provider";
 import { HelpDrawer } from "@/components/guidance/help-drawer";
 import { PageTour } from "@/components/guidance/page-tour";
@@ -30,7 +29,6 @@ export function Topbar() {
   const [adminOpen, setAdminOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const adminRef = useRef<HTMLDivElement>(null);
-  const { theme, toggle } = useTheme();
   const { activeProject } = useProject();
   const { tab, itemLabel } = getRouteNavContext(pathname);
   const helpRoute = normalizeHelpRoute(pathname);
@@ -82,16 +80,6 @@ export function Topbar() {
         </div>
 
         <CommandPaletteTrigger />
-
-        <button
-          type="button"
-          className="topbar-icon-button"
-          onClick={toggle}
-          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-        >
-          {theme === "dark" ? <Sun /> : <Moon />}
-        </button>
 
         <NotificationBell />
 

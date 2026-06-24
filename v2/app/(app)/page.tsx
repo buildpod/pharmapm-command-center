@@ -55,17 +55,6 @@ const charterStatusPill: Record<string, string> = {
   approved:  "pill pill--ok",
 };
 
-// Phase progress shown as 6 segments in the reference; pull live values
-// from the existing PhaseProgress data source via the mockData export.
-const PHASES = [
-  { key: "p1", name: "Initiation", pct: 100, state: "done" },
-  { key: "p2", name: "Design",     pct: 90,  state: "done" },
-  { key: "p3", name: "Config",     pct: 45,  state: "active" },
-  { key: "p4", name: "Testing",    pct: 0,   state: "pending" },
-  { key: "p5", name: "Training",   pct: 0,   state: "pending" },
-  { key: "p6", name: "Go-Live",    pct: 0,   state: "pending" },
-] as const;
-
 const SETUP_REVIEW_TOUR_KEY = "aivello_pending_setup_review_v1";
 const launchpadRoles: GuidanceRole[] = ["pm", "sponsor", "qa"];
 const launchpadRoleCopy: Record<GuidanceRole, string> = {
@@ -147,6 +136,28 @@ export default function DashboardPage() {
   // page (calculateForecastDate), replacing the mock scheduleVariance that
   // contradicted it ("+7d At Risk" here vs "On target" there).
   const projectMilestones = milestones.filter((m) => m.projectId === activeProjectId);
+
+  // Phase progress is computed live from this project's milestones (grouped by
+  // their declared phase) — no hand-set lifecycle percentages.
+  const phaseProgress = useMemo(() => {
+    const order: string[] = [];
+    const byPhase = new Map<string, { complete: number; total: number }>();
+    for (const m of projectMilestones) {
+      if (!byPhase.has(m.phase)) { byPhase.set(m.phase, { complete: 0, total: 0 }); order.push(m.phase); }
+      const bucket = byPhase.get(m.phase)!;
+      bucket.total += 1;
+      if (m.status === "complete") bucket.complete += 1;
+    }
+    return order.map((name) => {
+      const { complete, total } = byPhase.get(name)!;
+      const pct = total ? Math.round((complete / total) * 100) : 0;
+      return { name, pct, state: pct === 100 ? "done" : pct > 0 ? "active" : "pending" };
+    });
+  }, [projectMilestones]);
+  const overallPhasePct = phaseProgress.length
+    ? Math.round(phaseProgress.reduce((sum, p) => sum + p.pct, 0) / phaseProgress.length)
+    : 0;
+
   const forecastDate = calculateForecastDate(activeProject, projectMilestones);
   const scheduleDeltaDays = daysBetween(activeProject.goLiveDate, forecastDate);
   const scheduleOnTrack = scheduleDeltaDays <= 0;
@@ -395,9 +406,7 @@ export default function DashboardPage() {
           <div className="kpi__value-row">
             <span className="t-kpi-value kpi__value">{scheduleOnTrack ? "On Track" : "At Risk"}</span>
           </div>
-          <div className="kpi__sub">{scheduleVarianceLabel}</div>
-          <KpiSparkline />
-        </Link>
+          <div className="kpi__sub">{scheduleVarianceLabel}</div>        </Link>
 
         <Link href="/risks" className={`kpi ${riskKpiAccent}`}>
           <div className="kpi__label">Open Risks</div>
@@ -410,9 +419,7 @@ export default function DashboardPage() {
             {kpis.highRisks === 0 && kpis.medRisks === 0 && (
               <span className="pill pill--ok">All low</span>
             )}
-          </div>
-          <KpiSparkline />
-        </Link>
+          </div>        </Link>
 
         <Link href="/costs" className={`kpi ${budgetKpiAccent}`}>
           <div className="kpi__label">Budget Utilised</div>
@@ -421,18 +428,14 @@ export default function DashboardPage() {
           </div>
           <div className="kpi__sub">
             <strong>${(kpis.latestActualK / 1000).toFixed(2)}M</strong> of ${(kpis.totalBudgetK / 1000).toFixed(1)}M
-          </div>
-          <KpiSparkline />
-        </Link>
+          </div>        </Link>
 
         <Link href="/milestones" className="kpi kpi--info">
           <div className="kpi__label">Days to Go-Live</div>
           <div className="kpi__value-row">
             <span className="t-kpi-value kpi__value">{kpis.daysToGoLive}</span>
           </div>
-          <div className="kpi__sub">Target <strong>{formatDate(activeProject.goLiveDate)}</strong></div>
-          <KpiSparkline />
-        </Link>
+          <div className="kpi__sub">Target <strong>{formatDate(activeProject.goLiveDate)}</strong></div>        </Link>
       </div>
 
       {/* Charter strip — full-width status row */}
@@ -464,23 +467,28 @@ export default function DashboardPage() {
               <div className="t-card-title">
                 Project Phase Progress <Link href="/milestones" className="card-link-hint">View milestones →</Link>
               </div>
-              <div className="t-meta">6-phase GAMP 5 lifecycle · {PHASES.reduce((s, p) => s + p.pct, 0) / PHASES.length | 0}% overall</div>
+              <div className="t-meta">
+                {phaseProgress.length > 0
+                  ? `${phaseProgress.length}-phase lifecycle · ${overallPhasePct}% complete`
+                  : "Milestone lifecycle"}
+              </div>
             </div>
-            <span className="pill pill--info">Phase 3 of 6</span>
+            {phaseProgress.length > 0 && <span className="pill pill--info">{overallPhasePct}% complete</span>}
           </div>
           <div className="card__body">
-            <div className="phase-tracker">
-              {PHASES.map((p) => (
-                <div
-                  key={p.key}
-                  className={`phase phase--${p.state}`}
-                >
-                  <div className="phase__fill" style={{ width: `${p.pct}%` }} />
-                  <div className="phase__name">{p.name}</div>
-                  <div className="phase__pct">{p.pct}%</div>
-                </div>
-              ))}
-            </div>
+            {phaseProgress.length > 0 ? (
+              <div className="phase-tracker">
+                {phaseProgress.map((p) => (
+                  <div key={p.name} className={`phase phase--${p.state}`}>
+                    <div className="phase__fill" style={{ width: `${p.pct}%` }} />
+                    <div className="phase__name">{p.name}</div>
+                    <div className="phase__pct">{p.pct}%</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="t-meta">Add milestones with a phase to see lifecycle progress.</div>
+            )}
           </div>
         </section>
 
@@ -727,15 +735,5 @@ export default function DashboardPage() {
         </div>
       </details>
     </>
-  );
-}
-
-function KpiSparkline() {
-  return (
-    <div className="kpi-trend" aria-hidden="true">
-      <svg viewBox="0 0 120 28" preserveAspectRatio="none">
-        <path d="M2 22 C18 18 26 20 40 14 S66 8 82 12 104 10 118 4" />
-      </svg>
-    </div>
   );
 }

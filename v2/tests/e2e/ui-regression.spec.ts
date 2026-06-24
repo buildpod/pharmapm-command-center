@@ -130,7 +130,7 @@ test("deep links highlight the matching primary tab and contextual rail item", a
   await expect(page.locator(".crumbs")).toContainText(/Governance · Risks/);
 });
 
-test("topbar search, theme, notifications, and project switcher are usable", async ({ page, isMobile }) => {
+test("topbar search, notifications, and project switcher are usable", async ({ page, isMobile }) => {
   await gotoApp(page, "/");
 
   await page.getByRole("button", { name: /open search/i }).click();
@@ -139,9 +139,6 @@ test("topbar search, theme, notifications, and project switcher are usable", asy
   await search.fill("tasks");
   await expect(page.getByRole("option", { name: /tasks/i })).toBeVisible();
   await page.keyboard.press("Escape");
-
-  await page.getByRole("button", { name: /switch to dark mode|switch to light mode/i }).click();
-  await expect(page.locator("html")).toHaveAttribute("class", /dark|light|/);
 
   await page.getByRole("button", { name: /notifications|alerts/i }).click();
   await expect(page.locator("body")).toContainText(/Alerts|No alerts|active/i);

@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { ProjectSwitcher } from "@/components/projects/project-switcher";
 import { adminNavItems, appTabs, getRouteNavContext, isActiveRoute, utilityNavItems, type AppNavItem } from "@/lib/navigation";
+import { useCurrentUser } from "@/lib/settingsStore";
 
 const iconByHref = {
   "/": LayoutDashboard,
@@ -50,6 +51,7 @@ const iconByHref = {
 export function SidebarContent({ mode = "desktop", onNavigate }: { mode?: "desktop" | "mobile"; onNavigate?: () => void }) {
   const pathname = usePathname();
   const { tab } = getRouteNavContext(pathname);
+  const { name, initials } = useCurrentUser();
   const navGroups = mode === "mobile" ? appTabs : [tab];
 
   return (
@@ -94,10 +96,9 @@ export function SidebarContent({ mode = "desktop", onNavigate }: { mode?: "deskt
       </nav>
 
       <div className="nav-user">
-        <div className="nav-user__avatar">VP</div>
+        <div className="nav-user__avatar">{initials}</div>
         <div>
-          <div className="nav-user__name">Vineet Pathak</div>
-          <div className="nav-user__role">Project Manager</div>
+          <div className="nav-user__name">{name}</div>
         </div>
       </div>
     </>

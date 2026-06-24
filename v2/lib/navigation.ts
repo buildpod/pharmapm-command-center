@@ -52,9 +52,9 @@ export const appTabs: AppTab[] = [
       { label: "Governance", href: "/governance" },
       { label: "Charter", href: "/charter" },
       { label: "Decisions", href: "/decisions" },
-      { label: "Risks", href: "/risks", count: "3" },
+      { label: "Risks", href: "/risks" },
       { label: "Issues", href: "/issues" },
-      { label: "Documents", href: "/documents", count: "2", countTone: "info" },
+      { label: "Documents", href: "/documents" },
     ],
     quickActions: [
       { label: "Record decision", href: "/decisions" },
