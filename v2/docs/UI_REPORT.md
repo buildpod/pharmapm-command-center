@@ -93,7 +93,9 @@ because a second system overrides it on most screens:
 
 **Look-and-feel recommendations**
 1. Pick **one** primary colour (teal is the more distinctive brand choice) and
-   one type identity; delete the loser.
+   one type identity; delete the loser. **✅ Colour unified to teal
+   (2026-06-24, Phase 2a):** Tailwind `--primary`/`--ring` map to brand teal
+   `#0f7c6c`, matching `.btn--primary`. Type identity still split.
 2. If serif stays, ensure the fonts actually load and apply app-wide _(verify in
    browser — the globals stack omits them)_.
 3. Keep the muted palette, but ensure a true `risk/breach` has enough contrast to
@@ -326,7 +328,7 @@ indicative; _(scan)_ items need a closer pass.
 | **P0** | Sidebar identity → `useCurrentUser()`; drop "Project Manager" | §10/§11 | XS | G1 | ✅ done (Phase 1) |
 | **P1** | Composite-field label association (per-call-site audit) | §8 | S | a11y | ✅ done (2026-06-24) |
 | **P1** | Dark mode: light default, dark optional → real dark support deferred into §3 convergence | §5 | M | — | ✅ decided; toggle hidden meanwhile |
-| **P1** | Pick one primary colour + one type identity | §2 | M | brand | open |
+| **P1** | Unify primary colour + type identity | §2 | M | brand | 🟡 colour ✅ teal (2a); type pending |
 | **P1** | Unify the styling system; bespoke library or Tailwind theme, not both | §3 | L | drift | open |
 | **P2** | Dashboard progressive disclosure + plain-language EVM | §6 | M | UX #2/#4 | open |
 | **P2** | Single home-route name (Dashboard) | §4 | XS | content | open |

@@ -14,8 +14,10 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    /* Primary: deeper indigo, less saturated than default shadcn blue */
-    --primary: 224 71% 36%;
+    /* Primary: brand deep teal (#0f7c6c) — single CTA colour across the app,
+       matching the bespoke .btn--primary so the action colour no longer
+       changes by page. */
+    --primary: 171 78% 27%;
     --primary-foreground: 210 40% 98%;
 
     --secondary: 220 14% 96%;
@@ -32,7 +34,7 @@
 
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 224 71% 36%;
+    --ring: 171 78% 27%;
 
     --radius: 0.5rem;
   }
@@ -47,7 +49,7 @@
     --popover: 222 47% 9%;
     --popover-foreground: 210 20% 98%;
 
-    --primary: 217 91% 60%;
+    --primary: 174 76% 36%;
     --primary-foreground: 222 47% 11%;
 
     --secondary: 217 19% 18%;
@@ -64,7 +66,7 @@
 
     --border: 217 19% 22%;
     --input: 217 19% 22%;
-    --ring: 217 91% 60%;
+    --ring: 174 76% 36%;
   }
 }
 
