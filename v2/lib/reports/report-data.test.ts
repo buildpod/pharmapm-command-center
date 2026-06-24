@@ -246,6 +246,36 @@ describe("report data builders", () => {
     expect(typeof overstated.integrityCaveat).toBe("string");
   });
 
+  it("has no trend before a reporting point exists, but always emits a current snapshot (O10)", () => {
+    const report = buildWeeklyReportData(input());
+    expect(report.trend).toBeNull();
+    expect(report.currentSnapshot.committedGoLive).toBe(activeProject.goLiveDate);
+    expect(report.currentSnapshot.weekLabel).toBe(report.reportWeek);
+  });
+
+  it("computes confidence + go-live direction since the last captured point (O10)", () => {
+    const report = buildWeeklyReportData(input({
+      previousSnapshot: {
+        at: "2026-06-05T00:00:00.000Z",
+        weekLabel: "Week of 05 Jun 2026",
+        confidence: 70,
+        scheduleHealth: "Amber",
+        daysToGoLive: 100,
+        committedGoLive: "2026-09-20", // earlier than the project's 2026-09-30 go-live
+        budgetBurnPct: 25,
+      },
+    }));
+
+    expect(report.trend).not.toBeNull();
+    // go-live moved 10 days LATER → declining direction.
+    expect(report.trend!.goLiveSlipDays).toBe(10);
+    expect(report.trend!.goLiveDirection).toBe("declining");
+    // current confidence (0 here) is below the prior 70 → declining.
+    expect(report.trend!.confidenceDelta).toBeLessThan(0);
+    expect(report.trend!.confidenceDirection).toBe("declining");
+    expect(report.trend!.sinceLabel).toBe("Week of 05 Jun 2026");
+  });
+
   it("surfaces pending SteerCo decision records with focus links", () => {
     const report = buildSteerCoReportData(input());
 

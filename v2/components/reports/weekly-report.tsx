@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
-import { Printer, Download, AlertTriangle, CheckCircle2, Clock, ChevronRight } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Printer, Download, AlertTriangle, CheckCircle2, Clock, ChevronRight, TrendingUp, TrendingDown, Minus, CalendarClock } from "lucide-react";
+import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { useProject } from "@/components/projects/project-provider";
 import { useProjectEvm } from "@/lib/hooks/use-project-evm";
@@ -14,6 +15,7 @@ import {
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { readAuditLog } from "@/lib/stores/audit";
 import { getRebaselineHistory } from "@/lib/stores/baseline-store";
+import { captureSnapshot, getLatestSnapshot } from "@/lib/stores/trend-store";
 import { cn } from "@/lib/utils";
 
 function slugFile(value: string) {
@@ -92,6 +94,51 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+// O10 — "is this getting better or worse?" Shows the delta in confidence and
+// go-live since the last captured reporting point. Before any point exists, it
+// prompts the PM to capture the first one so tracking can start.
+function TrendBanner({ data }: { data: WeeklyReportData }) {
+  const t = data.trend;
+  if (!t) {
+    return (
+      <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground print:hidden">
+        <CalendarClock className="h-4 w-4 shrink-0" />
+        <span>No prior reporting point yet — use <strong>Capture point</strong> to start tracking direction of travel (confidence &amp; go-live) week over week.</span>
+      </div>
+    );
+  }
+
+  const confImproving = t.confidenceDirection === "improving";
+  const confDeclining = t.confidenceDirection === "declining";
+  const ConfIcon = confImproving ? TrendingUp : confDeclining ? TrendingDown : Minus;
+  const confColor = confImproving ? "text-emerald-600" : confDeclining ? "text-rose-600" : "text-muted-foreground";
+  const confWord = confImproving ? "improving" : confDeclining ? "declining" : "unchanged";
+
+  const slip = t.goLiveSlipDays;
+  const GoLiveIcon = t.goLiveDirection === "improving" ? TrendingUp : t.goLiveDirection === "declining" ? TrendingDown : Minus;
+  const goLiveColor = t.goLiveDirection === "improving" ? "text-emerald-600" : t.goLiveDirection === "declining" ? "text-rose-600" : "text-muted-foreground";
+  const goLiveWord = slip === 0 ? "held" : slip > 0 ? `slipped ${slip}d later` : `pulled in ${Math.abs(slip)}d`;
+
+  return (
+    <div className="rounded-md border border-border bg-card px-3 py-2.5 text-sm print:break-inside-avoid">
+      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Since last reporting point ({t.sinceLabel}, {fmtReportDate(t.sinceDate)})
+      </p>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5">
+        <span className={cn("inline-flex items-center gap-1.5 font-medium", confColor)}>
+          <ConfIcon className="h-4 w-4" />
+          Confidence {confWord}
+          <span className="tabular-nums">({t.confidenceDelta > 0 ? "+" : ""}{t.confidenceDelta} pts)</span>
+        </span>
+        <span className={cn("inline-flex items-center gap-1.5 font-medium", goLiveColor)}>
+          <GoLiveIcon className="h-4 w-4" />
+          Go-live {goLiveWord}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 const msStatusStyles: Record<string, string> = {
   complete: "bg-emerald-50 text-emerald-700 border border-emerald-200",
   "in-progress": "bg-blue-50 text-blue-700 border border-blue-200",
@@ -109,11 +156,23 @@ export function WeeklyReport() {
   const decisionRecords = useEntityStore((state) => state.decisionRecords);
   const issues = useEntityStore((state) => state.issues);
   const evm = useProjectEvm();
+  // O10 — bump to re-read the trend store after capturing a reporting point.
+  const [captureTick, setCaptureTick] = useState(0);
 
   const data = useMemo(
-    () => buildWeeklyReportData({ project: activeProject, milestones, tasks, risks, documents, costLines, decisionRecords, issues, evm, auditLog: readAuditLog(activeProject.id), rebaselines: getRebaselineHistory(activeProject.id) }),
-    [activeProject, milestones, tasks, risks, documents, costLines, decisionRecords, issues, evm]
+    () => buildWeeklyReportData({ project: activeProject, milestones, tasks, risks, documents, costLines, decisionRecords, issues, evm, auditLog: readAuditLog(activeProject.id), rebaselines: getRebaselineHistory(activeProject.id), previousSnapshot: getLatestSnapshot(activeProject.id) }),
+    [activeProject, milestones, tasks, risks, documents, costLines, decisionRecords, issues, evm, captureTick]
   );
+
+  // O10 — capture this report as a trend point so the next report can show the
+  // delta. Idempotent per report week (re-capturing replaces the same week).
+  function handleCapturePoint() {
+    captureSnapshot(activeProject.id, data.currentSnapshot);
+    setCaptureTick((t) => t + 1);
+    toast.success("Reporting point captured", {
+      description: `${data.reportWeek} · confidence ${data.currentSnapshot.confidence}. The next report will show the change since now.`,
+    });
+  }
 
   const healthColor =
     data.scheduleHealth === "Green" ? "text-green-600" :
@@ -141,6 +200,14 @@ export function WeeklyReport() {
         >
           <Download className="h-3.5 w-3.5" />
           Export Excel
+        </button>
+        <button
+          onClick={handleCapturePoint}
+          title="Save this report's headline metrics as a trend point so the next report can show the change since now"
+          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm hover:bg-muted transition-colors"
+        >
+          <CalendarClock className="h-3.5 w-3.5" />
+          Capture point
         </button>
         <span className="text-[10px] text-muted-foreground ml-2">
           7-sheet workbook: Summary · Milestones · Risks · Decisions · Tasks · Evidence · Accepted Changes
@@ -207,6 +274,9 @@ export function WeeklyReport() {
             </div>
           </div>
         )}
+
+        {/* O10 — direction of travel since the last captured reporting point. */}
+        <TrendBanner data={data} />
 
         <Section title="Headline Metrics">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">

@@ -12,7 +12,9 @@ import type { EvmCoverage } from "@/lib/domain/evm-coverage";
 import type { ProjectEvm } from "@/lib/domain/evm-project";
 import type { AuditAction } from "@/lib/stores/audit";
 import type { RebaselineEvent } from "@/lib/stores/baseline-store";
+import type { TrendSnapshot } from "@/lib/stores/trend-store";
 import { computeStatusIntegrity } from "../domain/status-integrity";
+import { confidenceScore } from "../domain/evm-project";
 
 const BASE_ROUTE = "/pharmapm-command-center/v2";
 const DAY_MS = 86_400_000;
@@ -42,6 +44,9 @@ export interface ReportDataInput {
   // O8.4 — re-baseline history (who/when/why the committed go-live moved), so
   // the report shows baseline changes rather than hiding them. Optional.
   rebaselines?: RebaselineEvent[];
+  // O10 — the last captured reporting point, so the report can show the delta
+  // (confidence / go-live trend) "since last time". Optional.
+  previousSnapshot?: TrendSnapshot | null;
 }
 
 export interface ReportBudgetSummary {
@@ -102,6 +107,21 @@ export interface WeeklyReportData {
   integrityCaveat: string | null;
   // O8.4 — re-baseline events (who/when/why the committed go-live moved).
   rebaselines: RebaselineEvent[];
+  // O10 — the snapshot of headline metrics for THIS report (what "capture
+  // point" would store), plus the delta since the last captured point.
+  currentSnapshot: TrendSnapshot;
+  trend: ReportTrend | null;
+}
+
+export type TrendDirection = "improving" | "declining" | "flat";
+
+export interface ReportTrend {
+  sinceLabel: string;            // the report week of the comparison point
+  sinceDate: string;             // ISO date the comparison point was captured
+  confidenceDelta: number;       // current − previous confidence (points)
+  confidenceDirection: TrendDirection;
+  goLiveSlipDays: number;        // current − previous go-live (calendar days; + = later/worse)
+  goLiveDirection: TrendDirection;
 }
 
 export interface SteerCoDecisionItem {
@@ -341,14 +361,47 @@ export function buildWeeklyReportData(input: ReportDataInput): WeeklyReportData 
   const integrityCaveat =
     integrity && integrity.band !== "consistent" ? integrity.flags.map((f) => f.message).join(" ") : null;
 
+  // O10 — snapshot the headline metrics for this report, and compute the delta
+  // since the last captured point so the report shows direction of travel.
+  const reportWeek = `Week of ${fmtReportDate(statusDate)}`;
+  const budgetSummary = buildBudgetSummary(input);
+  const rawConfidence = snapshot ? confidenceScore(snapshot) : 0;
+  const confidence = Number.isFinite(rawConfidence) ? Math.round(rawConfidence) : 0;
+  const currentSnapshot: TrendSnapshot = {
+    at: new Date().toISOString(),
+    weekLabel: reportWeek,
+    confidence,
+    scheduleHealth: schedule.health,
+    daysToGoLive: daysBetween(statusDate, input.project.goLiveDate),
+    committedGoLive: input.project.goLiveDate,
+    budgetBurnPct: budgetSummary.burnPct,
+  };
+  const prev = input.previousSnapshot ?? null;
+  const direction = (delta: number): TrendDirection => (delta > 0 ? "improving" : delta < 0 ? "declining" : "flat");
+  const trend: ReportTrend | null = prev
+    ? (() => {
+        const confidenceDelta = confidence - prev.confidence;
+        const goLiveSlipDays = daysBetween(prev.committedGoLive, input.project.goLiveDate);
+        return {
+          sinceLabel: prev.weekLabel,
+          sinceDate: prev.at.slice(0, 10),
+          confidenceDelta,
+          confidenceDirection: direction(confidenceDelta),
+          goLiveSlipDays,
+          // A LATER go-live (positive slip) is worse, so invert for direction.
+          goLiveDirection: direction(-goLiveSlipDays),
+        };
+      })()
+    : null;
+
   const base: Omit<WeeklyReportData, "evidenceRows"> = {
     project: input.project,
-    reportWeek: `Week of ${fmtReportDate(statusDate)}`,
+    reportWeek,
     nextWindowLabel: `Next 2 Weeks (due by ${fmtReportDate(nextWindow.toISOString().slice(0, 10))})`,
     daysToGoLive: daysBetween(statusDate, input.project.goLiveDate),
     scheduleHealth: schedule.health,
     scheduleVariance: schedule.variance,
-    budget: buildBudgetSummary(input),
+    budget: budgetSummary,
     thisWeekMs,
     upcomingMs,
     thisWeekTasks,
@@ -361,6 +414,8 @@ export function buildWeeklyReportData(input: ReportDataInput): WeeklyReportData 
     acceptedChanges,
     integrityCaveat,
     rebaselines: input.rebaselines ?? [],
+    currentSnapshot,
+    trend,
   };
 
   return { ...base, evidenceRows: buildEvidenceRows(base) };
