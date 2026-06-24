@@ -86,8 +86,11 @@ because a second system overrides it on most screens:
 - **Two typographic identities.** globals pins `html` to **system-ui/Inter**
   ([globals.css:77](../app/globals.css:77)); the serif only appears via `.t-*`
   classes, used on **3 routes**. The "broadsheet" feel is invisible on the other 18.
-- **Two temperatures of red/green.** Muted bespoke pills (`#f7dfd6`) vs bright
-  Tailwind `rose-50/600` ([my-items/page.tsx:185](../app/(app)/my-items/page.tsx:185)).
+- **Two temperatures.** ✅ _Neutral surfaces aligned (Phase 2c-i):_ the shadcn
+  base is now warm (page `#fafaf7`, sunk `#f5f4ef`) to match the dashboard.
+  Still open: bright Tailwind status colours (`rose-50/600`,
+  [my-items/page.tsx:185](../app/(app)/my-items/page.tsx:185)) vs the muted
+  bespoke pills — that's component-level (2c-ii / §3).
 - **Two stated philosophies in the comments:** design-tokens says "warm, not
   blue-gray"; globals says "slate-neutral base." They are opposed.
 
@@ -331,7 +334,7 @@ indicative; _(scan)_ items need a closer pass.
 | **P1** | Composite-field label association (per-call-site audit) | §8 | S | a11y | ✅ done (2026-06-24) |
 | **P1** | Dark mode: light default, dark optional → real dark support deferred into §3 convergence | §5 | M | — | ✅ decided; toggle hidden meanwhile |
 | **P1** | Unify primary colour + type identity | §2 | M | brand | ✅ colour (2a) + type (2b) done |
-| **P1** | Unify the styling system; bespoke library or Tailwind theme, not both | §3 | L | drift | open |
+| **P1** | Unify the styling system; bespoke library or Tailwind theme, not both | §3 | L | drift | 🟡 neutrals warmed (2c-i); status-colour/component unification pending (2c-ii) |
 | **P2** | Dashboard progressive disclosure + plain-language EVM | §6 | M | UX #2/#4 | open |
 | **P2** | Single home-route name (Dashboard) | §4 | XS | content | open |
 | **P2** | Topbar declutter; contrast audit; register-grid consolidation | §4/§8/§13 | M | — | open |

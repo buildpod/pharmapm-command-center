@@ -4,8 +4,10 @@
 
 @layer base {
   :root {
-    /* Enterprise palette — slate-neutral base, sophisticated primary */
-    --background: 0 0% 100%;
+    /* Warm-neutral base — aligned to the bespoke design tokens (page #fafaf7,
+       sunk #f5f4ef, line #ebe8df) so Tailwind pages match the dashboard's
+       warm temperature. Text stays cool-navy; cards stay white. */
+    --background: 60 24% 97%;
     --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
@@ -20,20 +22,20 @@
     --primary: 171 78% 27%;
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 220 14% 96%;
+    --secondary: 48 24% 95%;
     --secondary-foreground: 222 47% 11%;
 
-    --muted: 220 14% 96%;
+    --muted: 48 24% 95%;
     --muted-foreground: 220 9% 46%;
 
-    --accent: 220 14% 96%;
+    --accent: 48 24% 95%;
     --accent-foreground: 222 47% 11%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
+    --border: 45 23% 90%;
+    --input: 45 23% 90%;
     --ring: 171 78% 27%;
 
     --radius: 0.5rem;
