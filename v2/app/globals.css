@@ -75,8 +75,8 @@
     @apply border-border;
   }
   html {
-    /* Enterprise font stack — system-first, Inter as web fallback */
-    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Inter",
+    /* Brand UI font (Inter Tight, loaded in layout.tsx) with system fallback */
+    font-family: "Inter Tight", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Inter",
       "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     -webkit-font-smoothing: antialiased;
@@ -93,6 +93,11 @@
   h1, h2, h3, h4 {
     line-height: 1.2;
     letter-spacing: -0.01em;
+  }
+  /* Page titles (always h1) use the brand display serif app-wide; card and
+     section titles (h2/h3) stay sans per the design system. */
+  h1 {
+    font-family: var(--font-display);
   }
   /* Tabular numbers everywhere by default — pharma data is numbers-heavy */
   table, .tabular-nums {
