@@ -145,9 +145,9 @@ function SummaryCard({
 }: {
   label: string; value: number; sub: string; Icon: typeof CheckSquare; tone: "neutral" | "warn" | "bad";
 }) {
-  const toneCls = tone === "bad"  ? "text-rose-600 bg-rose-50"
-                : tone === "warn" ? "text-amber-600 bg-amber-50"
-                : "text-muted-foreground bg-muted";
+  const toneCls = tone === "bad"  ? "text-[var(--color-status-risk-fg)] bg-[var(--color-status-risk-bg)]"
+                : tone === "warn" ? "text-[var(--color-status-warn-fg)] bg-[var(--color-status-warn-bg)]"
+                : "text-[var(--color-ink-500)] bg-[var(--color-surface-sunk)]";
   return (
     <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="flex items-start justify-between">
@@ -183,11 +183,11 @@ function Section({
 }
 
 const toneToHeader: Record<string, string> = {
-  rose:    "text-rose-700    border-rose-200    bg-rose-50",
-  amber:   "text-amber-700   border-amber-200   bg-amber-50",
-  blue:    "text-blue-700    border-blue-200    bg-blue-50",
-  emerald: "text-emerald-700 border-emerald-200 bg-emerald-50",
-  slate:   "text-slate-600   border-slate-200   bg-slate-50",
+  rose:    "text-[var(--color-status-risk-fg)] border-[var(--color-line-soft)] bg-[var(--color-status-risk-bg)]",
+  amber:   "text-[var(--color-status-warn-fg)] border-[var(--color-line-soft)] bg-[var(--color-status-warn-bg)]",
+  blue:    "text-[var(--color-status-info-fg)] border-[var(--color-line-soft)] bg-[var(--color-status-info-bg)]",
+  emerald: "text-[var(--color-status-ok-fg)] border-[var(--color-line-soft)] bg-[var(--color-status-ok-bg)]",
+  slate:   "text-[var(--color-ink-500)] border-[var(--color-line-soft)] bg-[var(--color-surface-sunk)]",
 };
 
 function Group({
@@ -215,7 +215,7 @@ function TaskRow({ t }: { t: Task }) {
           <p className="truncate text-sm font-medium text-foreground">{t.name}</p>
           <p className="text-[11px] text-muted-foreground">{t.workstream} · {t.status} · {t.priority}</p>
         </div>
-        <span className={cn("shrink-0 text-xs tabular-nums", isOverdue ? "font-semibold text-rose-600" : "text-muted-foreground")}>
+        <span className={cn("shrink-0 text-xs tabular-nums", isOverdue ? "font-semibold text-[var(--color-status-risk-fg)]" : "text-muted-foreground")}>
           {t.dueDate}
         </span>
       </Link>
@@ -235,7 +235,7 @@ function DocRow({ d }: { d: Document }) {
             {d.abbreviation ?? d.id.toUpperCase()} · {d.phase} · v{d.version} · {d.status}
           </p>
         </div>
-        <span className={cn("shrink-0 text-xs tabular-nums", isOverdue ? "font-semibold text-rose-600" : "text-muted-foreground")}>
+        <span className={cn("shrink-0 text-xs tabular-nums", isOverdue ? "font-semibold text-[var(--color-status-risk-fg)]" : "text-muted-foreground")}>
           {d.dueDate}
         </span>
       </Link>
@@ -250,9 +250,9 @@ function RiskRow({ r }: { r: Risk }) {
       <Link href="/risks" className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/40">
         <span className={cn(
           "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-xs font-bold tabular-nums",
-          band === "rose"  ? "border-rose-200 bg-rose-50 text-rose-700"
-          : band === "amber" ? "border-amber-200 bg-amber-50 text-amber-700"
-          : "border-emerald-200 bg-emerald-50 text-emerald-700"
+          band === "rose"  ? "border-transparent bg-[var(--color-status-risk-bg)] text-[var(--color-status-risk-fg)]"
+          : band === "amber" ? "border-transparent bg-[var(--color-status-warn-bg)] text-[var(--color-status-warn-fg)]"
+          : "border-transparent bg-[var(--color-status-ok-bg)] text-[var(--color-status-ok-fg)]"
         )}>
           {r.score}
         </span>
@@ -279,7 +279,7 @@ function MilestoneRow({ m }: { m: Milestone }) {
         </div>
         <div className="shrink-0 text-right">
           <p className="text-xs tabular-nums text-muted-foreground">{m.plannedDate}</p>
-          {slip > 0 && <p className="text-[10px] font-semibold tabular-nums text-rose-600">+{slip}d</p>}
+          {slip > 0 && <p className="text-[10px] font-semibold tabular-nums text-[var(--color-status-risk-fg)]">+{slip}d</p>}
         </div>
       </Link>
     </li>

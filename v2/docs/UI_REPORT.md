@@ -90,8 +90,10 @@ because a second system overrides it on most screens:
   base is now warm (page `#fafaf7`, sunk `#f5f4ef`) to match the dashboard.
   ✅ _Shared `StatusPill`/`statusToneClasses` muted (Phase 2c-ii):_ truth,
   risks-grid, tasks-grid, and dashboard pills now use the bespoke regulatory
-  tokens. Still open: the inline tone maps in
-  [my-items/page.tsx:185](../app/(app)/my-items/page.tsx:185) and worklist.
+  tokens; my-items and worklist inline maps migrated too — status colour is
+  now consistent app-wide. Residual: a few destructive-action affordances
+  (delete buttons, error banners) still use bright rose — semantically fine,
+  optional cleanup.
 - **Two stated philosophies in the comments:** design-tokens says "warm, not
   blue-gray"; globals says "slate-neutral base." They are opposed.
 
@@ -335,7 +337,7 @@ indicative; _(scan)_ items need a closer pass.
 | **P1** | Composite-field label association (per-call-site audit) | §8 | S | a11y | ✅ done (2026-06-24) |
 | **P1** | Dark mode: light default, dark optional → real dark support deferred into §3 convergence | §5 | M | — | ✅ decided; toggle hidden meanwhile |
 | **P1** | Unify primary colour + type identity | §2 | M | brand | ✅ colour (2a) + type (2b) done |
-| **P1** | Unify the styling system; bespoke library or Tailwind theme, not both | §3 | L | drift | 🟡 neutrals warmed (2c-i); shared StatusPill muted (2c-ii); my-items/worklist inline maps pending |
+| **P1** | Unify the styling system; bespoke library or Tailwind theme, not both | §3 | L | drift | 🟡 colour/type/temp/status converged (2a–2c); token files still duplicated — single-source refactor pending |
 | **P2** | Dashboard progressive disclosure + plain-language EVM | §6 | M | UX #2/#4 | open |
 | **P2** | Single home-route name (Dashboard) | §4 | XS | content | open |
 | **P2** | Topbar declutter; contrast audit; register-grid consolidation | §4/§8/§13 | M | — | open |
