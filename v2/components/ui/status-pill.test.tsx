@@ -15,6 +15,6 @@ describe("StatusPill", () => {
     const element = StatusPill({ tone: "emerald", size: "sm", children: "Stable" });
 
     expect(element.props.className).toContain("text-[11px]");
-    expect(element.props.className).toContain("bg-emerald-50");
+    expect(element.props.className).toContain(statusToneClasses.emerald.pill);
   });
 });
