@@ -39,7 +39,7 @@ import { appendAudit, buildAction } from "@/lib/stores/audit";
 import { ensureCommitment } from "@/lib/stores/baseline-store";
 import { addWorkingDays } from "@/lib/domain/dates";
 import { useProjectEvm } from "@/lib/hooks/use-project-evm";
-import { cn } from "@/lib/utils";
+import { cn, shortId } from "@/lib/utils";
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
@@ -122,7 +122,7 @@ function DependencyTags({ dependsOn, allTasks }: { dependsOn?: string[]; allTask
             )}
           >
             <ArrowRight className="h-2 w-2 shrink-0" />
-            {depId.toUpperCase()}
+            {shortId(depId)}
             {done && " ✓"}
           </span>
         );
@@ -967,8 +967,8 @@ export function TasksGrid() {
                   oldDate: p.oldPlannedDate, newDate: p.proposedNewDate,
                   daysShifted: p.daysShifted,
                   ancestry: p.transitive
-                    ? `${p.drivenByTaskId.toUpperCase()} (via predecessor chain)`
-                    : p.drivenByTaskId.toUpperCase(),
+                    ? `${shortId(p.drivenByTaskId)} (via predecessor chain)`
+                    : shortId(p.drivenByTaskId),
                   isCritical: critical.milestoneIds.has(p.milestoneId),
                 })),
               };

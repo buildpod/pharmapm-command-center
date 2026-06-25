@@ -7,6 +7,7 @@ import type { CostLine, ContractType } from "@/lib/mockData";
 import { EntityDrawer, ConfirmDelete, DrawerGuidance, Field, inputCls } from "@/components/ui/entity-drawer";
 import { SelectWithCustom } from "@/components/ui/select-with-custom";
 import { useCurrentUser } from "@/lib/settingsStore";
+import { shortId } from "@/lib/utils";
 
 const CONTRACTS: ContractType[] = ["T&M", "Fixed", "Internal"];
 
@@ -77,7 +78,7 @@ export function CostLineFormDrawer({
       open={open}
       onClose={onClose}
       title={isNew ? "Add cost line" : `Edit · ${initial?.description ?? ""}`}
-      subtitle={isNew ? "Budget vs actual at the category level. Burn % auto-derives." : `${initial?.id?.toUpperCase()} · ${initial?.category}`}
+      subtitle={isNew ? "Budget vs actual at the category level. Burn % auto-derives." : `${shortId(initial?.id ?? "")} · ${initial?.category}`}
       variant="modal"
       footer={
         <div className="flex items-center justify-between gap-2">

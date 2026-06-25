@@ -342,6 +342,7 @@ indicative; _(scan)_ items need a closer pass.
 | **P2** | Dashboard progressive disclosure + plain-language EVM | §6 | M | UX #2/#4 | open |
 | **P2** | Single home-route name (Dashboard) | §4 | XS | content | ✅ done (Phase 3) |
 | **P2** | Topbar declutter; contrast audit; register-grid consolidation | §4/§8/§13 | M | — | open |
+| **P2** | Polish (from live QA): sans KPI numerals, `shortId` for long entity ids, start-guide no-wrap | §6/§13 | S | — | ✅ done (Phase 3) |
 
 ## 15. Recommended sequence
 

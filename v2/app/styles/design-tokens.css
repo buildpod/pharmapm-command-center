@@ -156,7 +156,7 @@ html, body {
 .t-page-title    { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: var(--weight-semi); letter-spacing: var(--tracking-tight); line-height: var(--leading-tight); }
 .t-section-title { font-size: var(--text-xl); font-weight: var(--weight-semi); letter-spacing: var(--tracking-tight); line-height: var(--leading-tight); }
 .t-card-title    { font-size: var(--text-lg); font-weight: var(--weight-semi); line-height: var(--leading-snug); }
-.t-kpi-value     { font-family: var(--font-display); font-size: var(--text-3xl); font-weight: var(--weight-semi); letter-spacing: var(--tracking-tight); line-height: 1; }
+.t-kpi-value     { font-family: var(--font-ui); font-size: var(--text-3xl); font-weight: var(--weight-semi); letter-spacing: var(--tracking-tight); line-height: 1; }
 .t-body          { font-size: var(--text-base); line-height: var(--leading-body); color: var(--color-ink-700); }
 .t-meta          { font-size: var(--text-sm); color: var(--color-ink-500); }
 .t-eyebrow       { font-size: var(--text-xs); font-weight: var(--weight-medium); text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--color-ink-500); }

@@ -5,7 +5,7 @@ import {
   X, ArrowRight, AlertTriangle, Info, Milestone as MilestoneIcon, CheckSquare, Search,
   ChevronDown, ChevronRight,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, shortId } from "@/lib/utils";
 import type {
   DependencyRepairAction,
   DependencyRepairEdge,
@@ -314,7 +314,7 @@ export function ConsequenceStory({
                         : "bg-card text-foreground border border-border",
                     )}
                   >
-                    {node.name ?? node.id.toUpperCase()}
+                    {node.name ?? shortId(node.id)}
                   </span>
                 </span>
               ))}
@@ -626,7 +626,7 @@ export function ImpactDrawer({
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-medium text-foreground">
-                <span className="font-mono text-[10px] font-bold text-muted-foreground">{summary.originatorId.toUpperCase()}</span>
+                <span className="font-mono text-[10px] font-bold text-muted-foreground">{shortId(summary.originatorId)}</span>
                 {" · "}
                 {summary.originatorName}
               </p>
@@ -884,7 +884,7 @@ function Section({
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium text-foreground">
-                    <span className="font-mono text-[10px] font-bold text-muted-foreground">{row.id.toUpperCase()}</span>
+                    <span className="font-mono text-[10px] font-bold text-muted-foreground">{shortId(row.id)}</span>
                     {row.name && <> · {row.name}</>}
                   </p>
                   <p className="mt-0.5 flex items-center gap-1.5 text-[11px] tabular-nums text-blue-700">
@@ -906,7 +906,7 @@ function Section({
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium text-foreground">
-                    <span className="font-mono text-[10px] font-bold text-muted-foreground">{row.id.toUpperCase()}</span>
+                    <span className="font-mono text-[10px] font-bold text-muted-foreground">{shortId(row.id)}</span>
                     {row.name && <> · {row.name}</>}
                   </p>
                   <p className="mt-0.5 text-[11px] text-rose-700">{row.message}</p>

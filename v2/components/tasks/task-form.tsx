@@ -9,7 +9,7 @@ import { SelectWithCustom } from "@/components/ui/select-with-custom";
 import { isIsoDate, inProjectRange, PROJECT_DATE_MIN, PROJECT_DATE_MAX } from "@/lib/validation";
 import { topoSortTasks } from "@/lib/domain/scheduling";
 import { useCurrentUser } from "@/lib/settingsStore";
-import { cn } from "@/lib/utils";
+import { cn, shortId } from "@/lib/utils";
 
 const PRIORITIES: TaskPriority[] = ["Critical", "High", "Medium", "Low"];
 const STATUSES:   TaskStatus[]   = ["Not Started", "In Progress", "Complete", "Blocked", "On Hold"];
@@ -96,7 +96,7 @@ export function TaskFormDrawer({
       const hypotheticalTopo = topoSortTasks(hypothetical);
       if (hypotheticalTopo.hasCycle && !baselineTopo.hasCycle) {
         setError(
-          `This dependency would create a loop. Pick a different upstream task — ${(hypotheticalTopo.cyclePath ?? []).map((id) => id.toUpperCase()).join(" → ")} would point back at itself.`
+          `This dependency would create a loop. Pick a different upstream task — ${(hypotheticalTopo.cyclePath ?? []).map((id) => shortId(id)).join(" → ")} would point back at itself.`
         );
         return;
       }
@@ -123,7 +123,7 @@ export function TaskFormDrawer({
         .filter((t): t is Task => !!t && t.dueDate > dueDate);
       if (laterDeps.length > 0) {
         toast.warning(`Due before ${laterDeps.length} upstream task${laterDeps.length > 1 ? "s" : ""}`, {
-          description: laterDeps.map((t) => `${t.id.toUpperCase()} (${t.dueDate})`).join(", "),
+          description: laterDeps.map((t) => `${shortId(t.id)} (${t.dueDate})`).join(", "),
         });
       }
     }
@@ -165,7 +165,7 @@ export function TaskFormDrawer({
   const title    = isNew ? "Add task" : `Edit · ${initial?.name ?? ""}`;
   const subtitle = isNew
     ? "Tasks are grouped by workstream. Link to a milestone to roll-up progress."
-    : `${initial?.id?.toUpperCase()} · ${initial?.workstream}`;
+    : `${shortId(initial?.id ?? "")} · ${initial?.workstream}`;
 
   // M21-Checkpoint — cycle prevention at the form layer.
   // A candidate task creates a cycle if THIS task is in its (transitive)
@@ -315,7 +315,7 @@ export function TaskFormDrawer({
                 <option value="">— none —</option>
                 {allMilestones.map((m) => (
                   <option key={m.id} value={m.id}>
-                    {m.id.toUpperCase()} · {m.name}
+                    {shortId(m.id)} · {m.name}
                   </option>
                 ))}
               </select>
@@ -358,7 +358,7 @@ export function TaskFormDrawer({
                           ? "cursor-not-allowed opacity-40"
                           : "cursor-pointer hover:bg-muted/40"
                       )}
-                      title={wouldCycle ? `Would create a dependency cycle — ${t.id.toUpperCase()} already depends (transitively) on this task` : undefined}
+                      title={wouldCycle ? `Would create a dependency cycle — ${shortId(t.id)} already depends (transitively) on this task` : undefined}
                     >
                       <input
                         type="checkbox"
@@ -369,7 +369,7 @@ export function TaskFormDrawer({
                       />
                       <span className="min-w-0 flex-1">
                         <span className="font-mono text-[10px] font-semibold text-muted-foreground">
-                          {t.id.toUpperCase()}
+                          {shortId(t.id)}
                         </span>
                         <span className="ml-1.5 text-foreground">{t.name}</span>
                         <span className="ml-1.5 text-[10px] text-muted-foreground">({t.workstream})</span>
