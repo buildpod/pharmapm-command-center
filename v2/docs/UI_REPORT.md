@@ -142,6 +142,7 @@ brand (teal, serif, warm surfaces) as Tailwind theme tokens — then the
 - **🟠 Route-naming drift for the home route.** It's "Dashboard" in the sidebar,
   "Command" as the tab, and **"SteerCo Brief"** in the command palette
   ([command-palette.tsx:16](../components/command-palette.tsx:16)). Pick one name.
+  **✅ Fixed (Phase 3):** the command palette now says "Dashboard" too.
 - **🟠 Topbar density:** ~11 controls in a 56px bar (breadcrumb, sample pill,
   project switcher, search, theme, notifications, Guide, DAP, Export, New Project,
   Admin) ([topbar.tsx:46](../components/topbar.tsx:46)).
@@ -339,7 +340,7 @@ indicative; _(scan)_ items need a closer pass.
 | **P1** | Unify primary colour + type identity | §2 | M | brand | ✅ colour (2a) + type (2b) done |
 | **P1** | Unify the styling system; bespoke library or Tailwind theme, not both | §3 | L | drift | 🟡 colour/type/temp/status converged (2a–2c); token files still duplicated — single-source refactor pending |
 | **P2** | Dashboard progressive disclosure + plain-language EVM | §6 | M | UX #2/#4 | open |
-| **P2** | Single home-route name (Dashboard) | §4 | XS | content | open |
+| **P2** | Single home-route name (Dashboard) | §4 | XS | content | ✅ done (Phase 3) |
 | **P2** | Topbar declutter; contrast audit; register-grid consolidation | §4/§8/§13 | M | — | open |
 
 ## 15. Recommended sequence
