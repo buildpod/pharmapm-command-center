@@ -6,6 +6,7 @@ import { GuidedWorkPanel } from "@/components/guidance/guided-work-panel";
 import { useProject } from "@/components/projects/project-provider";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/ui/page-header";
 
 function focusHref(route: string, id: string) {
   return `${route}?focus=${encodeURIComponent(id)}`;
@@ -68,12 +69,10 @@ export default function PlanPage() {
 
   return (
     <div className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Plan</h1>
-        <p className="text-sm text-muted-foreground">
-          What is the project shape? Charter, milestone gates, task counts, and dependency links for {activeProject.name}.
-        </p>
-      </header>
+      <PageHeader
+        title="Plan"
+        subtitle={`What is the project shape? Charter, milestone gates, task counts, and dependency links for ${activeProject.name}.`}
+      />
 
       <GuidedWorkPanel route="/plan" compact />
 

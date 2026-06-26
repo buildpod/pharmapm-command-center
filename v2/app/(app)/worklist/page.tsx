@@ -6,6 +6,7 @@ import { useProject } from "@/components/projects/project-provider";
 import { PROJECT_STATUS_DATE } from "@/lib/hooks/use-project-evm";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/ui/page-header";
 
 type WorkTone = "rose" | "amber" | "blue" | "emerald";
 
@@ -127,12 +128,10 @@ export default function WorklistPage() {
 
   return (
     <div className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Worklist</h1>
-        <p className="text-sm text-muted-foreground">
-          What work is active now: blockers first, then due work, approvals, risks, and the next delivery gates.
-        </p>
-      </header>
+      <PageHeader
+        title="Worklist"
+        subtitle="What work is active now: blockers first, then due work, approvals, risks, and the next delivery gates."
+      />
 
       <section className="grid grid-cols-1 gap-3 md:grid-cols-4">
         <WorkCard title="Blocked" count={blockedTasks.length} description="Work that cannot move without intervention." href="/tasks" tone={blockedTasks.length ? "rose" : "emerald"} icon={AlertTriangle} />
