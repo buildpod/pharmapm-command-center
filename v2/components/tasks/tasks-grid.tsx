@@ -113,7 +113,7 @@ function DependencyTags({ dependsOn, allTasks }: { dependsOn?: string[]; allTask
         return (
           <span
             key={depId}
-            title={`Depends on: ${dep.name}`}
+            title={`Waiting on: ${dep.name}${blocked ? " (blocked)" : done ? " (done)" : ""}`}
             className={cn(
               "dependency-chip",
               done    ? "dependency-chip--done" :
@@ -121,9 +121,9 @@ function DependencyTags({ dependsOn, allTasks }: { dependsOn?: string[]; allTask
                         "dependency-chip--idle"
             )}
           >
-            <ArrowRight className="h-2 w-2 shrink-0" />
-            {shortId(depId)}
-            {done && " ✓"}
+            <ArrowRight className="h-2.5 w-2.5 shrink-0" />
+            <span className="dependency-chip__name">{dep.name}</span>
+            {done && <span className="shrink-0">✓</span>}
           </span>
         );
       })}
