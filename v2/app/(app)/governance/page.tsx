@@ -6,6 +6,7 @@ import { useProject } from "@/components/projects/project-provider";
 import { useProjectEvm } from "@/lib/hooks/use-project-evm";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/ui/page-header";
 
 function focusHref(route: string, id: string) {
   return `${route}?focus=${encodeURIComponent(id)}`;
@@ -82,12 +83,10 @@ export default function GovernancePage() {
 
   return (
     <div className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Governance</h1>
-        <p className="text-sm text-muted-foreground">
-          What decisions and controls matter: top risks, pending approvals, budget truth, and charter status.
-        </p>
-      </header>
+      <PageHeader
+        title="Governance"
+        subtitle="What decisions and controls matter: top risks, pending approvals, budget truth, and charter status."
+      />
 
       <section className="grid grid-cols-1 gap-3 md:grid-cols-4">
         <GovernanceCard title="Open risks" value={openRisks.length} detail={`${highRisks.length} high-priority risk${highRisks.length === 1 ? "" : "s"} ${highRisks.length === 1 ? "needs" : "need"} escalation discipline.`} href="/risks" tone={highRisks.length ? "rose" : openRisks.length ? "amber" : "emerald"} icon={AlertTriangle} />

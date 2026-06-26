@@ -1,15 +1,14 @@
 import { GuidedWorkPanel } from "@/components/guidance/guided-work-panel";
+import { PageHeader } from "@/components/ui/page-header";
 import { CostsGrid } from "@/components/costs/costs-grid";
 
 export default function CostsPage() {
   return (
     <div className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Costs</h1>
-        <p className="text-sm text-muted-foreground">
-          Budget versus actual spend across all cost categories. Per-line burn bars surface anything approaching its budget ceiling.
-        </p>
-      </header>
+      <PageHeader
+        title="Costs"
+        subtitle="Budget versus actual spend across all cost categories. Per-line burn bars surface anything approaching its budget ceiling."
+      />
       <GuidedWorkPanel route="/costs" compact />
       <CostsGrid />
     </div>

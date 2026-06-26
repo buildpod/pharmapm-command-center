@@ -5,6 +5,7 @@ import { CheckCircle2, ChevronRight, ClipboardCheck, FileText, Milestone, Rocket
 import { useProject } from "@/components/projects/project-provider";
 import { useEntityStore } from "@/lib/stores/entity-store";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/ui/page-header";
 
 type EvidenceKind = "document" | "milestone";
 
@@ -130,12 +131,10 @@ export default function ReadinessPage() {
 
   return (
     <div className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Readiness Gates</h1>
-        <p className="text-sm text-muted-foreground">
-          Are gates ready for go-live? This is computed from live document approvals and milestone completion.
-        </p>
-      </header>
+      <PageHeader
+        title="Readiness Gates"
+        subtitle="Are gates ready for go-live? This is computed from live document approvals and milestone completion."
+      />
 
       <section className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-5">
         {gates.map((gate) => (
