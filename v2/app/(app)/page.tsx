@@ -202,6 +202,7 @@ export default function DashboardPage() {
     : evm.verdict.level === "on-track" ? "var(--color-status-ok-dot)"
     : evm.verdict.level === "watch" ? "var(--color-status-warn-dot)"
     : "var(--color-status-risk-dot)";
+  const planOnly = !!evm?.verdict.planOnly;
   const fmtM = (v: number) => `$${(v / 1_000_000).toFixed(2)}M`;
 
   if (!hasRealProject && !sampleOptedIn) {
@@ -353,7 +354,7 @@ export default function DashboardPage() {
           </p>
         </div>
         <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
-          <span className={verdictPill}>{evm ? `${evm.verdict.score}/100 confidence` : "Pending data"}</span>
+          <span className={!evm || planOnly ? "pill pill--neutral" : verdictPill}>{!evm ? "Pending data" : planOnly ? "Plan only" : `${evm.verdict.score}/100 confidence`}</span>
           <span className="card-link-hint">See the evidence →</span>
         </span>
       </Link>
@@ -497,24 +498,24 @@ export default function DashboardPage() {
             <div className="t-card-title">
               Confidence drivers <Link href="/truth" className="card-link-hint">Open Delivery Signals →</Link>
             </div>
-            <span className={verdictPill}>{evm ? evm.verdict.headline : "Pending data"}</span>
+            <span className={!evm || planOnly ? "pill pill--neutral" : verdictPill}>{!evm ? "Pending data" : planOnly ? "Plan only" : evm.verdict.headline}</span>
           </div>
           <div className="health">
             <div>
-              <span className="health__score" style={{ color: verdictToneVar }}>{evm ? evm.verdict.score : "—"}</span>
+              <span className="health__score" style={{ color: verdictToneVar }}>{evm && !planOnly ? evm.verdict.score : "—"}</span>
               <span className="health__score-max"> / 100</span>
             </div>
             <div className="health__bar">
               <div
                 className="health__bar-fill"
                 style={{
-                  width: `${evm ? evm.verdict.score : 0}%`,
+                  width: `${evm && !planOnly ? evm.verdict.score : 0}%`,
                   background: verdictToneVar,
                 }}
               />
             </div>
           </div>
-          {evm ? (
+          {evm && !planOnly ? (
             <>
               <div className="alert-row">
                 <div className="alert-row__icon">$</div>
@@ -540,6 +541,14 @@ export default function DashboardPage() {
                 </div>
               </div>
             </>
+          ) : planOnly ? (
+            <div className="alert-row">
+              <div className="alert-row__icon">○</div>
+              <div>
+                <div className="alert-row__title">Plan only — no actuals yet</div>
+                <div className="t-meta">Confidence sharpens once work and spend start to register.</div>
+              </div>
+            </div>
           ) : (
             <div className="alert-row">
               <div className="alert-row__icon">!</div>

@@ -92,6 +92,7 @@ export interface ExecutiveVerdict {
   level: VerdictLevel;
   headline: string;   // "On track" | "Watch" | "At risk"
   reason: string;     // plain-language dominant driver
+  planOnly: boolean;  // true when nothing earned/spent yet — score is plan-only, not earned confidence
 }
 
 // Plain-language verdict for the dashboard. Headline by score band; reason
@@ -117,7 +118,7 @@ export function executiveVerdict(s: EvmSnapshot): ExecutiveVerdict {
   } else {
     reason = `Forecast final cost is ${(breach * 100).toFixed(0)}% over budget.`;
   }
-  return { score, level, headline, reason };
+  return { score, level, headline, reason, planOnly: s.ev === 0 && s.ac === 0 };
 }
 
 // Convenience: derive → compute → score + range in one call for the dashboard.
