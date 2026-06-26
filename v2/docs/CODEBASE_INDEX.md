@@ -1,5 +1,10 @@
 # Codebase Index
 
+> **➜ Start with [`ARCHITECTURE.md`](ARCHITECTURE.md)** — now the primary map
+> ("where do I change X?"), paired with
+> [`ENGINEERING_STANDARDS.md`](ENGINEERING_STANDARDS.md). This file remains as
+> supplementary detail on the setup wizard and project flows.
+
 Read this file first when returning to this project. It is a navigation map, not a full spec.
 
 ## Product Spine

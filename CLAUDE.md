@@ -2,6 +2,10 @@
 
 Read `COMMAND_CENTRE_PHARMAPM_PRO.md` first, then identify the current product priority before writing code.
 
+**Before touching v2 code, read these two (they are the map and the contract):**
+- `v2/docs/ARCHITECTURE.md` — where everything lives ("where do I change X?").
+- `v2/docs/ENGINEERING_STANDARDS.md` — how we write changes: modular, single source of truth, well-commented, release-safe. Every change must meet this bar.
+
 Keep work scoped to `pharmapm-command-center` unless Vineet explicitly asks for changes in another repository.
 
 For UI changes, show what changed, verify tests/build, and check the live GitHub Pages route before asking Vineet to commit.
