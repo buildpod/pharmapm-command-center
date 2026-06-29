@@ -15,6 +15,7 @@ import {
 } from "@/lib/mockData";
 import { useCurrentUser } from "@/lib/settingsStore";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/ui/page-header";
 
 const TODAY = "2026-05-13";
 
@@ -67,18 +68,18 @@ export default function MyItemsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="space-y-1">
-        <div className="flex items-center gap-2">
-          <Inbox className="h-5 w-5 text-primary" />
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">My Items</h1>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Everything assigned to <span className="font-medium text-foreground">{ME}</span> in {activeProject.name}.
-          {totalOwned > 0
-            ? <> <span className="font-medium text-foreground">{totalOwned}</span> open item{totalOwned === 1 ? "" : "s"}.</>
-            : " You're all clear."}
-        </p>
-      </header>
+      <PageHeader
+        title="My Items"
+        icon={Inbox}
+        subtitle={
+          <>
+            Everything assigned to <span className="font-medium text-foreground">{ME}</span> in {activeProject.name}.
+            {totalOwned > 0
+              ? <> <span className="font-medium text-foreground">{totalOwned}</span> open item{totalOwned === 1 ? "" : "s"}.</>
+              : " You're all clear."}
+          </>
+        }
+      />
 
       {/* Summary strip */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

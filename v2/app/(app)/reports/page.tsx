@@ -7,6 +7,7 @@ import { WeeklyReport } from "@/components/reports/weekly-report";
 import { SteerCoReport } from "@/components/reports/steerco-report";
 import { WorkstreamReport } from "@/components/reports/workstream-report";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/ui/page-header";
 
 const TABS = [
   { id: "weekly",      label: "Weekly Status",        icon: FileText, desc: "Full project status · print · Excel" },
@@ -21,12 +22,11 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="space-y-1 print:hidden">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Reports</h1>
-        <p className="text-sm text-muted-foreground">
-          Pick a report type. Each one can be printed (or saved as PDF) and exported to a multi-sheet Excel workbook.
-        </p>
-      </header>
+      <PageHeader
+        className="print:hidden"
+        title="Reports"
+        subtitle="Pick a report type. Each one can be printed (or saved as PDF) and exported to a multi-sheet Excel workbook."
+      />
 
       <div className="print:hidden">
         <GuidedWorkPanel route="/reports" compact />

@@ -82,7 +82,9 @@ structure first, then make the change.
 ## Active modularization backlog (the debt to retire)
 
 1. **One token source** — merge `design-tokens.css` + `globals.css` colour defs.
-2. **`<PageHeader>`** — replace 18 copy-pasted `<h1>` blocks.
+2. ~~**`<PageHeader>`** — replace copy-pasted `<h1>` blocks.~~ ✅ **Done** — 14
+   pages migrated to `components/ui/page-header.tsx`; truth/projects keep
+   intentionally-custom headers.
 3. **One status system** — fold the bespoke `.pill` CSS into `<StatusPill>`.
 4. **`<RegisterGrid>`** — de-duplicate the entity grids (tasks 1,250 / milestones 940 lines).
 
