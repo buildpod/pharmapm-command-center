@@ -186,3 +186,50 @@ describe("Class C evm-project.executiveVerdict — day-zero honesty", () => {
     expect(executiveVerdict(snap).reason).toBe("Cost and schedule both tracking to plan.");
   });
 });
+
+// ── F3 — per-task budget weighting (all-or-nothing) ─────────────────────────
+// BAC $1.0M from BASE cost lines throughout; task budgets act only as weights.
+
+describe("F3 evm-project.deriveEvmInput — budget-weighted EV", () => {
+  it("a $200k task at 100% earns ~99%, not 50% (the equal-weight lie)", () => {
+    const snap = computeEvm(deriveEvmInput({
+      ...BASE,
+      tasks: [{ progress: 100, budgetK: 200 }, { progress: 0, budgetK: 2 }],
+    }));
+    expect(snap.ev).toBeCloseTo(1_000_000 * (200 / 202), 0);  // ≈ $990,099
+    expect(snap.ev).not.toBeCloseTo(500_000, -4);             // NOT the 50% avg
+  });
+
+  it("weighted items still sum to BAC — task budgets never become a second budget truth", () => {
+    const inp = deriveEvmInput({
+      ...BASE,
+      tasks: [{ progress: 100, budgetK: 200 }, { progress: 0, budgetK: 2 }],
+    });
+    const totalItemBudget = inp.items.reduce((s, it) => s + it.budget, 0);
+    expect(totalItemBudget).toBeCloseTo(1_000_000, 0);
+  });
+
+  it("one task without a budget disables weighting entirely (falls back to equal weights)", () => {
+    const snap = computeEvm(deriveEvmInput({
+      ...BASE,
+      tasks: [{ progress: 100, budgetK: 200 }, { progress: 0 }],
+    }));
+    expect(snap.ev).toBeCloseTo(500_000, 0);  // avg 50% of BAC
+  });
+
+  it("a zero budget counts as unbudgeted — no silent mixing of stated and assumed weights", () => {
+    const snap = computeEvm(deriveEvmInput({
+      ...BASE,
+      tasks: [{ progress: 100, budgetK: 200 }, { progress: 0, budgetK: 0 }],
+    }));
+    expect(snap.ev).toBeCloseTo(500_000, 0);
+  });
+
+  it("equal budgets reproduce the equal-weight result exactly", () => {
+    const snap = computeEvm(deriveEvmInput({
+      ...BASE,
+      tasks: [{ progress: 50, budgetK: 10 }, { progress: 50, budgetK: 10 }],
+    }));
+    expect(snap.ev).toBeCloseTo(500_000, 0);  // same as BASE's unweighted 50%
+  });
+});

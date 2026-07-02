@@ -731,6 +731,10 @@ export type Task = {
   priority: TaskPriority;
   status: TaskStatus;
   progress: number;      // 0–100
+  budgetK?: number;      // optional task budget in $k — when EVERY task in a
+                         // project has one, EV becomes budget-weighted (F3);
+                         // otherwise tasks stay equal-weighted. Weights only —
+                         // BAC still comes solely from cost lines.
   milestoneId?: string;  // links to a milestone id
   owner: string;
   dueDate: string;

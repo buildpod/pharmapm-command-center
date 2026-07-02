@@ -48,6 +48,8 @@ export function TaskFormDrawer({
   const [priority,    setPriority]    = useState<TaskPriority>("Medium");
   const [status,      setStatus]      = useState<TaskStatus>("Not Started");
   const [progress,    setProgress]    = useState<number>(0);
+  // Kept as a string so the field can be genuinely empty (= no budget), not 0.
+  const [budgetK,     setBudgetK]     = useState<string>("");
   const [milestoneId, setMilestoneId] = useState("");
   const [owner,       setOwner]       = useState(me.initials);
   const [dueDate,     setDueDate]     = useState("");
@@ -63,6 +65,7 @@ export function TaskFormDrawer({
     setPriority(initial?.priority     ?? "Medium");
     setStatus(initial?.status         ?? "Not Started");
     setProgress(initial?.progress     ?? 0);
+    setBudgetK(initial?.budgetK != null ? String(initial.budgetK) : "");
     setMilestoneId(initial?.milestoneId ?? "");
     setOwner(initial?.owner           ?? me.initials);
     setDueDate(initial?.dueDate       ?? "");
@@ -78,6 +81,10 @@ export function TaskFormDrawer({
     if (!isIsoDate(dueDate))  { setError("Due date must be yyyy-mm-dd"); return; }
     if (!inProjectRange(dueDate)) {
       setError(`Due date must be between ${PROJECT_DATE_MIN} and ${PROJECT_DATE_MAX}`); return;
+    }
+    const parsedBudgetK = Number(budgetK);
+    if (budgetK.trim() !== "" && (!Number.isFinite(parsedBudgetK) || parsedBudgetK < 0)) {
+      setError("Budget must be a number of $k (e.g. 12 = $12,000) — it weights this task's share of earned value"); return;
     }
     setError(null);
 
@@ -145,6 +152,9 @@ export function TaskFormDrawer({
       progress: clampedProgress,
       owner: owner.trim() || me.initials,
       dueDate,
+      // 0 or blank = "no budget" — only a positive value participates in
+      // budget-weighted EV (F3), which activates when every task has one.
+      ...(budgetK.trim() !== "" && parsedBudgetK > 0 ? { budgetK: parsedBudgetK } : {}),
       ...(milestoneId ? { milestoneId } : {}),
       ...(dependsOn.length > 0 ? { dependsOn } : {}),
       projectId: initial?.projectId ?? "",
@@ -328,6 +338,21 @@ export function TaskFormDrawer({
                 onChange={(e) => setDueDate(e.target.value)}
                 className={inputCls}
                 data-coachmark-anchor="task-due-date"
+              />
+            </Field>
+
+            <Field
+              label="Budget ($k)"
+              hint="Recommended: when every task has a budget, confidence weights earned value by budget — a $200k task counts for more than a $2k one."
+            >
+              <input
+                type="number"
+                min={0}
+                step="any"
+                value={budgetK}
+                onChange={(e) => setBudgetK(e.target.value)}
+                placeholder="e.g. 12"
+                className={inputCls}
               />
             </Field>
           </div>

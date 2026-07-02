@@ -7,8 +7,14 @@
 // Scope note: this derives an EVM input from existing data (cost lines for
 // BAC/AC, a cumulative planned-cost curve for PV, task progress for EV). A
 // persisted, frozen, re-baselineable CostBaseline entity (full PT-1, needed
-// for audit-grade re-baseline history) remains a future item; per-item budgets
-// (PT-2) will sharpen EV. Documented so the approximation is explicit.
+// for audit-grade re-baseline history) remains a future item.
+//
+// F3 (per-task budget weighting, PT-2): when EVERY task carries a budgetK,
+// EV is budget-weighted — a $200k task at 100% earns far more than a $2k task.
+// The rule is all-or-nothing: partial budgets fall back to equal weighting
+// rather than silently mixing stated and assumed weights (same philosophy as
+// the coverage gate — no half-fabricated inputs). Task budgets are WEIGHTS
+// only; BAC remains solely Σ cost-line budgets (one financial truth).
 
 import { computeEvm, forecastRange, type EvmInput, type EvmSnapshot, type PvPoint, type EvmItem, type ForecastRange } from "./evm";
 
@@ -16,7 +22,10 @@ import { computeEvm, forecastRange, type EvmInput, type EvmSnapshot, type PvPoin
 
 export interface CostLineLike { budgetK: number; actualK: number; }
 export interface PlannedPointLike { month: string; planned: number; }  // cumulative $k
-export interface TaskLike { progress: number; }                         // 0..100
+export interface TaskLike {
+  progress: number;   // 0..100
+  budgetK?: number;   // optional $k budget — activates weighted EV only when ALL tasks have one
+}
 
 export interface DeriveInput {
   costLines: CostLineLike[];
@@ -58,12 +67,31 @@ export function deriveEvmInput(input: DeriveInput): EvmInput {
       })),
   ];
 
-  // Overall completion drives EV. Single synthetic item carrying the whole BAC
-  // at the average progress — equivalent to BAC × avgProgress.
-  const avgProgress = input.tasks.length
-    ? input.tasks.reduce((s, t) => s + t.progress, 0) / input.tasks.length / 100
-    : 0;
-  const items: EvmItem[] = [{ id: "_project", budget: bac, progress: avgProgress }];
+  // EV derivation (F3). If every task carries a budget, earn value by budget
+  // weight: each task becomes an EvmItem holding its share of BAC (weights are
+  // normalized to BAC so Σ items.budget === BAC, per the EvmItem contract —
+  // task budgets never become a second budget truth). Any task without a
+  // budget (or with 0) disables weighting entirely — all-or-nothing, so the
+  // number is either fully stated or fully the declared equal-weight default.
+  const allBudgeted =
+    input.tasks.length > 0 && input.tasks.every((t) => (t.budgetK ?? 0) > 0);
+
+  let items: EvmItem[];
+  if (allBudgeted) {
+    const totalWeightK = input.tasks.reduce((s, t) => s + (t.budgetK ?? 0), 0);
+    items = input.tasks.map((t, i) => ({
+      id: `task-${i}`,
+      budget: bac * ((t.budgetK ?? 0) / totalWeightK),
+      progress: t.progress / 100,
+    }));
+  } else {
+    // Equal-weight fallback: single synthetic item carrying the whole BAC at
+    // the average progress — equivalent to BAC × avgProgress.
+    const avgProgress = input.tasks.length
+      ? input.tasks.reduce((s, t) => s + t.progress, 0) / input.tasks.length / 100
+      : 0;
+    items = [{ id: "_project", budget: bac, progress: avgProgress }];
+  }
 
   return {
     bac, curve, items, actualCost: ac,
