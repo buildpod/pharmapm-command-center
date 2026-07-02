@@ -13,6 +13,7 @@ import {
   type GuidanceTone,
 } from "@/lib/guidance/guided-work";
 import { useEntityStore } from "@/lib/stores/entity-store";
+import { useLocalStorageState } from "@/lib/useLocalStorageState";
 
 const roleValues: GuidanceRole[] = ["pm", "sponsor", "qa"];
 
@@ -48,7 +49,9 @@ export function GuidedWorkPanel({
   const issues = useEntityStore((s) => s.issues);
   const decisionRecords = useEntityStore((s) => s.decisionRecords);
   const [role, setRole] = useState<GuidanceRole>("pm");
-  const [collapsed, setCollapsed] = useState(false);
+  // Collapsed state persists across pages and sessions — collapsing guidance
+  // once means it stays out of the way everywhere until reopened.
+  const [collapsed, setCollapsed] = useLocalStorageState<boolean>("aivello_guided_work_collapsed_v1", false);
   const dapEnabled = useDapEnabled();
 
   useEffect(() => {

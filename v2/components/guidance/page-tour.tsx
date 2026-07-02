@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useDapEnabled } from "@/components/guidance/dap-settings";
+import { useCurrentUser } from "@/lib/settingsStore";
 import {
   ACTIVE_COMMAND_CENTER_JOURNEY_KEY,
   COMMAND_CENTER_JOURNEY_SEEN_KEY,
@@ -115,19 +116,21 @@ function getStepCardStyle(targetBox: TargetBox | null): CSSProperties {
   return { top, left, width: cardWidth };
 }
 
-function getTourIntro(route: string): TourIntro {
+// firstName comes from the operator identity in Settings — never hardcoded
+// (the same G1 rule as everywhere else: one identity source of truth).
+function getTourIntro(route: string, firstName: string): TourIntro {
   switch (route) {
     case "/setup":
       return {
         eyebrow: "Guided setup",
-        title: "Hi Vineet, let's build a command center you can trust.",
+        title: `Hi ${firstName}, let's build a command center you can trust.`,
         body: "I'll walk you through the project facts, playbook choice, and review points before anything is created.",
         primaryAction: "Start setup guide",
       };
     case "/tasks":
       return {
         eyebrow: "Guided work",
-        title: "Hi Vineet, let's make schedule impact visible.",
+        title: `Hi ${firstName}, let's make schedule impact visible.`,
         body: "I'll show where work is owned, where dates move, and how downstream tasks are reviewed before saving.",
         primaryAction: "Start task guide",
       };
@@ -155,7 +158,7 @@ function getTourIntro(route: string): TourIntro {
     default:
       return {
         eyebrow: "Guided command center",
-        title: "Hi Vineet, let's read the project story.",
+        title: `Hi ${firstName}, let's read the project story.`,
         body: "I'll show the verdict, the numbers behind it, and the next actions that make this project board-ready.",
         primaryAction: "Start guided work",
       };
@@ -166,6 +169,8 @@ export function PageTour() {
   const pathname = usePathname();
   const router = useRouter();
   const dapEnabled = useDapEnabled();
+  const { name } = useCurrentUser();
+  const firstName = name.trim().split(/\s+/)[0] || "there";
   const route = useMemo(() => normalizeRoute(pathname), [pathname]);
   const routeSteps = toursByRoute[route] ?? [];
   const journeySteps = commandCenterJourney.steps;
@@ -175,7 +180,7 @@ export function PageTour() {
   const [index, setIndex] = useState(0);
   const [targetBox, setTargetBox] = useState<TargetBox | null>(null);
   const steps = mode === "journey" ? journeySteps : routeSteps;
-  const intro = mode === "journey" ? commandCenterJourney : getTourIntro(route);
+  const intro = mode === "journey" ? commandCenterJourney : getTourIntro(route, firstName);
   const step = steps[index];
   const progress = phase === "intro" ? 100 / (steps.length + 1) : ((index + 1) / steps.length) * 100;
   const dismiss = useCallback(() => {
@@ -329,21 +334,21 @@ export function PageTour() {
 
   return (
     <div className="page-tour" aria-live="polite">
-      {phase === "steps" ? (
+      {/* Scrim only renders WITH a spotlight — dimming the whole app while
+          highlighting nothing (anchor missing/unmounted) reads as broken. */}
+      {phase === "steps" && targetBox ? (
         <>
           <div className="page-tour__scrim" aria-hidden="true" />
-          {targetBox ? (
-            <div
-              className="page-tour__spotlight"
-              aria-hidden="true"
-              style={{
-                top: targetBox.top,
-                left: targetBox.left,
-                width: targetBox.width,
-                height: targetBox.height,
-              }}
-            />
-          ) : null}
+          <div
+            className="page-tour__spotlight"
+            aria-hidden="true"
+            style={{
+              top: targetBox.top,
+              left: targetBox.left,
+              width: targetBox.width,
+              height: targetBox.height,
+            }}
+          />
         </>
       ) : null}
       {phase === "intro" ? (
