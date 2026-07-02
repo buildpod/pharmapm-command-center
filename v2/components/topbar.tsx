@@ -13,7 +13,6 @@ import { ProjectSwitcher } from "@/components/projects/project-switcher";
 import { useProject } from "@/components/projects/project-provider";
 import { HelpDrawer } from "@/components/guidance/help-drawer";
 import { PageTour } from "@/components/guidance/page-tour";
-import { DapToggle } from "@/components/guidance/dap-toggle";
 import { adminNavItems, appTabs, getRouteNavContext, isActiveRoute, routeToTabMap } from "@/lib/navigation";
 
 function normalizeHelpRoute(pathname: string) {
@@ -94,8 +93,6 @@ export function Topbar() {
           <HelpCircle />
           <span>Guide</span>
         </button>
-
-        <DapToggle />
 
         <div className="hidden sm:flex">
           <ExportButton project={activeProject} />

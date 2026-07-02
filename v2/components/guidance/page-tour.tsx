@@ -99,6 +99,11 @@ function getTargetBox(target: HTMLElement): TargetBox {
 }
 
 function getStepCardStyle(targetBox: TargetBox | null): CSSProperties {
+  // Small screens: no inline positioning — the stylesheet turns the card into
+  // a bottom sheet (a 392px floating card doesn't fit a 375px viewport).
+  if (typeof window !== "undefined" && window.innerWidth < 768) {
+    return {};
+  }
   if (!targetBox || typeof window === "undefined") {
     return { right: 24, bottom: 24, width: 392 };
   }

@@ -65,8 +65,18 @@ export function HelpDrawer({
             <button type="button" className="btn btn--secondary" onClick={startProductJourney}>
               Product journey
             </button>
+            {/* The single guidance on/off switch — the topbar keeps just one
+                Guide launcher; everything guidance-related lives in here. */}
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => writeDapEnabled(!dapEnabled)}
+              aria-pressed={dapEnabled}
+            >
+              Guidance: {dapEnabled ? "On" : "Off"}
+            </button>
             <p>
-              DAP is {dapEnabled ? "on" : "off"}. Starting a guide turns DAP on so the overlay, highlights, and nudges are visible.
+              Guidance adds tours, highlights, and in-page nudges. Starting a tour switches it on.
             </p>
           </section>
 

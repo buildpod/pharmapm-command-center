@@ -49,9 +49,10 @@ export function GuidedWorkPanel({
   const issues = useEntityStore((s) => s.issues);
   const decisionRecords = useEntityStore((s) => s.decisionRecords);
   const [role, setRole] = useState<GuidanceRole>("pm");
-  // Collapsed state persists across pages and sessions — collapsing guidance
-  // once means it stays out of the way everywhere until reopened.
-  const [collapsed, setCollapsed] = useLocalStorageState<boolean>("aivello_guided_work_collapsed_v1", false);
+  // Ambient-by-default: register pages (compact) start as a collapsed one-line
+  // strip; only the dashboard starts expanded. One persisted preference — once
+  // the user collapses or expands anywhere, that choice wins everywhere.
+  const [collapsed, setCollapsed] = useLocalStorageState<boolean>("aivello_guided_work_collapsed_v1", compact);
   const dapEnabled = useDapEnabled();
 
   useEffect(() => {
@@ -94,7 +95,14 @@ export function GuidedWorkPanel({
   if (!dapEnabled) return null;
 
   return (
-    <section className={compact ? "guided-work guided-work--compact" : "guided-work"} data-tour-id="guided-work">
+    <section
+      className={[
+        "guided-work",
+        compact ? "guided-work--compact" : "",
+        collapsed ? "guided-work--collapsed" : "",
+      ].filter(Boolean).join(" ")}
+      data-tour-id="guided-work"
+    >
       <button
         type="button"
         className="guided-work__summary"
