@@ -69,7 +69,7 @@ export function HelpDrawer({
                 Guide launcher; everything guidance-related lives in here. */}
             <button
               type="button"
-              className="btn btn--ghost"
+              className="btn btn--ghost help-drawer__guidance-toggle"
               onClick={() => writeDapEnabled(!dapEnabled)}
               aria-pressed={dapEnabled}
             >

@@ -1230,10 +1230,16 @@ select.field-input {
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
 }
+/* Primary tour action uses the app's single CTA colour (teal), not navy —
+   the guide must feel like the product it guides. */
 .coachmark__button--primary {
-  border-color: var(--color-brand-900);
-  background: var(--color-brand-900);
+  border-color: var(--color-accent-700);
+  background: var(--color-accent-700);
   color: var(--color-surface-card);
+}
+.coachmark__button--primary:hover {
+  border-color: var(--color-accent-600);
+  background: var(--color-accent-600);
 }
 
 .page-tour {
@@ -1517,6 +1523,12 @@ select.field-input {
   border: 1px solid var(--color-line-soft);
   border-radius: var(--radius-md);
   background: var(--color-surface-sunk);
+}
+/* The on/off switch reads as a settings row, not a third crammed action —
+   full width below the two tour buttons. */
+.help-drawer__guidance-toggle {
+  grid-column: 1 / -1;
+  justify-content: center;
 }
 .help-drawer__tour-actions p {
   grid-column: 1 / -1;

@@ -125,6 +125,19 @@
 
   /* --- Focus -------------------------------------------------- */
   --focus-ring: 0 0 0 3px rgba(15, 124, 108, 0.25);
+
+  /* --- Ramp extensions & aliases ------------------------------
+     Area stylesheets referenced these names before they existed, so the
+     declarations silently rendered as nothing (invisible fills, missing
+     hovers/shadows). Defined once here — never redefine locally. */
+  --color-ink-800: #2c3340;                       /* between ink-900 and ink-700 */
+  --color-ink-600: #545c6b;                       /* between ink-700 and ink-500 */
+  --color-accent-300: #8ed4c9;                    /* between accent-500 and accent-100 */
+  --color-surface: var(--color-surface-card);
+  --color-surface-muted: var(--color-surface-sunk);
+  --radius-full: 999px;
+  --shadow-soft: var(--shadow-card);
+  --shadow-lg: var(--shadow-raised);
 }
 
 /* ============================================================
@@ -251,6 +264,11 @@ html, body {
 
 .btn--ghost    { background: transparent; color: var(--color-ink-700); border-color: var(--color-line-strong); }
 .btn--ghost:hover { background: var(--color-brand-50); border-color: var(--color-brand-100); color: var(--color-brand-900); }
+
+/* Secondary action — solid card surface with a visible border. Was referenced
+   by drawers/dashboards without being defined, rendering as borderless text. */
+.btn--secondary { background: var(--color-surface-card); color: var(--color-ink-700); border-color: var(--color-line-strong); }
+.btn--secondary:hover { background: var(--color-accent-50); border-color: var(--color-accent-600); color: var(--color-accent-700); }
 
 .btn--quiet    { background: transparent; color: var(--color-ink-700); }
 .btn--quiet:hover { background: var(--color-surface-sunk); color: var(--color-ink-900); }
