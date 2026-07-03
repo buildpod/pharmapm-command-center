@@ -20,8 +20,10 @@ export const commandCenterJourney = {
     {
       route: "/",
       anchor: "dashboard-verdict",
-      title: "Start from the launchpad",
-      body: "Choose whether to explore the sample, create from a playbook, import a plan, or start with a blank skeleton.",
+      // Copy must hold in BOTH states this anchor exists in: the first-run
+      // launchpad (choose a start) and an active project (live verdict).
+      title: "Start from the dashboard",
+      body: "First run, this is the launchpad — explore the sample, create from a playbook, or import a plan. With a project active, it becomes the live verdict the whole command center runs from.",
       nextLabel: "Go to setup",
     },
     {

@@ -346,7 +346,9 @@ export default function DashboardPage() {
       <Link href="/truth" className="executive-verdict" aria-label="Executive verdict — open Delivery Signals" data-tour-id="dashboard-verdict">
         <div>
           <div className="executive-verdict__label">Executive Verdict</div>
-          <div className="executive-verdict__title">{evm ? evm.verdict.headline : "Verdict pending"}</div>
+          {/* An untouched plan must not claim a track record — headline says
+              "Plan only" until something is actually earned or spent. */}
+          <div className="executive-verdict__title">{!evm ? "Verdict pending" : planOnly ? "Plan only" : evm.verdict.headline}</div>
           <p className="executive-verdict__copy">
             {evm
               ? evm.verdict.reason
@@ -354,7 +356,7 @@ export default function DashboardPage() {
           </p>
         </div>
         <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
-          <span className={!evm || planOnly ? "pill pill--neutral" : verdictPill}>{!evm ? "Pending data" : planOnly ? "Plan only" : `${evm.verdict.score}/100 confidence`}</span>
+          <span className={!evm || planOnly ? "pill pill--neutral" : verdictPill}>{!evm ? "Pending data" : planOnly ? "Awaiting actuals" : `${evm.verdict.score}/100 confidence`}</span>
           <span className="card-link-hint">See the evidence →</span>
         </span>
       </Link>
