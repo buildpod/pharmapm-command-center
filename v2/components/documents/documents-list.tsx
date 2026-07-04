@@ -499,7 +499,7 @@ export function DocumentsList() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-tour-id="documents-board">
       {/* Toolbar */}
       <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center">
         {/* Status filter pills */}

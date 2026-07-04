@@ -6,6 +6,7 @@ export default function DecisionsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Decisions"
+        tourId="decisions-summary"
         subtitle="Material decisions on this project — what was decided, when, by whom, what alternatives were considered, and the rationale. Every audit and SteerCo review reads from here."
       />
       <DecisionsGrid />

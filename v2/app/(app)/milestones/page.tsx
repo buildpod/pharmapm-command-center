@@ -7,6 +7,7 @@ export default function MilestonesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Milestones"
+        tourId="milestones-summary"
         subtitle="Interactive schedule with dependency-aware impact review. Click a planned date to edit — downstream impact is shown before you commit."
       />
       <GuidedWorkPanel route="/milestones" compact />

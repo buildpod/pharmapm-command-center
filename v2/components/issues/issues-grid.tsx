@@ -97,7 +97,7 @@ export function IssuesGrid() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour-id="issues-board">
       {/* Summary bar */}
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
         <span className="text-sm font-medium text-foreground tabular-nums">

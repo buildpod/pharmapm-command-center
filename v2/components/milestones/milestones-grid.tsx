@@ -543,7 +543,7 @@ export function MilestonesGrid() {
     .sort((a, b) => a.plannedDate.localeCompare(b.plannedDate));
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour-id="milestones-board">
       {/* O8.4 — committed-baseline drift + re-baseline history (visible, governed). */}
       <CommitmentBanner projectId={activeProjectId} currentGoLive={activeProject.goLiveDate} />
 

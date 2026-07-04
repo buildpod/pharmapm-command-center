@@ -367,7 +367,7 @@ export function RisksGrid() {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(340px,420px)_1fr]">
+    <div className="grid gap-6 lg:grid-cols-[minmax(340px,420px)_1fr]" data-tour-id="risks-board">
       {/* Matrix — sticky on desktop, scoped to active project */}
       <div className="self-start lg:sticky lg:top-4">
         <RiskMatrix risks={projectRisks} selectedId={selectedId} onSelect={handleSelectFromMatrix} />

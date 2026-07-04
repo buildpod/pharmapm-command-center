@@ -85,10 +85,11 @@ export default function GovernancePage() {
     <div className="space-y-6">
       <PageHeader
         title="Governance"
+        tourId="governance-summary"
         subtitle="What decisions and controls matter: top risks, pending approvals, budget truth, and charter status."
       />
 
-      <section className="grid grid-cols-1 gap-3 md:grid-cols-4">
+      <section className="grid grid-cols-1 gap-3 md:grid-cols-4" data-tour-id="governance-controls">
         <GovernanceCard title="Open risks" value={openRisks.length} detail={`${highRisks.length} high-priority risk${highRisks.length === 1 ? "" : "s"} ${highRisks.length === 1 ? "needs" : "need"} escalation discipline.`} href="/risks" tone={highRisks.length ? "rose" : openRisks.length ? "amber" : "emerald"} icon={AlertTriangle} />
         <GovernanceCard title="Decision packs" value={pendingDocuments.size} detail={`${pendingApprovals.length} person-level review or approval follow-up${pendingApprovals.length === 1 ? "" : "s"}.`} href="/documents" tone={pendingApprovals.length ? "amber" : "emerald"} icon={FileText} />
         <GovernanceCard title="Budget used" value={evm ? `${budgetPct}%` : "Pending"} detail={budgetDetail} href="/costs" tone={evm && budgetPct >= 85 ? "rose" : evm && budgetPct >= 60 ? "amber" : "blue"} icon={DollarSign} />

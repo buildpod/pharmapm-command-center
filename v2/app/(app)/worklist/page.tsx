@@ -130,6 +130,7 @@ export default function WorklistPage() {
     <div className="space-y-6">
       <PageHeader
         title="Worklist"
+        tourId="worklist-summary"
         subtitle="What work is active now: blockers first, then due work, approvals, risks, and the next delivery gates."
       />
 
@@ -140,7 +141,7 @@ export default function WorklistPage() {
         <WorkCard title="Approvals" count={pendingDecisions.length} description="Document reviews and sign-offs waiting for people." href="/documents" tone={pendingDecisions.length ? "amber" : "emerald"} icon={FileText} />
       </section>
 
-      <section className="rounded-xl border border-border bg-card shadow-sm">
+      <section className="rounded-xl border border-border bg-card shadow-sm" data-tour-id="worklist-actions">
         <div className="flex items-center gap-2 border-b border-border bg-muted/30 px-5 py-3">
           <UserCheck className="h-4 w-4 text-muted-foreground" />
           <div>

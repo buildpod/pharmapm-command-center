@@ -7,6 +7,7 @@ export default function DocumentsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Documents"
+        tourId="documents-summary"
         subtitle="GxP-aligned lifecycle artefacts. Cards are grouped by validation phase. Click a person chip to record their decision — document status auto-derives."
       />
       <GuidedWorkPanel route="/documents" compact />

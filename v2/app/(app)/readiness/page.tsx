@@ -133,10 +133,11 @@ export default function ReadinessPage() {
     <div className="space-y-6">
       <PageHeader
         title="Readiness Gates"
+        tourId="readiness-summary"
         subtitle="Are gates ready for go-live? This is computed from live document approvals and milestone completion."
       />
 
-      <section className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-5">
+      <section className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-5" data-tour-id="readiness-gates">
         {gates.map((gate) => (
           <GateCard key={gate.title} gate={gate} />
         ))}

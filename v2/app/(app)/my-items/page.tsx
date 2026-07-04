@@ -71,6 +71,7 @@ export default function MyItemsPage() {
       <PageHeader
         title="My Items"
         icon={Inbox}
+        tourId="my-items-summary"
         subtitle={
           <>
             Everything assigned to <span className="font-medium text-foreground">{ME}</span> in {activeProject.name}.
@@ -82,7 +83,7 @@ export default function MyItemsPage() {
       />
 
       {/* Summary strip */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4" data-tour-id="my-items-buckets">
         <SummaryCard label="Tasks"      value={ownedTasks.length}      sub={`${overdueTasks.length} overdue · ${blockedTasks.length} blocked`} Icon={CheckSquare} tone={overdueTasks.length > 0 ? "bad" : blockedTasks.length > 0 ? "warn" : "neutral"} />
         <SummaryCard label="Documents"  value={ownedDocuments.length}  sub={`${overdueDocs.length} overdue · ${inFlightDocs.length} in flight`} Icon={FileText}    tone={overdueDocs.length > 0 ? "bad" : "neutral"} />
         <SummaryCard label="Risks"      value={ownedRisks.length}      sub={`${ownedRisks.filter((r) => r.score >= 12).length} escalated`}     Icon={AlertTriangle} tone={ownedRisks.filter((r) => r.score >= 12).length > 0 ? "bad" : "neutral"} />

@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, BookOpen, CheckCircle2, ChevronRight, Map, PlayCircle, Search, X } from "lucide-react";
+import { ArrowRight, BookOpen, CheckCircle2, ChevronRight, GraduationCap, Map, PlayCircle, Search, X } from "lucide-react";
 import { useDapEnabled, writeDapEnabled } from "@/components/guidance/dap-settings";
 import { helpByRoute, productGlossary } from "@/lib/guidance/help";
 
@@ -109,6 +110,14 @@ export function HelpDrawer({
                 </span>
                 <ChevronRight aria-hidden="true" />
               </button>
+              <Link href="/learn" className="help-drawer__row" onClick={onClose}>
+                <GraduationCap aria-hidden="true" />
+                <span>
+                  <strong>Learn the basics</strong>
+                  <em>PM fundamentals, how the numbers work, and why it beats the usual tools.</em>
+                </span>
+                <ChevronRight aria-hidden="true" />
+              </Link>
             </section>
           )}
 
