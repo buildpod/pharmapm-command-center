@@ -13,6 +13,8 @@ import { ProjectSwitcher } from "@/components/projects/project-switcher";
 import { useProject } from "@/components/projects/project-provider";
 import { HelpDrawer } from "@/components/guidance/help-drawer";
 import { PageTour } from "@/components/guidance/page-tour";
+import { useDapEnabled } from "@/components/guidance/dap-settings";
+import { TOURS_SEEN_EVENT, readTourSeen, toursByRoute } from "@/lib/guidance/tours";
 import { adminNavItems, appTabs, getRouteNavContext, isActiveRoute, routeToTabMap } from "@/lib/navigation";
 
 function normalizeHelpRoute(pathname: string) {
@@ -31,6 +33,19 @@ export function Topbar() {
   const { activeProject } = useProject();
   const { tab, itemLabel } = getRouteNavContext(pathname);
   const helpRoute = normalizeHelpRoute(pathname);
+  const dapEnabled = useDapEnabled();
+
+  // Launcher badge — a quiet dot when this page has a tour not yet taken.
+  const [tourUnseen, setTourUnseen] = useState(false);
+  useEffect(() => {
+    function compute() {
+      const steps = toursByRoute[helpRoute] ?? [];
+      setTourUnseen(dapEnabled && steps.length > 0 && !readTourSeen()[helpRoute]);
+    }
+    compute();
+    window.addEventListener(TOURS_SEEN_EVENT, compute);
+    return () => window.removeEventListener(TOURS_SEEN_EVENT, compute);
+  }, [helpRoute, dapEnabled]);
 
   useEffect(() => {
     function onClick(event: MouseEvent) {
@@ -92,6 +107,7 @@ export function Topbar() {
         >
           <HelpCircle />
           <span>Guide</span>
+          {tourUnseen && <span className="topbar-guide-button__dot" aria-hidden="true" />}
         </button>
 
         <div className="hidden sm:flex">

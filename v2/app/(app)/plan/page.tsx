@@ -71,12 +71,13 @@ export default function PlanPage() {
     <div className="space-y-6">
       <PageHeader
         title="Plan"
+        tourId="plan-summary"
         subtitle={`What is the project shape? Charter, milestone gates, task counts, and dependency links for ${activeProject.name}.`}
       />
 
       <GuidedWorkPanel route="/plan" compact />
 
-      <section className="grid grid-cols-1 gap-3 md:grid-cols-4">
+      <section className="grid grid-cols-1 gap-3 md:grid-cols-4" data-tour-id="plan-shape">
         <PlanCard title="Charter" value={charter ? charter.status : "Missing"} description="Purpose, scope, objectives, assumptions, and sponsor approval." href="/charter" icon={ScrollText} tone={charter?.status === "approved" ? "emerald" : "amber"} />
         <PlanCard title="Milestones" value={milestones.length} description={`${shiftedMilestones.length} forecast movement${shiftedMilestones.length === 1 ? "" : "s"} visible.`} href="/milestones" icon={Milestone} tone={shiftedMilestones.length ? "amber" : "emerald"} />
         <PlanCard title="Tasks" value={tasks.length} description={`${linkedTasks.length} linked to milestones, ${unlinkedTasks.length} unlinked.`} href="/tasks" icon={CheckSquare} />

@@ -1560,7 +1560,7 @@ select.field-input {
 }
 .help-drawer__row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: var(--space-3);
   width: 100%;
@@ -1742,6 +1742,30 @@ select.field-input {
   outline: none;
   border-radius: var(--radius-sm);
   box-shadow: var(--focus-ring);
+}
+.help-drawer__viewed {
+  border-radius: var(--radius-full);
+  background: var(--color-status-ok-bg);
+  color: var(--color-status-ok-fg);
+  padding: 1px 8px;
+  font-size: 10px;
+  font-weight: var(--weight-semi);
+  white-space: nowrap;
+}
+
+/* Guide launcher badge — quiet dot when this page's tour is unseen. */
+.topbar-guide-button {
+  position: relative;
+}
+.topbar-guide-button__dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent-600);
+  box-shadow: 0 0 0 2px var(--color-surface-card);
 }
 
 @media (max-width: 640px) {

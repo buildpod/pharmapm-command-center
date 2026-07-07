@@ -4,7 +4,7 @@ import "@/app/styles/activity.css";
 export default function ActivityPage() {
   return (
     <>
-      <div className="page-header">
+      <div className="page-header" data-tour-id="activity-summary">
         <div className="page-header__eyebrow">Overview</div>
         <h1 className="t-page-title page-header__title">Activity</h1>
         <div className="page-header__meta">
@@ -13,7 +13,9 @@ export default function ActivityPage() {
           <span>Each entry traces to its source for audit</span>
         </div>
       </div>
-      <ActivityFeed />
+      <div data-tour-id="activity-feed">
+        <ActivityFeed />
+      </div>
     </>
   );
 }

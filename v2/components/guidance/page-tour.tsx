@@ -6,14 +6,15 @@ import { useDapEnabled } from "@/components/guidance/dap-settings";
 import { useCurrentUser } from "@/lib/settingsStore";
 import {
   ACTIVE_COMMAND_CENTER_JOURNEY_KEY,
-  COMMAND_CENTER_JOURNEY_SEEN_KEY,
-  TOUR_STORAGE_KEY,
   commandCenterJourney,
+  markJourneySeen,
+  markTourSeen,
+  readJourneySeen,
+  readTourSeen,
   toursByRoute,
   type TourStep,
 } from "@/lib/guidance/tours";
 
-type SeenMap = Record<string, boolean>;
 type TourMode = "route" | "journey";
 type TourPhase = "intro" | "steps";
 type TargetBox = { top: number; left: number; width: number; height: number };
@@ -32,35 +33,8 @@ function normalizeRoute(pathname: string) {
     .find((route) => normalized === route || normalized.startsWith(`${route}/`)) ?? normalized;
 }
 
-function readSeen(): SeenMap {
-  try {
-    const raw = window.localStorage.getItem(TOUR_STORAGE_KEY);
-    return raw ? JSON.parse(raw) as SeenMap : {};
-  } catch {
-    return {};
-  }
-}
-
-function markSeen(route: string) {
-  try {
-    window.localStorage.setItem(TOUR_STORAGE_KEY, JSON.stringify({ ...readSeen(), [route]: true }));
-  } catch {}
-}
-
-function readJourneySeen() {
-  try {
-    return window.localStorage.getItem(COMMAND_CENTER_JOURNEY_SEEN_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function markJourneySeen() {
-  try {
-    window.localStorage.setItem(COMMAND_CENTER_JOURNEY_SEEN_KEY, "1");
-    window.sessionStorage.removeItem(ACTIVE_COMMAND_CENTER_JOURNEY_KEY);
-  } catch {}
-}
+// Seen-state helpers live in lib/guidance/tours.ts (shared with the topbar
+// badge and the Guide drawer's "Viewed" chips).
 
 function writeActiveJourney(index: number) {
   try {
@@ -192,7 +166,7 @@ export function PageTour() {
     if (mode === "journey") {
       markJourneySeen();
     } else {
-      markSeen(route);
+      markTourSeen(route);
     }
     setActive(false);
     setPhase("intro");
@@ -237,7 +211,7 @@ export function PageTour() {
       setActive(true);
       return;
     }
-    const seen = readSeen();
+    const seen = readTourSeen();
     if (!seen[route]) {
       setMode("route");
       setIndex(0);

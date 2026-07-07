@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, BookOpen, CheckCircle2, ChevronRight, GraduationCap, Map, PlayCircle, Search, X } from "lucide-react";
 import { useDapEnabled, writeDapEnabled } from "@/components/guidance/dap-settings";
 import { helpByRoute, productGlossary } from "@/lib/guidance/help";
+import { readJourneySeen, readTourSeen } from "@/lib/guidance/tours";
 
 // Guide panel shaped like the market standard for in-app help (Intercom
 // Messenger / Pendo Resource Center): search first, tour launchers as rows
@@ -46,6 +47,10 @@ export function HelpDrawer({
     [q],
   );
   const nothingMatches = q !== "" && canDo.length === 0 && howDoI.length === 0 && glossary.length === 0;
+
+  // Completion state — reads fresh on every open (drawer re-renders on open).
+  const pageTourViewed = !!readTourSeen()[route];
+  const journeyViewed = readJourneySeen();
 
   if (!open) return null;
 
@@ -100,6 +105,7 @@ export function HelpDrawer({
                   <strong>Tour this page</strong>
                   <em>Spotlight the key controls, one step at a time.</em>
                 </span>
+                {pageTourViewed && <span className="help-drawer__viewed">Viewed</span>}
                 <ChevronRight aria-hidden="true" />
               </button>
               <button type="button" className="help-drawer__row" onClick={startProductJourney}>
@@ -108,6 +114,7 @@ export function HelpDrawer({
                   <strong>Full product journey</strong>
                   <em>Setup → dashboard → milestones → tasks → reports.</em>
                 </span>
+                {journeyViewed && <span className="help-drawer__viewed">Viewed</span>}
                 <ChevronRight aria-hidden="true" />
               </button>
               <Link href="/learn" className="help-drawer__row" onClick={onClose}>

@@ -105,7 +105,7 @@ export default function ProjectsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
+      <header className="flex flex-wrap items-start justify-between gap-3" data-tour-id="projects-summary">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Projects</h1>
           <p className="text-sm text-muted-foreground">
@@ -121,7 +121,7 @@ export default function ProjectsPage() {
         </Link>
       </header>
 
-      <section className="rounded-xl border border-border bg-card p-4 shadow-sm" aria-label="Search projects">
+      <section className="rounded-xl border border-border bg-card p-4 shadow-sm" aria-label="Search projects" data-tour-id="projects-list">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <label className="relative block flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

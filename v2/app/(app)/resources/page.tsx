@@ -6,9 +6,12 @@ export default function ResourcesPage() {
     <div className="space-y-6">
       <PageHeader
         title="People & Meetings"
+        tourId="resources-summary"
         subtitle="Team availability, meeting cadence, and pre-brief materials. Absences automatically surface impacted tasks and milestones; SteerCo and workstream pre-briefs derive per-attendee actions from live project data."
       />
-      <ResourcesPanel />
+      <div data-tour-id="resources-board">
+        <ResourcesPanel />
+      </div>
     </div>
   );
 }

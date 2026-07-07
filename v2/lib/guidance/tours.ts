@@ -10,6 +10,52 @@ export const TOUR_STORAGE_KEY = "aivello_tours_seen_v1";
 export const COMMAND_CENTER_JOURNEY_SEEN_KEY = "aivello_command_center_journey_seen_v1";
 export const ACTIVE_COMMAND_CENTER_JOURNEY_KEY = "aivello_active_command_center_journey_v1";
 
+// ── Seen-state (single source of truth) ─────────────────────────────────────
+// The tour engine, the topbar launcher badge, and the Guide drawer's "Viewed"
+// chips all read/write through these. Mutations broadcast TOURS_SEEN_EVENT so
+// live badges update the moment a tour is completed or skipped.
+
+export type TourSeenMap = Record<string, boolean>;
+export const TOURS_SEEN_EVENT = "aivello:tours-seen-change";
+
+function notifySeenChange() {
+  try {
+    window.dispatchEvent(new CustomEvent(TOURS_SEEN_EVENT));
+  } catch {}
+}
+
+export function readTourSeen(): TourSeenMap {
+  try {
+    const raw = window.localStorage.getItem(TOUR_STORAGE_KEY);
+    return raw ? JSON.parse(raw) as TourSeenMap : {};
+  } catch {
+    return {};
+  }
+}
+
+export function markTourSeen(route: string) {
+  try {
+    window.localStorage.setItem(TOUR_STORAGE_KEY, JSON.stringify({ ...readTourSeen(), [route]: true }));
+  } catch {}
+  notifySeenChange();
+}
+
+export function readJourneySeen(): boolean {
+  try {
+    return window.localStorage.getItem(COMMAND_CENTER_JOURNEY_SEEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function markJourneySeen() {
+  try {
+    window.localStorage.setItem(COMMAND_CENTER_JOURNEY_SEEN_KEY, "1");
+    window.sessionStorage.removeItem(ACTIVE_COMMAND_CENTER_JOURNEY_KEY);
+  } catch {}
+  notifySeenChange();
+}
+
 export const commandCenterJourney = {
   id: "command-center",
   eyebrow: "Command Center Launch",
@@ -178,36 +224,36 @@ export const toursByRoute: Record<string, TourStep[]> = {
   ],
   "/activity": [
     {
-      anchor: "route-context",
-      title: "Know where you are",
-      body: "Activity is the recent-change view for understanding what moved since the last project conversation.",
+      anchor: "activity-summary",
+      title: "The audit trail, humanized",
+      body: "Everything that changed on this project, newest first — who did what, when, grouped by day.",
     },
     {
-      anchor: "primary-nav",
-      title: "Move from signal to source",
-      body: "Use the primary navigation to jump from recent changes into the command, plan, governance, finance, or people view.",
+      anchor: "activity-feed",
+      title: "Every entry traces to its source",
+      body: "Each item comes from a real recorded action — nothing is fabricated, and nothing recorded can quietly disappear.",
     },
     {
       anchor: "topbar-help",
-      title: "Replay guidance when needed",
-      body: "The Guide drawer gives page help, tours, the product journey, and the glossary without crowding the topbar.",
+      title: "Replay any time",
+      body: "The Guide drawer gives page help, tours, and the glossary whenever you need them.",
     },
   ],
   "/plan": [
     {
+      anchor: "plan-summary",
+      title: "The project's shape at a glance",
+      body: "Charter status, milestone gates, task counts, and the dependency links that drive schedule movement.",
+    },
+    {
+      anchor: "plan-shape",
+      title: "Each card is a door",
+      body: "Charter, milestones, tasks, and waiting links — click any card to open the register behind the number.",
+    },
+    {
       anchor: "guided-work",
-      title: "Plan guidance uses live gaps",
-      body: "The guided panel highlights plan cleanup based on project records, such as missing owners or thin structure.",
-    },
-    {
-      anchor: "primary-nav",
-      title: "Open the plan records",
-      body: "Use Plan navigation to move into milestones, tasks, worklist, your items, and readiness gates.",
-    },
-    {
-      anchor: "topbar-help",
-      title: "Use Guide for the walkthrough",
-      body: "Start the page tour or product journey from the Guide drawer whenever you need a replay.",
+      title: "Cleanup nudges from live gaps",
+      body: "The guided panel flags plan weaknesses computed from your records — missing owners, unlinked tasks, thin structure.",
     },
   ],
   "/milestones": [
@@ -297,19 +343,19 @@ export const toursByRoute: Record<string, TourStep[]> = {
   ],
   "/charter": [
     {
-      anchor: "route-context",
-      title: "Charter defines authority",
-      body: "Use this page to make scope, outcomes, sponsor ownership, and approval visible.",
+      anchor: "charter-summary",
+      title: "The authority document",
+      body: "The formal authorisation for this project — the reference every SteerCo decision points back to.",
     },
     {
-      anchor: "primary-nav",
-      title: "Connect charter to governance",
-      body: "Move between charter, risks, decisions, issues, and documents when the control story needs support.",
+      anchor: "charter-doc",
+      title: "Scope, objectives, sponsor, approval",
+      body: "Purpose, measurable outcomes, assumptions, constraints, and who signed it off — kept current, not buried in a drive.",
     },
     {
       anchor: "topbar-help",
-      title: "Open charter help",
-      body: "Guide gives page help and starts a walkthrough without changing the record data.",
+      title: "Replay any time",
+      body: "Guide gives page help and runs this walkthrough again without touching the record.",
     },
   ],
   "/decisions": [
@@ -382,53 +428,53 @@ export const toursByRoute: Record<string, TourStep[]> = {
   ],
   "/resources": [
     {
-      anchor: "route-context",
-      title: "People and meetings show operating rhythm",
-      body: "Use this route to see who owns work and which governance conversations keep delivery moving.",
+      anchor: "resources-summary",
+      title: "People, availability, meetings",
+      body: "Who is on the project, when they're away, and the governance cadence that keeps delivery moving.",
     },
     {
-      anchor: "primary-nav",
-      title: "Move from people to work",
-      body: "Use navigation to inspect tasks, issues, decisions, and readiness records tied to ownership.",
+      anchor: "resources-board",
+      title: "Absences show their delivery impact",
+      body: "Record an absence and the affected tasks and milestones surface automatically — cover gaps before they become slips.",
     },
     {
       anchor: "topbar-help",
-      title: "Open people guidance",
-      body: "Guide gives page help and a replayable tour for this operating view.",
+      title: "Replay any time",
+      body: "Guide gives page help and runs this tour again when needed.",
     },
   ],
   "/projects": [
     {
-      anchor: "route-context",
-      title: "Manage command centers",
-      body: "Projects is where you switch, export, delete, or save reusable project templates.",
+      anchor: "projects-summary",
+      title: "Manage your command centers",
+      body: "Switch between projects, create new ones, and remove test data — the active project drives every other view.",
     },
     {
-      anchor: "primary-nav",
-      title: "Return to command work",
-      body: "Use navigation to move back into dashboard, plan, governance, finance, or people views.",
+      anchor: "projects-list",
+      title: "Search, switch, export, reuse",
+      body: "Find a project, make it active, export its data, or save it as a reusable template for the next rollout.",
     },
     {
       anchor: "topbar-help",
-      title: "Get project management help",
-      body: "Guide explains this admin surface and starts a route walkthrough when needed.",
+      title: "Replay any time",
+      body: "Guide explains this admin surface and runs the walkthrough again when needed.",
     },
   ],
   "/settings": [
     {
-      anchor: "route-context",
-      title: "Settings control calculations",
-      body: "Use settings to review calendars and rules that shape schedule impact and working-day logic.",
+      anchor: "settings-summary",
+      title: "The rules that drive the math",
+      body: "Working calendars, holidays, and status bands shape every schedule calculation — set once, applied everywhere.",
     },
     {
-      anchor: "primary-nav",
-      title: "Return to delivery surfaces",
-      body: "Use navigation to validate how settings affect plan, tasks, milestones, and readiness views.",
+      anchor: "settings-rules",
+      title: "Calendars, bands, and your identity",
+      body: "Holiday calendars keep schedule shifts realistic per region, and your name here is what every record signs as. Scoring thresholds are fixed by design — a verdict you can tune is a verdict you can game.",
     },
     {
       anchor: "topbar-help",
-      title: "Open settings guidance",
-      body: "Guide explains why these rules matter and can replay the page tour.",
+      title: "Replay any time",
+      body: "Guide explains why these rules matter and runs the tour again when needed.",
     },
   ],
 };
