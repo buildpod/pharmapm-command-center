@@ -48,6 +48,10 @@
 
 ### R5 — Release discipline
 - Run `pnpm release:verify` (test + build + e2e) **before** claiming done.
+- **Visual changes must be SEEN before shipping:** run
+  `pnpm exec playwright test tests/e2e/design-shots.spec.ts --project=chromium-desktop`
+  and inspect the PNGs in `output/design-shots/` — the gate proves it builds,
+  the shots prove it looks right.
 - One logical change per commit; message says the _intent_, not the diff.
 - `git pull --rebase` before pushing (Codex works in parallel; `tasks-grid.tsx`
   overlaps). Push only when asked.
