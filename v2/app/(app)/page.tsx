@@ -197,7 +197,7 @@ export default function DashboardPage() {
     : evm.verdict.level === "on-track" ? "pill pill--ok"
     : evm.verdict.level === "watch" ? "pill pill--warn"
     : "pill pill--risk";
-  const verdictToneVar = !evm
+  const verdictToneVar = !evm || evm.verdict.planOnly
     ? "var(--color-status-neutral-dot)"
     : evm.verdict.level === "on-track" ? "var(--color-status-ok-dot)"
     : evm.verdict.level === "watch" ? "var(--color-status-warn-dot)"
@@ -343,7 +343,15 @@ export default function DashboardPage() {
         </section>
       )}
 
-      <Link href="/truth" className="executive-verdict" aria-label="Executive verdict — open Delivery Signals" data-tour-id="dashboard-verdict">
+      {/* Accent border states the verdict's outcome (tone discipline) — a
+          teal edge on an at-risk verdict claimed calm it hadn't earned. */}
+      <Link
+        href="/truth"
+        className="executive-verdict"
+        aria-label="Executive verdict — open Delivery Signals"
+        data-tour-id="dashboard-verdict"
+        style={{ borderLeftColor: verdictToneVar }}
+      >
         <div>
           <div className="executive-verdict__label">Executive Verdict</div>
           {/* An untouched plan must not claim a track record — headline says
