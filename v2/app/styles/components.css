@@ -985,6 +985,9 @@
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(260px, 0.7fr);
   gap: var(--space-4);
+  /* Size panels to content — the readout stretched to match the taller
+     evidence trail, leaving a large empty block inside the tinted card. */
+  align-items: start;
 }
 .report-verdict {
   padding: var(--space-4);

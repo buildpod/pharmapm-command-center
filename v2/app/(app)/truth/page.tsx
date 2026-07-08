@@ -121,7 +121,9 @@ export default function DeliveryTruthPage() {
 
       <GuidedWorkPanel route="/truth" compact />
 
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+      {/* items-start: panels size to their content — a stretched score panel
+          left a large dead zone next to the taller Decision Options card. */}
+      <section className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <div className={cn("rounded-xl border p-5 shadow-sm", statusToneClasses[confidenceTone].panel)} data-tour-id="truth-score">
           <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <div>

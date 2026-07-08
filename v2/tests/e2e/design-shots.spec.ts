@@ -77,6 +77,23 @@ test.describe("design shots", () => {
     await page.screenshot({ path: `${OUT}/07-learn.png` });
   });
 
+  test("key pages sweep", async ({ page }, testInfo) => {
+    await seed(page);
+    const label = testInfo.project.name.includes("mobile") ? "m" : "d";
+    for (const [name, path, wait] of [
+      ["truth", "/truth/", "[data-tour-id='truth-score']"],
+      ["reports", "/reports/", "[data-tour-id='reports-picker']"],
+      ["milestones", "/milestones/", "[data-tour-id='milestones-board']"],
+      ["governance", "/governance/", "[data-tour-id='governance-controls']"],
+      ["setup", "/setup/", "h1"],
+    ] as const) {
+      await page.goto(`${appBase}${path}`);
+      await page.waitForSelector(wait, { timeout: 15_000 });
+      await page.waitForTimeout(300);
+      await page.screenshot({ path: `${OUT}/10-${name}-${label}.png` });
+    }
+  });
+
   test("guide drawer with unseen tour badge", async ({ page }) => {
     await seed(page, { toursSeen: false });
     await page.goto(`${appBase}/tasks/`);
