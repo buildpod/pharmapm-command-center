@@ -192,7 +192,7 @@ export function buildProjectReadiness(input: GuidanceInput): ReadinessItem[] {
       id: "milestones",
       label: "Milestone spine reviewed",
       status: spineReviewed ? "done" : milestones.length ? "watch" : "action",
-      description: missingOwnerMilestone ? `${missingOwnerMilestone.name} needs an accountable owner.` : `${milestones.length} milestone gates in this project.`,
+      description: missingOwnerMilestone ? `“${missingOwnerMilestone.name}” needs an accountable owner.` : `${milestones.length} milestone gates in this project.`,
       href: focusHref("/milestones", missingOwnerMilestone?.id),
       cta: missingOwnerMilestone ? "Assign owner" : "Review milestones",
       tone: spineReviewed ? "ok" : "warn",
@@ -201,7 +201,9 @@ export function buildProjectReadiness(input: GuidanceInput): ReadinessItem[] {
       id: "tasks",
       label: "Tasks linked to milestones",
       status: tasksLinked ? "done" : tasks.length ? "watch" : "action",
-      description: unlinkedTask ? `${unlinkedTask.name} is not linked to a proof point.` : `${tasks.length} tasks are linked to project proof points.`,
+      // Task names are quoted so plural names don't break the sentence
+      // ("…reports is not linked" read as a grammar error).
+      description: unlinkedTask ? `“${unlinkedTask.name}” is not linked to a proof point yet.` : `${tasks.length} tasks are linked to project proof points.`,
       href: focusHref("/tasks", unlinkedTask?.id),
       cta: unlinkedTask ? "Link task" : "Open tasks",
       tone: tasksLinked ? "ok" : "warn",
@@ -263,7 +265,7 @@ export function buildSmartNudges(input: GuidanceInput, role: GuidanceRole): Smar
     nudges.push({
       id: "milestone-owner",
       title: "Assign an accountable owner.",
-      body: `${entities.missingOwnerMilestone.name} has no owner, so the gate has no clear follow-up path.`,
+      body: `“${entities.missingOwnerMilestone.name}” has no owner, so the gate has no clear follow-up path.`,
       href: focusHref("/milestones", entities.missingOwnerMilestone.id),
       tone: "warn",
       sourceId: entities.missingOwnerMilestone.id,
@@ -274,7 +276,9 @@ export function buildSmartNudges(input: GuidanceInput, role: GuidanceRole): Smar
     nudges.push({
       id: "task-milestone",
       title: "Link this task to a proof point.",
-      body: `${entities.unlinkedTask.name} will not roll up cleanly until it supports a milestone.`,
+      // Names are quoted in every nudge template — plural record names
+      // otherwise break the sentence grammar ("…reports is not linked").
+      body: `“${entities.unlinkedTask.name}” will not roll up cleanly until it supports a milestone.`,
       href: focusHref("/tasks", entities.unlinkedTask.id),
       tone: "warn",
       sourceId: entities.unlinkedTask.id,
@@ -297,7 +301,7 @@ export function buildSmartNudges(input: GuidanceInput, role: GuidanceRole): Smar
     nudges.push({
       id: "document-approvals",
       title: "Resolve approval debt before reporting.",
-      body: `${entities.pendingDocument.name} has ${count} pending reviewer or approver decision${count === 1 ? "" : "s"}.`,
+      body: `“${entities.pendingDocument.name}” has ${count} pending reviewer or approver decision${count === 1 ? "" : "s"}.`,
       href: focusHref("/documents", entities.pendingDocument.id),
       tone: "warn",
       sourceId: entities.pendingDocument.id,
@@ -310,7 +314,7 @@ export function buildSmartNudges(input: GuidanceInput, role: GuidanceRole): Smar
       nudges.push({
         id: "pm-blocked-task",
         title: "Clear blocked work before the next status cycle.",
-        body: `${blockedTask.name} needs a dependency or owner decision to move.`,
+        body: `“${blockedTask.name}” needs a dependency or owner decision to move.`,
         href: focusHref("/tasks", blockedTask.id),
         tone: "risk",
         sourceId: blockedTask.id,
@@ -338,7 +342,7 @@ export function buildSmartNudges(input: GuidanceInput, role: GuidanceRole): Smar
       nudges.push({
         id: "qa-evidence",
         title: "Close evidence before audit pressure builds.",
-        body: `${evidenceDoc.name} is ${evidenceDoc.status.replace("-", " ")}.`,
+        body: `“${evidenceDoc.name}” is ${evidenceDoc.status.replace("-", " ")}.`,
         href: focusHref("/documents", evidenceDoc.id),
         tone: "warn",
         sourceId: evidenceDoc.id,

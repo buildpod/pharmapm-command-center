@@ -1,4 +1,4 @@
-import { GraduationCap } from "lucide-react";
+import { ChevronDown, GraduationCap } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { lessonTracks } from "@/lib/guidance/learn";
 import { publishedVideos } from "@/lib/guidance/videos";
@@ -58,7 +58,7 @@ export default function LearnPage() {
           </div>
           <div className="space-y-2">
             {track.lessons.map((lesson) => (
-              <details key={lesson.id} className="rounded-xl border border-border bg-card shadow-sm">
+              <details key={lesson.id} className="group rounded-xl border border-border bg-card shadow-sm">
                 <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-3 [&::-webkit-details-marker]:hidden">
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-semibold text-foreground">{lesson.title}</span>
@@ -67,6 +67,8 @@ export default function LearnPage() {
                   <span className="shrink-0 rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
                     {lesson.minutes} min
                   </span>
+                  {/* Expand affordance — without it the cards read as static. */}
+                  <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
                 </summary>
                 <div className="space-y-3 border-t border-border px-5 py-4">
                   {lesson.body.map((paragraph) => (

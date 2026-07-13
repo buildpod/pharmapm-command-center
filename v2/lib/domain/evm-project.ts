@@ -140,9 +140,10 @@ export function executiveVerdict(s: EvmSnapshot): ExecutiveVerdict {
   } else if (level === "on-track") {
     reason = "Cost and schedule both tracking to plan.";
   } else if (s.cpi <= s.spit && s.cpi < 1) {
-    reason = `Cost efficiency is the main drag (CPI ${s.cpi.toFixed(2)}). Forecast final cost ${breach > 0 ? `${(breach * 100).toFixed(0)}% over budget` : "near budget"}.`;
+    // Plain PM language on the flagship — no CPI/SPI(t) jargon (UX principle #2).
+    reason = `Cost is the main drag — every $1 spent is earning $${s.cpi.toFixed(2)} of planned work. Forecast final cost ${breach > 0 ? `${(breach * 100).toFixed(0)}% over budget` : "near budget"}.`;
   } else if (s.spit < 1) {
-    reason = `Schedule is the main drag (SPI(t) ${s.spit.toFixed(2)}) — behind in real time.`;
+    reason = `Schedule is the main drag — work is being earned at ${s.spit.toFixed(2)}× the planned pace.`;
   } else {
     reason = `Forecast final cost is ${(breach * 100).toFixed(0)}% over budget.`;
   }
