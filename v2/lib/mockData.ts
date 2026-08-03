@@ -744,34 +744,40 @@ export type Task = {
   projectId: string;     // FK → Project.id
 };
 
+// budgetK per task maps to the cost-line structure so earned value is
+// budget-weighted (F3): Configuration 650, Validation 320, Data Migration 280,
+// Training 180, Project Mgmt 150 — 1,580 $k of task-bearing work. The
+// Integration and License cost lines carry no task work (vendor/licence spend),
+// which is why task budgets don't sum to the 2,000 $k BAC. Weights only —
+// BAC still comes solely from cost lines.
 export const tasks: Task[] = [
   // ── Configuration ──────────────────────────────────────────────────
-  { id: "t1",  workstream: "Configuration",    name: "Set up user roles & permission profiles",     priority: "Critical", status: "In Progress",  progress: 75, milestoneId: "m6",  owner: "VP",  dueDate: "2026-05-25", projectId: "proj-veeva-rim" },
-  { id: "t2",  workstream: "Configuration",    name: "Configure submission workspace settings",      priority: "High",     status: "In Progress",  progress: 60, milestoneId: "m6",  owner: "KM",  dueDate: "2026-05-30", dependsOn: ["t1"], projectId: "proj-veeva-rim" },
-  { id: "t3",  workstream: "Configuration",    name: "Set up workflow lifecycle rules",              priority: "High",     status: "In Progress",  progress: 40, milestoneId: "m6",  owner: "KM",  dueDate: "2026-05-30", dependsOn: ["t1"], projectId: "proj-veeva-rim" },
-  { id: "t4",  workstream: "Configuration",    name: "Configure document templates & renditions",   priority: "Medium",   status: "Not Started",  progress:  0, milestoneId: "m7",  owner: "KM",  dueDate: "2026-06-02", dependsOn: ["t2", "t3"], projectId: "proj-veeva-rim" },
+  { id: "t1",  workstream: "Configuration",    name: "Set up user roles & permission profiles",     priority: "Critical", status: "In Progress",  progress: 75, budgetK: 200, milestoneId: "m6",  owner: "VP",  dueDate: "2026-05-25", projectId: "proj-veeva-rim" },
+  { id: "t2",  workstream: "Configuration",    name: "Configure submission workspace settings",      priority: "High",     status: "In Progress",  progress: 60, budgetK: 180, milestoneId: "m6",  owner: "KM",  dueDate: "2026-05-30", dependsOn: ["t1"], projectId: "proj-veeva-rim" },
+  { id: "t3",  workstream: "Configuration",    name: "Set up workflow lifecycle rules",              priority: "High",     status: "In Progress",  progress: 40, budgetK: 150, milestoneId: "m6",  owner: "KM",  dueDate: "2026-05-30", dependsOn: ["t1"], projectId: "proj-veeva-rim" },
+  { id: "t4",  workstream: "Configuration",    name: "Configure document templates & renditions",   priority: "Medium",   status: "Not Started",  progress:  0, budgetK: 120, milestoneId: "m7",  owner: "KM",  dueDate: "2026-06-02", dependsOn: ["t2", "t3"], projectId: "proj-veeva-rim" },
 
   // ── Validation ─────────────────────────────────────────────────────
-  { id: "t5",  workstream: "Validation",       name: "Draft IQ protocol document",                  priority: "Critical", status: "In Progress",  progress: 30, milestoneId: "m9",  owner: "QA",  dueDate: "2026-06-15", dependsOn: ["t1"], projectId: "proj-veeva-rim" },
-  { id: "t6",  workstream: "Validation",       name: "Prepare OQ test scripts",                     priority: "High",     status: "Not Started",  progress:  0, milestoneId: "m9",  owner: "QA",  dueDate: "2026-07-01", dependsOn: ["t5"], projectId: "proj-veeva-rim" },
-  { id: "t7",  workstream: "Validation",       name: "UAT test case design & traceability matrix",  priority: "High",     status: "Not Started",  progress:  0, milestoneId: "m10", owner: "QA",  dueDate: "2026-07-20", dependsOn: ["t6"], projectId: "proj-veeva-rim" },
-  { id: "t8",  workstream: "Validation",       name: "Validation summary report template",          priority: "Medium",   status: "Not Started",  progress:  0, milestoneId: "m12", owner: "QA",  dueDate: "2026-08-15", dependsOn: ["t7"], projectId: "proj-veeva-rim" },
+  { id: "t5",  workstream: "Validation",       name: "Draft IQ protocol document",                  priority: "Critical", status: "In Progress",  progress: 30, budgetK:  70, milestoneId: "m9",  owner: "QA",  dueDate: "2026-06-15", dependsOn: ["t1"], projectId: "proj-veeva-rim" },
+  { id: "t6",  workstream: "Validation",       name: "Prepare OQ test scripts",                     priority: "High",     status: "Not Started",  progress:  0, budgetK:  90, milestoneId: "m9",  owner: "QA",  dueDate: "2026-07-01", dependsOn: ["t5"], projectId: "proj-veeva-rim" },
+  { id: "t7",  workstream: "Validation",       name: "UAT test case design & traceability matrix",  priority: "High",     status: "Not Started",  progress:  0, budgetK: 100, milestoneId: "m10", owner: "QA",  dueDate: "2026-07-20", dependsOn: ["t6"], projectId: "proj-veeva-rim" },
+  { id: "t8",  workstream: "Validation",       name: "Validation summary report template",          priority: "Medium",   status: "Not Started",  progress:  0, budgetK:  60, milestoneId: "m12", owner: "QA",  dueDate: "2026-08-15", dependsOn: ["t7"], projectId: "proj-veeva-rim" },
 
   // ── Data Migration ─────────────────────────────────────────────────
-  { id: "t9",  workstream: "Data Migration",   name: "Source data extraction & field mapping",      priority: "Critical", status: "In Progress",  progress: 50, milestoneId: "m4",  owner: "AR",  dueDate: "2026-05-15", projectId: "proj-veeva-rim" },
-  { id: "t10", workstream: "Data Migration",   name: "Data cleansing & transformation rules",       priority: "High",     status: "Not Started",  progress:  0, milestoneId: "m8",  owner: "AR",  dueDate: "2026-06-15", dependsOn: ["t9"], projectId: "proj-veeva-rim" },
-  { id: "t11", workstream: "Data Migration",   name: "Migration dry-run execution & reconciliation",priority: "High",     status: "Not Started",  progress:  0, milestoneId: "m8",  owner: "AR",  dueDate: "2026-06-30", dependsOn: ["t10"], projectId: "proj-veeva-rim" },
-  { id: "t12", workstream: "Data Migration",   name: "Data integrity verification scripts",         priority: "Medium",   status: "Blocked",      progress:  0, milestoneId: "m8",  owner: "AR",  dueDate: "2026-06-20", dependsOn: ["t9"], projectId: "proj-veeva-rim" },
+  { id: "t9",  workstream: "Data Migration",   name: "Source data extraction & field mapping",      priority: "Critical", status: "In Progress",  progress: 50, budgetK:  90, milestoneId: "m4",  owner: "AR",  dueDate: "2026-05-15", projectId: "proj-veeva-rim" },
+  { id: "t10", workstream: "Data Migration",   name: "Data cleansing & transformation rules",       priority: "High",     status: "Not Started",  progress:  0, budgetK:  80, milestoneId: "m8",  owner: "AR",  dueDate: "2026-06-15", dependsOn: ["t9"], projectId: "proj-veeva-rim" },
+  { id: "t11", workstream: "Data Migration",   name: "Migration dry-run execution & reconciliation",priority: "High",     status: "Not Started",  progress:  0, budgetK:  70, milestoneId: "m8",  owner: "AR",  dueDate: "2026-06-30", dependsOn: ["t10"], projectId: "proj-veeva-rim" },
+  { id: "t12", workstream: "Data Migration",   name: "Data integrity verification scripts",         priority: "Medium",   status: "Blocked",      progress:  0, budgetK:  40, milestoneId: "m8",  owner: "AR",  dueDate: "2026-06-20", dependsOn: ["t9"], projectId: "proj-veeva-rim" },
 
   // ── Training ───────────────────────────────────────────────────────
-  { id: "t13", workstream: "Training",         name: "Develop end-user training materials",         priority: "High",     status: "Not Started",  progress:  0, milestoneId: "m11", owner: "HR",  dueDate: "2026-07-15", dependsOn: ["t4"], projectId: "proj-veeva-rim" },
-  { id: "t14", workstream: "Training",         name: "Record system walkthrough videos",            priority: "Medium",   status: "Not Started",  progress:  0, milestoneId: "m11", owner: "HR",  dueDate: "2026-07-30", dependsOn: ["t13"], projectId: "proj-veeva-rim" },
-  { id: "t15", workstream: "Training",         name: "Schedule & confirm training sessions",        priority: "Medium",   status: "Not Started",  progress:  0, milestoneId: "m11", owner: "HR",  dueDate: "2026-08-10", dependsOn: ["t13", "t14"], projectId: "proj-veeva-rim" },
+  { id: "t13", workstream: "Training",         name: "Develop end-user training materials",         priority: "High",     status: "Not Started",  progress:  0, budgetK:  90, milestoneId: "m11", owner: "HR",  dueDate: "2026-07-15", dependsOn: ["t4"], projectId: "proj-veeva-rim" },
+  { id: "t14", workstream: "Training",         name: "Record system walkthrough videos",            priority: "Medium",   status: "Not Started",  progress:  0, budgetK:  40, milestoneId: "m11", owner: "HR",  dueDate: "2026-07-30", dependsOn: ["t13"], projectId: "proj-veeva-rim" },
+  { id: "t15", workstream: "Training",         name: "Schedule & confirm training sessions",        priority: "Medium",   status: "Not Started",  progress:  0, budgetK:  50, milestoneId: "m11", owner: "HR",  dueDate: "2026-08-10", dependsOn: ["t13", "t14"], projectId: "proj-veeva-rim" },
 
   // ── Project Management ─────────────────────────────────────────────
-  { id: "t16", workstream: "Project Mgmt",     name: "Weekly steering committee status reports",    priority: "Medium",   status: "In Progress",  progress: 80,                      owner: "VP",  dueDate: "2026-09-02", projectId: "proj-veeva-rim" },
-  { id: "t17", workstream: "Project Mgmt",     name: "Risk register review & maintenance",          priority: "High",     status: "In Progress",  progress: 65,                      owner: "VP",  dueDate: "2026-09-02", projectId: "proj-veeva-rim" },
-  { id: "t18", workstream: "Project Mgmt",     name: "Change control log & CCB minutes",           priority: "Low",      status: "In Progress",  progress: 70,                      owner: "VP",  dueDate: "2026-09-02", projectId: "proj-veeva-rim" },
+  { id: "t16", workstream: "Project Mgmt",     name: "Weekly steering committee status reports",    priority: "Medium",   status: "In Progress",  progress: 80, budgetK:  60,                      owner: "VP",  dueDate: "2026-09-02", projectId: "proj-veeva-rim" },
+  { id: "t17", workstream: "Project Mgmt",     name: "Risk register review & maintenance",          priority: "High",     status: "In Progress",  progress: 65, budgetK:  45,                      owner: "VP",  dueDate: "2026-09-02", projectId: "proj-veeva-rim" },
+  { id: "t18", workstream: "Project Mgmt",     name: "Change control log & CCB minutes",           priority: "Low",      status: "In Progress",  progress: 70, budgetK:  45,                      owner: "VP",  dueDate: "2026-09-02", projectId: "proj-veeva-rim" },
 ];
 
 // ─── Cost lines ───────────────────────────────────────────────────────────────
