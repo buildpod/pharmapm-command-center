@@ -1,20 +1,5 @@
 # Company / buyer video — the business case
 
-> **NotebookLM instruction (paste into Video Overview → Customize):**
-> Audience: decision-makers at a pharmaceutical or life-sciences company —
-> delivery directors, PMO heads, IT programme leaders, quality leadership. They
-> run or govern large validated implementations and are evaluating whether to
-> engage. Tone: confident, concrete, commercially serious — zero buzzwords, no
-> hype. Every claim must be one made in this document. Length: STRICTLY 4–5
-> minutes. Follow the sections in order.
-
-**Derived from Set A:** A1, A2, A4, A5, A6, A7, A8, A10, A11.
-**Goal:** the buyer understands the problem in their own terms, why existing
-tooling structurally can't solve it, what's different here, and exactly how to
-start. Supersedes the earlier standalone pitch script.
-
----
-
 ## Scene 1 — The problem, in your numbers (0:00–0:50)
 
 A validated system implementation — Veeva, SAP, a new quality platform — runs

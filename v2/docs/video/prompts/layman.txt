@@ -1,0 +1,7 @@
+Audience: an intelligent business person with NO project-management and NO pharmaceutical background — someone seeing this on LinkedIn, or hearing about it from a friend, or an investor doing a first pass.
+
+Tone: warm, plain-spoken, curious — like explaining something interesting to a smart friend over coffee. Absolutely zero jargon. Never say earned value, EVM, CPI, SPI, GxP, baseline, or milestone gate without immediately explaining it in ordinary words. Keep the bank-statement analogy — it is the heart of the piece.
+
+Length: STRICTLY about 3 minutes. Shorter is better than longer.
+
+Follow the scenes of the source document in order. Do not add features or capabilities not described in it.

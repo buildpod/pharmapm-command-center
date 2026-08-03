@@ -1,20 +1,5 @@
 # Layman explainer — "the dashboard that can't flatter you"
 
-> **NotebookLM instruction (paste into Video Overview → Customize):**
-> Audience: an intelligent business person with NO project-management or pharma
-> background — someone seeing this on LinkedIn or hearing about it from a
-> friend. Tone: warm, plain-spoken, curious — like explaining to a smart friend
-> over coffee. Zero jargon: never say earned value, EVM, CPI, SPI, GxP, or
-> baseline without immediately explaining it in ordinary words. Length:
-> STRICTLY about 3 minutes. Follow the sections in order. Do not add features
-> not described here.
-
-**Derived from Set A:** A1, A2, A3, A4, A7, A9.
-**Goal:** in three minutes, a non-expert understands the problem, the idea, and
-why it's different — well enough to describe it to someone else.
-
----
-
 ## Scene 1 — A story everyone recognises (0:00–0:40)
 
 Think of any big project you've watched from the outside — a new IT system, an

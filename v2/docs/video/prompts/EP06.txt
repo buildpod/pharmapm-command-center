@@ -1,0 +1,7 @@
+Episode 6 of 10: governance registers. Make the risk / issue / decision distinction unmistakable — it is the core teaching point.
+
+Audience: delivery project managers working on regulated implementations (pharma, life sciences, validated systems). They are competent but NOT certified project-management experts. Tone: calm, practical, instructional, peer-to-peer — this is training, not marketing. No hype, no buzzwords. Explain any technical term in ordinary words the first time it appears.
+
+Length: 5 to 7 minutes.
+
+Follow the sections of the source document strictly and in the order given. Do not reorder, do not add features or capabilities that are not described in the document, and do not invent examples. The source is the script — narrate it faithfully.

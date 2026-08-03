@@ -1,17 +1,5 @@
 # Executive brief — Can you trust the plan?
 
-> **NotebookLM instruction (paste into Video Overview → Customize):**
-> Audience: executives, sponsors, and steering-committee members of regulated
-> technology programmes. They do not use the tool day-to-day; they consume its
-> outputs. Tone: composed, direct, respectful of their time — boardroom, not
-> product demo. Length: STRICTLY 2–3 minutes. Follow the narration sections in
-> order; do not add product detail beyond what is written here.
-
-**Goal:** an executive understands in under 3 minutes why status from this
-system is more trustworthy than a normal SteerCo pack — and what to ask for.
-
----
-
 ## Scene 1 — The question (0:00–0:30)
 
 Every steering committee reads a green dashboard and privately asks the same
