@@ -58,7 +58,7 @@ export function SidebarContent({ mode = "desktop", onNavigate }: { mode?: "deskt
     <>
       <div className="nav-brand">
         <div className="nav-brand__mark">A</div>
-        <div className="nav-brand__name">AivelloStudio</div>
+        <div className="nav-brand__name">PharmaPM</div>
       </div>
 
       {mode === "mobile" && (

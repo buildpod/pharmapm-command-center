@@ -46,7 +46,7 @@ function exportWorkstreamExcel(data: WorkstreamReportData) {
   const ws = data.selectedWorkstream;
 
   const summaryRows = [
-    ["AivelloStudio - Workstream Report"],
+    ["PharmaPM — Workstream Report"],
     ["Project", data.project.name],
     ["Workstream", ws],
     ["Report Date", fmtReportDate(data.reportDate)],
@@ -99,7 +99,7 @@ function exportWorkstreamExcel(data: WorkstreamReportData) {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([depHeaders, ...depRows]), "External Dependencies");
   }
 
-  XLSX.writeFile(wb, `AivelloStudio_${slugFile(data.project.code ?? data.project.name)}_${slugFile(ws)}_Report.xlsx`);
+  XLSX.writeFile(wb, `PharmaPM_${slugFile(data.project.code ?? data.project.name)}_${slugFile(ws)}_Report.xlsx`);
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -266,7 +266,7 @@ export function WorkstreamReport() {
         <div className="flex items-start justify-between border-b border-border pb-4">
           <div>
             <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-primary">AivelloStudio</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-primary">PharmaPM</span>
               <ChevronRight className="h-3 w-3 text-muted-foreground" />
               <span className="text-[10px] text-muted-foreground">Workstream Report</span>
             </div>
@@ -433,7 +433,7 @@ export function WorkstreamReport() {
         )}
 
         <div className="border-t border-border pt-3 flex items-center justify-between text-[10px] text-muted-foreground">
-          <span>AivelloStudio · {data.selectedWorkstream} Workstream Report · {fmtReportDate(data.reportDate)}</span>
+          <span>PharmaPM · {data.selectedWorkstream} Workstream Report · {fmtReportDate(data.reportDate)}</span>
           <span className="flex items-center gap-1">
             <AlertTriangle className="h-3 w-3" />
             Confidential - internal use only

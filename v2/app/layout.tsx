@@ -4,8 +4,8 @@ import "./styles/design-tokens.css";
 import "./styles/components.css";
 
 export const metadata: Metadata = {
-  title: "AivelloStudio Command Center",
-  description: "Pharma project management — powered by AivelloStudio",
+  title: "PharmaPM Command Center",
+  description: "PharmaPM — a regulated-delivery command center by AivelloStudio.",
 };
 
 export default function RootLayout({

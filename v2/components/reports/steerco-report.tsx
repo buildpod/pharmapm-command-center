@@ -65,7 +65,7 @@ function exportSteerCoExcel(data: SteerCoReportData) {
     ? `${data.budget.label} of $${data.budget.totalBudgetK}k spent`
     : data.budget.detail;
   const summaryRows = [
-    ["AivelloStudio - Steering Committee Report"],
+    ["PharmaPM — Steering Committee Report"],
     ["Project", data.project.name],
     ["Client", data.project.client],
     ["Meeting Date", data.meetingDate],
@@ -101,7 +101,7 @@ function exportSteerCoExcel(data: SteerCoReportData) {
   const riskRows = data.escalatedRisks.map((r) => [r.title, r.category, r.score, r.probability, r.impact, r.owner, r.mitigation]);
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([riskHeaders, ...riskRows]), "Escalated Risks");
 
-  XLSX.writeFile(wb, `AivelloStudio_SteerCo_${slugFile(data.project.code ?? data.project.name)}.xlsx`);
+  XLSX.writeFile(wb, `PharmaPM_SteerCo_${slugFile(data.project.code ?? data.project.name)}.xlsx`);
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -161,7 +161,7 @@ export function SteerCoReport() {
         <div className="flex items-start justify-between border-b border-border pb-4">
           <div>
             <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-primary">AivelloStudio</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-primary">PharmaPM</span>
               <ChevronRight className="h-3 w-3 text-muted-foreground" />
               <span className="text-[10px] text-muted-foreground">Steering Committee Report</span>
             </div>
@@ -361,7 +361,7 @@ export function SteerCoReport() {
         </div>
 
         <div className="border-t border-border pt-3 flex items-center justify-between text-[10px] text-muted-foreground">
-          <span>AivelloStudio · Steering Committee Report · {data.meetingDate}</span>
+          <span>PharmaPM · Steering Committee Report · {data.meetingDate}</span>
           <span className="flex items-center gap-1">
             <AlertTriangle className="h-3 w-3" />
             Strictly Confidential - Steering Committee Use Only
